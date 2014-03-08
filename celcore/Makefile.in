@@ -1,0 +1,59 @@
+# CEL: The Compact Embeddable Language.
+# Copyright (c) 2014 Felicity Tarnell.
+#
+# Permission is granted to anyone to use this software for any purpose,
+# including commercial applications, and to alter it and redistribute it
+# freely. This software is provided 'as-is', without any express or implied
+# warranty.
+
+.SUFFIXES: .c .o .d .h
+
+VPATH		= @top_srcdir@/celcore
+
+CC		= @CC@
+MAKEDEPEND	= @CC@ -M
+CPPFLAGS	= @CPPFLAGS@ -D_XOPEN_SOURCE_EXTENDED
+CFLAGS		= @CFLAGS@ -I@top_srcdir@/include -I@top_builddir@
+LDFLAGS		= @LDFLAGS@
+LIBS		= @LIBS@
+INSTALL		= @INSTALL@
+
+OBJS		= tokens.o
+
+prefix		= @prefix@
+exec_prefix	= @exec_prefix@
+bindir		= @bindir@
+libdir		= @libdir@
+
+all: libcelcore.a
+
+libcelcore.a: ${OBJS}
+	ar r libcelcore.a ${OBJS}
+	ranlib libcelcore.a
+
+install:
+	${INSTALL} -d -m 0755 ${libdir}
+	${INSTALL} -c -m 0755 libcelcore.a ${libdir}
+
+.c.o:
+	${CC} ${CPPFLAGS} ${CFLAGS} -c $<
+
+.c.d:
+	$(MAKEDEPEND) $(CPPFLAGS) $(CFLAGS) $< -o $@
+
+vers.c: vers.c.sh configure.ac
+	sh @top_srcdir@/vers.c.sh @top_srcdir@/configure.ac
+
+clean:
+	rm -f libcelcore.a ${OBJS} $(OBJS:.o=.d) 
+
+depend: $(OBJS:.o=.d)
+	sed '/^# Do not remove this line -- make depend needs it/,$$ d' \
+		<Makefile >Makefile.new
+	echo '# Do not remove this line -- make depend needs it' >>Makefile.new
+	cat *.d >> Makefile.new
+	mv Makefile.new Makefile
+
+.PHONY: depend clean install 
+
+# Do not remove this line -- make depend needs it
