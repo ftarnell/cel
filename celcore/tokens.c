@@ -8,6 +8,7 @@
  * warranty.
  */
 
+#include	<string.h>
 #include	<stdlib.h>
 #include	<wchar.h>
 #include	<wctype.h>
@@ -25,11 +26,20 @@
 			L"$"
 
 int
-cel_next_token(str, ret)
-	wchar_t const	*str;
+cel_lexer_init(lex, buf)
+	cel_lexer_t	*lex;
+	wchar_t const	*buf;
+{
+	memset(lex, 0, sizeof(*lex));
+	lex->cl_buf = lex->cl_bufp = buf;
+	return 0;
+}
+
+int
+cel_next_token(lex, ret)
+	cel_lexer_t	*lex;
 	cel_token_t	*ret;
 {
-int	skip = 0;
 size_t	i;
 struct {
 	wchar_t const	*token;
@@ -43,26 +53,36 @@ struct {
 	{ L"string",	T_STRING	}
 };
 
-
 /* Skip whitespace */
-	while (iswspace(*str))
-		str++, skip++;
+	while (iswspace(*lex->cl_bufp)) {
+		lex->cl_bufp++;
+
+		if (*lex->cl_bufp == '\n') {
+			lex->cl_lineno++;
+			lex->cl_col = 0;
+		} else {
+			lex->cl_col++;
+		}
+	}
 
 /* EOT */
-	if (!*str) {
+	if (!*lex->cl_bufp) {
 		ret->ct_literal = wcsdup(L"<end-of-file>");
-		return ret->ct_token = T_EOT;
+		ret->ct_token = T_EOT;
+		return 0;
 	}
 
 #define	TR(s,t,l)	do {					\
 				ret->ct_literal = wcsdup((s));	\
 				ret->ct_token = (t);		\
-				return skip + l;		\
+				lex->cl_bufp += l;		\
+				lex->cl_col += l;		\
+				return 0;			\
 			} while (0)
 #define	TK(c,s,t)	case c: TR((s),(t),1)
 
 /* Trivial one- and two-character tokens */
-	switch (*str) {
+	switch (*lex->cl_bufp) {
 	TK('{', L"{", T_LCUR);
 	TK('}', L"}", T_RCUR);
 	TK('(', L"(", T_LPAR);
@@ -77,25 +97,25 @@ struct {
 	TK('/', L"/", T_SLASH);
 
 	case ':':
-		if (str[1] == '=')
+		if (lex->cl_bufp[1] == '=')
 			TR(L":=", T_ASSIGN, 2);
 		TR(L":", T_COLON, 1);
 		break;
 
 	case '<':
-		if (str[1] == '=')
+		if (lex->cl_bufp[1] == '=')
 			TR(L"<=", T_LE, 2);
 		TR(L"<", T_LT, 2);
 		break;
 
 	case '>':
-		if (str[1] == '=')
+		if (lex->cl_bufp[1] == '=')
 			TR(L">=", T_GE, 2);
 		TR(L">", T_GT, 1);
 		break;
 
 	case '-':
-		if (str[1] == '>')
+		if (lex->cl_bufp[1] == '>')
 			TR(L"->", T_ARROW, 2);
 		TR(L"-", T_MINUS, 1);
 		break;
@@ -103,41 +123,45 @@ struct {
 
 /* Identifiers and keywords */
 
-	if (wcschr(ID_STARTCHARS, str[0])) {
+	if (wcschr(ID_STARTCHARS, lex->cl_bufp[0])) {
 	size_t	span;
-		span = wcsspn(str + 1, ID_CHARS);
+		span = wcsspn(lex->cl_bufp + 1, ID_CHARS);
 
 		ret->ct_literal = calloc(sizeof(wchar_t), span + 2);
 		ret->ct_token = T_ID;
-		wmemcpy(ret->ct_literal, str, span + 1);
+		wmemcpy(ret->ct_literal, lex->cl_bufp, span + 1);
 
 		/* Check if it's a keyword */
 		for (i = 0; i < sizeof(keywords) / sizeof(*keywords); i++)
 			if (wcscmp(ret->ct_literal, keywords[i].token) == 0)
 				ret->ct_token = keywords[i].value;
 
-		return skip + span + 1;
+		lex->cl_bufp += span + 1;
+		lex->cl_col += span + 1;
+		return 0;
 	}
 
 /* Numeric literals */
 
-	if (wcschr(L"0123456789", str[0])) {
+	if (wcschr(L"0123456789", lex->cl_bufp[0])) {
 	size_t	span;
-		span = wcsspn(str + 1, L"0123456789");
+		span = wcsspn(lex->cl_bufp + 1, L"0123456789");
 
 		ret->ct_literal = calloc(sizeof(wchar_t), span + 2);
 		ret->ct_token = T_LIT_INT;
-		wmemcpy(ret->ct_literal, str, span + 1);
-		return skip + span + 1;
+		wmemcpy(ret->ct_literal, lex->cl_bufp, span + 1);
+		lex->cl_bufp += span + 1;
+		lex->cl_col += span + 1;
+		return 0;
 	}
 
 /* String literals */
-	if (str[0] == '"') {
+	if (lex->cl_bufp[0] == '"') {
 	size_t	span;
 	int	bsl = 0;
 
 		for (span = 1; ; span++) {
-			if (!str[span])
+			if (!lex->cl_bufp[span])
 				return T_ERR;
 
 			if (bsl) {
@@ -147,16 +171,18 @@ struct {
 
 			bsl = 0;
 
-			if (str[span] == '\\') {
+			if (lex->cl_bufp[span] == '\\') {
 				bsl = 1;
 				continue;
 			}
 
-			if (str[span] == '"') {
+			if (lex->cl_bufp[span] == '"') {
 				ret->ct_literal = calloc(sizeof(wchar_t), span + 2);
 				ret->ct_token = T_LIT_STR;
-				wmemcpy(ret->ct_literal, str, span + 1);
-				return skip + span + 1;
+				wmemcpy(ret->ct_literal, lex->cl_bufp, span + 1);
+				lex->cl_bufp += span + 1;
+				lex->cl_col += span + 1;
+				return 0;
 			}
 		}
 	}

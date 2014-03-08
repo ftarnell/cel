@@ -45,11 +45,20 @@
 #define	T_SLASH		31	/* /  */
 #define	T_ARROW		32	/* -> */
 
+typedef struct cel_lexer {
+	wchar_t const	*cl_buf;
+	wchar_t const	*cl_bufp;
+	int		 cl_lineno;
+	int		 cl_col;
+} cel_lexer_t;
+
+int	cel_lexer_init(cel_lexer_t *, wchar_t const *);
+
 typedef struct cel_token {
 	int	 ct_token;
 	wchar_t	*ct_literal;
 } cel_token_t;
 
-int cel_next_token(wchar_t const *, cel_token_t *ret);
+int cel_next_token(cel_lexer_t *, cel_token_t *ret);
 
 #endif	/* !CEL_TOKENS_H */

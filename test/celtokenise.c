@@ -23,6 +23,7 @@ char	 line[1024];
 size_t	 buflen = 0;
 wchar_t	*buf = NULL, *bufp;
 
+cel_lexer_t	lex;
 cel_token_t	tok;
 int		skip;
 
@@ -39,25 +40,28 @@ int		skip;
 	while (fgets(line, sizeof(line), inf)) {
 	wchar_t	wline[1024];
 		mbstowcs(wline, line, sizeof(wline) / sizeof(wchar_t) - 1);
-
-		bufp = wline;
-		while ((skip = cel_next_token(bufp, &tok)) != T_ERR) {
-			bufp += skip;
-
-			if (tok.ct_token == T_EOT)
-				break;
-
-			fwprintf(stderr, L"<%ls> ", tok.ct_literal);
-		}
-
-		if (skip == T_ERR) {
-			fprintf(stderr, "\n%s: parse error at ...%ls\n", argv[1], bufp);
-			return 1;
-		}
-
-		printf("\n");
+		buf = realloc(buf, sizeof(wchar_t) * (buflen + wcslen(wline)) + 1);
+		wcscpy(buf + buflen, wline);
+		*(buf + buflen + wcslen(wline)) = '\0';
+		buflen += wcslen(wline);
 	}
 
 	fclose(inf);
+
+	if (cel_lexer_init(&lex, buf) != 0) {
+		fprintf(stderr, "%s: cannot init lexer\n", argv[1]);
+		return 1;
+	}
+
+	while (cel_next_token(&lex, &tok) != T_ERR) {
+		if (tok.ct_token == T_EOT)
+			return 0;
+
+		fwprintf(stderr, L"[%ls]:%d\n",
+			 tok.ct_literal,
+			 tok.ct_token);
+	}
+
+	fprintf(stderr, "%s: parse error\n", argv[1]);
 	return 1;
 }
