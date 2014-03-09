@@ -72,8 +72,7 @@ cel_parse(par)
 		if (EXPECT(T_EOT))
 			return 0;
 
-		if (cel_parse_var(par) == 0 ||
-		    cel_parse_typedef(par) == 0 ||
+		if (cel_parse_typedef(par) == 0 ||
 		    cel_parse_expr(par) == 0) {
 			if (!ACCEPT(T_SEMI))
 				ERROR(L"expected ';'");
@@ -267,9 +266,7 @@ cel_parse_stmt(par)
  * handled as a special type of statement; we return '2' to distinguish
  * that, as it relates to parsing rather than semantics.
  */
-	if (cel_parse_var(par) == 0 ||
-	    cel_parse_func(par) == 0 ||
-	    cel_parse_expr(par) == 0) {
+	if (cel_parse_expr(par) == 0) {
 		if (!ACCEPT(T_SEMI))
 			ERROR(L"expected ';'");
 		return 0;
@@ -503,6 +500,10 @@ int cel_parse_expr_value(par)
 
 /* Function definition */
 	if (cel_parse_func(par) == 0)
+		return 0;
+
+/* Variable definition */
+	if (cel_parse_var(par) == 0)
 		return 0;
 
 	return -1;
