@@ -73,7 +73,6 @@ cel_parse(par)
 			return 0;
 
 		if (cel_parse_var(par) == 0 ||
-		    cel_parse_func(par) == 0 ||
 		    cel_parse_typedef(par) == 0 ||
 		    cel_parse_expr(par) == 0) {
 			if (!ACCEPT(T_SEMI))
@@ -252,7 +251,7 @@ cel_parse_func(par)
 		/* ... */;
 
 	if (!ACCEPT(T_END))
-		ERROR(L"expected statement or 'end'");
+		return -1;
 
 	return 0;
 }
@@ -276,7 +275,7 @@ cel_parse_stmt(par)
 		return 0;
 	}
 
-	ERROR(L"expected statement");
+	return -1;
 }
 
 int
@@ -501,6 +500,10 @@ int cel_parse_expr_value(par)
 			return -1;
 		return 0;
 	}
+
+/* Function definition */
+	if (cel_parse_func(par) == 0)
+		return 0;
 
 	return -1;
 }

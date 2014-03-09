@@ -27,7 +27,9 @@ type integer : int;
 var aglobal : integer;
 
 "A function.  Format is: func f : (arglist) -> return type";
-func main : (argc : int, argv : []string) -> int
+
+var f : int;
+f := func main : (argc : int, argv : []string) -> int
 begin
 	var a, b, res : int;
 
