@@ -14,16 +14,9 @@
 #include	"celcore/parse.h"
 #include	"celcore/tokens.h"
 
-#define	GET_TOKEN							\
-	do {								\
-		if ((cel_next_token(par->cp_lex, &par->cp_tok) != 0)) {	\
-			par->cp_error = wcsdup(L"lexer failure");	\
-			return -1;					\
-		}							\
-	} while (0)
-
 #define	EXPECT(t)	(par->cp_tok.ct_token == (t))
 #define	CONSUME()	cel_next_token(par->cp_lex, &par->cp_tok)
+#define	ACCEPT(t)	(EXPECT((t)) ? (CONSUME(), 1) : 0)
 
 #define	ERROR(m)							\
 	do {								\
@@ -73,24 +66,21 @@ cel_parse(par)
  * functions, typedefs or variables.
  */
 
-	for (;;) {
-		GET_TOKEN;
+	CONSUME();
 
-		if (par->cp_tok.ct_token == T_EOT)
+	for (;;) {
+		if (EXPECT(T_EOT))
 			return 0;
 
 		if (cel_parse_var(par) == 0 ||
 		    cel_parse_func(par) == 0 ||
 		    cel_parse_typedef(par) == 0 ||
 		    cel_parse_expr(par) == 0) {
-			if (par->cp_tok.ct_token != T_SEMI) {
+			if (!ACCEPT(T_SEMI))
 				ERROR(L"expected ';'");
-				return -1;
-			}
 			continue;
 		}
 
-		ERROR(L"expected statement");
 		return -1;
 	}
 
@@ -108,25 +98,19 @@ cel_parse_typedef(par)
  *	type b, c : string[];
  */
 
-	if (par->cp_tok.ct_token != T_TYPE)
-		ERROR(L"expected type definition");
+	if (!ACCEPT(T_TYPE))
+		return -1;
 
 /* Identifier list, colon */
 	for (;;) {
-		GET_TOKEN;
-
-		if (par->cp_tok.ct_token != T_ID)
+		if (!ACCEPT(T_ID))
 			ERROR(L"expected identifier");
 
-		GET_TOKEN;
-
-		if (par->cp_tok.ct_token == T_COMMA)
+		if (ACCEPT(T_COMMA))
 			continue;
 
-		if (par->cp_tok.ct_token == T_COLON) {
-			GET_TOKEN;
+		if (ACCEPT(T_COLON))
 			break;
-		}
 
 		ERROR(L"expected ',' or ';'");
 	}
@@ -151,25 +135,20 @@ cel_parse_var(par)
  *	var b, c : string[];
  */
 
-	if (par->cp_tok.ct_token != T_VAR)
-		ERROR(L"expected variable definition");
+	if (!EXPECT(T_VAR))
+		return -1;
+	CONSUME();
 
 /* Identifier list, colon */
 	for (;;) {
-		GET_TOKEN;
-
-		if (par->cp_tok.ct_token != T_ID)
+		if (!ACCEPT(T_ID))
 			ERROR(L"expected identifier");
 
-		GET_TOKEN;
-
-		if (par->cp_tok.ct_token == T_COMMA)
+		if (ACCEPT(T_COMMA))
 			continue;
 
-		if (par->cp_tok.ct_token == T_COLON) {
-			GET_TOKEN;
+		if (ACCEPT(T_COLON))
 			break;
-		}
 
 		ERROR(L"expected ',' or ':'");
 	}
@@ -193,20 +172,14 @@ cel_parse_type(par)
  */
 
 /* Optional array specifier */
-	if (par->cp_tok.ct_token == T_LSQ) {
-		GET_TOKEN;
-
-		if (par->cp_tok.ct_token != T_RSQ)
+	if (ACCEPT(T_LSQ)) {
+		if (!ACCEPT(T_RSQ))
 			ERROR(L"expected ']'");
-
-		GET_TOKEN;
 	}
 
 /* Identifier */
-	if (par->cp_tok.ct_token != T_ID)
+	if (!ACCEPT(T_ID))
 		ERROR(L"expected identifier");
-
-	GET_TOKEN;
 	return 0;
 }
 
@@ -222,84 +195,64 @@ cel_parse_func(par)
  * comma-separated "identifier : type" pairs, a ')', a '->' and a type.
  */
 
-	if (par->cp_tok.ct_token != T_FUNC)
+	if (!ACCEPT(T_FUNC))
 		ERROR(L"expected function definition");
 
 /* Identifier (function name) */
-	GET_TOKEN;
-
-	if (par->cp_tok.ct_token != T_ID)
+	if (!ACCEPT(T_ID))
 		ERROR(L"expected identifier");
 
 /* Colon */
-	GET_TOKEN;
-
-	if (par->cp_tok.ct_token != T_COLON)
+	if (!ACCEPT(T_COLON))
 		ERROR(L"expected ':'");
 
 /* Opening bracket */
-	GET_TOKEN;
-
-	if (par->cp_tok.ct_token != T_LPAR)
+	if (!ACCEPT(T_LPAR))
 		ERROR(L"expected ')'");
 
 /* Argument list */
 	for (;;) {
 	/* Argument name */
-		GET_TOKEN;
-
-		if (par->cp_tok.ct_token != T_ID)
+		if (!ACCEPT(T_ID))
 			ERROR(L"expected identifier");
 
 	/* Colon */
-		GET_TOKEN;
-
-		if (par->cp_tok.ct_token != T_COLON)
+		if (!ACCEPT(T_COLON))
 			ERROR(L"expected ':'");
 
 	/* Type */
-		GET_TOKEN;
-
 		if (cel_parse_type(par) != 0)
 			ERROR(L"expected type name");
 
 	/* ')' or ',' */
-		if (par->cp_tok.ct_token == T_RPAR)
+		if (ACCEPT(T_RPAR))
 			break;
-		if (par->cp_tok.ct_token == T_COMMA)
+		if (ACCEPT(T_COMMA))
 			continue;
 
 		ERROR(L"expected ',' or ')'");
 	}
 
 /* -> */
-	GET_TOKEN;
-
-	if (par->cp_tok.ct_token != T_ARROW)
+	if (!ACCEPT(T_ARROW))
 		ERROR(L"expected '->'");
-
-	GET_TOKEN;
 
 /* Return type */
 	if (cel_parse_type(par) != 0)
 		ERROR(L"expected type name");
 
 /* Begin */
-	if (par->cp_tok.ct_token != T_BEGIN)
+	if (!ACCEPT(T_BEGIN))
 		ERROR(L"expected 'begin'");
 
 /*
  * List of statements.
  */
-	GET_TOKEN;
-
 	while (cel_parse_stmt(par) == 0)
 		/* ... */;
 
-	if (par->cp_tok.ct_token != T_END)
+	if (!ACCEPT(T_END))
 		ERROR(L"expected statement or 'end'");
-
-	GET_TOKEN;
 
 	return 0;
 }
@@ -318,9 +271,8 @@ cel_parse_stmt(par)
 	if (cel_parse_var(par) == 0 ||
 	    cel_parse_func(par) == 0 ||
 	    cel_parse_expr(par) == 0) {
-		if (!EXPECT(T_SEMI))
+		if (!ACCEPT(T_SEMI))
 			ERROR(L"expected ';'");
-		CONSUME();
 		return 0;
 	}
 
@@ -342,9 +294,7 @@ cel_parse_expr_assign(par)
 	if (cel_parse_expr_or(par) != 0)
 		return -1;
 
-	while (EXPECT(T_ASSIGN)) {
-		CONSUME();
-
+	while (ACCEPT(T_ASSIGN)) {
 		if (cel_parse_expr_assign(par) != 0)
 			return -1;
 	}
@@ -360,9 +310,7 @@ cel_parse_expr_or(par)
 	if (cel_parse_expr_and(par) != 0)
 		return -1;
 
-	while (EXPECT(T_OR)) {
-		CONSUME();
-
+	while (ACCEPT(T_OR)) {
 		if (cel_parse_expr_and(par) != 0)
 			return -1;
 	}
@@ -378,9 +326,7 @@ cel_parse_expr_and(par)
 	if (cel_parse_expr_xor(par) != 0)
 		return -1;
 
-	while (EXPECT(T_AND)) {
-		CONSUME();
-
+	while (ACCEPT(T_AND)) {
 		if (cel_parse_expr_xor(par) != 0)
 			return -1;
 	}
@@ -396,9 +342,7 @@ cel_parse_expr_xor(par)
 	if (cel_parse_expr_eq1(par) != 0)
 		return -1;
 
-	while (EXPECT(T_CARET)) {
-		CONSUME();
-
+	while (ACCEPT(T_CARET)) {
 		if (cel_parse_expr_eq1(par) != 0)
 			return -1;
 	}
@@ -414,11 +358,11 @@ cel_parse_expr_eq1(par)
 	if (cel_parse_expr_eq2(par) != 0)
 		return -1;
 	
-	while (EXPECT(T_EQ) || EXPECT(T_NEQ)) {
-		CONSUME();
-
-		if (cel_parse_expr_eq2(par) != 0)
+	while (ACCEPT(T_EQ) || ACCEPT(T_NEQ)) {
+		if (cel_parse_expr_eq2(par) != 0) {
+			ERROR(L"expected expression");
 			return -1;
+		}
 	}
 
 	return 0;
@@ -432,11 +376,11 @@ cel_parse_expr_eq2(par)
 	if (cel_parse_expr_plus(par) != 0)
 		return -1;
 
-	while (EXPECT(T_GT) || EXPECT(T_GE) || EXPECT(T_LT) || EXPECT(T_LE)) {
-		CONSUME();
-
-		if (cel_parse_expr_plus(par) != 0)
+	while (ACCEPT(T_GT) || ACCEPT(T_GE) || ACCEPT(T_LT) || ACCEPT(T_LE)) {
+		if (cel_parse_expr_plus(par) != 0) {
+			ERROR(L"expected expression");
 			return -1;
+		}
 	}
 
 	return 0;
@@ -450,11 +394,11 @@ cel_parse_expr_plus(par)
 	if (cel_parse_expr_mult(par) != 0)
 		return -1;
 
-	while (EXPECT(T_PLUS) || EXPECT(T_MINUS)) {
-		CONSUME();
-
-		if (cel_parse_expr_mult(par) != 0)
+	while (ACCEPT(T_PLUS) || ACCEPT(T_MINUS)) {
+		if (cel_parse_expr_mult(par) != 0) {
+			ERROR(L"expected expression");
 			return -1;
+		}
 	}
 
 	return 0;
@@ -468,11 +412,11 @@ cel_parse_expr_mult(par)
 	if (cel_parse_expr_unary(par) != 0)
 		return -1;
 
-	while (EXPECT(T_STAR) || EXPECT(T_SLASH) || EXPECT(T_PERCENT)) {
-		CONSUME();
-
-		if (cel_parse_expr_unary(par) != 0)
+	while (ACCEPT(T_STAR) || ACCEPT(T_SLASH) || ACCEPT(T_PERCENT)) {
+		if (cel_parse_expr_unary(par) != 0) {
+			ERROR(L"expected expression");
 			return -1;
+		}
 	}
 
 	return 0;
@@ -484,16 +428,16 @@ cel_parse_expr_unary(par)
 {
 /* expr_unary  --> expr_post  | "-" expr_unary | "!" expr_unary */
 
-	if (EXPECT(T_MINUS)) {
-		CONSUME();
-
-		if (cel_parse_expr_unary(par) != 0)
+	if (ACCEPT(T_MINUS)) {
+		if (cel_parse_expr_unary(par) != 0) {
+			ERROR(L"expected expression");
 			return -1;
-	} else if (EXPECT(T_NEGATE)) {
-		CONSUME();
-
-		if (cel_parse_expr_unary(par) != 0)
+		}
+	} else if (ACCEPT(T_NEGATE)) {
+		if (cel_parse_expr_unary(par) != 0) {
+			ERROR(L"expected expression");
 			return -1;
+		}
 	} else {
 		if (cel_parse_expr_post(par) != 0)
 			return -1;
@@ -512,28 +456,23 @@ cel_parse_expr_post(par)
 		return -1;
 
 /* Function call */
-	if (EXPECT(T_LPAR)) {
-		CONSUME();
-
+	if (ACCEPT(T_LPAR)) {
 		if (cel_parse_arglist(par) != 0)
 			return -1;
 
-		if (!EXPECT(T_RPAR))
+		if (!ACCEPT(T_RPAR))
 			ERROR(L"expected ')'");
-
-		CONSUME();
 	}
 
 /* Array dereference */
-	else if (EXPECT(T_LSQ)) {
-		CONSUME();
-
-		if (cel_parse_expr(par) != 0)
+	else if (ACCEPT(T_LSQ)) {
+		if (cel_parse_expr(par) != 0) {
+			ERROR(L"expected expression");
 			return -1;
+		}
 
-		if (!EXPECT(T_RSQ))
+		if (!ACCEPT(T_RSQ))
 			ERROR(L"expected ']'");
-		CONSUME();
 	}
 
 	return 0;
@@ -547,22 +486,17 @@ int cel_parse_expr_value(par)
 	if (cel_parse_value(par) == 0)
 		return 0;
 
-	if (EXPECT(T_LPAR)) {
-		CONSUME();
-
+	if (ACCEPT(T_LPAR)) {
 		if (cel_parse_expr(par) != 0)
 			ERROR(L"expected expression");
 
-		if (!EXPECT(T_RPAR))
+		if (!ACCEPT(T_RPAR))
 			ERROR(L"expected ')'");
-
-		CONSUME();
 		return 0;
 	}
 
 /* if expression */
-	if (EXPECT(T_IF)) {
-		CONSUME();
+	if (ACCEPT(T_IF)) {
 		if (cel_parse_if(par) != 0)
 			return -1;
 		return 0;
@@ -575,25 +509,17 @@ int
 cel_parse_value(par)
 	cel_parser_t	*par;
 {
-	if (EXPECT(T_ID)) {
-		CONSUME();
+	if (ACCEPT(T_ID))
 		return 0;
-	}
 
-	if (EXPECT(T_LIT_INT)) {
-		CONSUME();
+	if (ACCEPT(T_LIT_INT))
 		return 0;
-	}
 
-	if (EXPECT(T_LIT_STR)) {
-		CONSUME();
+	if (ACCEPT(T_LIT_STR))
 		return 0;
-	}
 
-	if (EXPECT(T_LIT_BOOL)) {
-		CONSUME();
+	if (ACCEPT(T_LIT_BOOL))
 		return 0;
-	}
 
 	return -1;
 }
@@ -608,10 +534,8 @@ cel_parse_arglist(par)
  */
 
 	while (cel_parse_expr(par) == 0) {
-		if (EXPECT(T_COMMA)) {
-			CONSUME();
+		if (ACCEPT(T_COMMA))
 			continue;
-		}
 	}
 
 	return 0;
@@ -632,36 +556,27 @@ cel_parse_if(par)
 		ERROR(L"expected expression");
 
 /* 'then' */
-	if (!EXPECT(T_THEN))
+	if (!ACCEPT(T_THEN))
 		ERROR(L"expected 'then'");
-	CONSUME();
 
 /* list of statements */
 	for (;;) {
-		while (cel_parse_stmt(par) == 0) {
-		}
+		while (cel_parse_stmt(par) == 0)
+			/* ... */
 			
-		if (EXPECT(T_ELIF)) {
-			CONSUME();
-
+		if (ACCEPT(T_ELIF)) {
 			if (cel_parse_expr(par) != 0)
 				ERROR(L"expected expression");
-			if (!EXPECT(T_THEN))
+			if (!ACCEPT(T_THEN))
 				ERROR(L"expected 'then'");
-
-			CONSUME();
 			continue;
 		}
 
-		if (EXPECT(T_ELSE)) {
-			CONSUME();
+		if (ACCEPT(T_ELSE))
 			continue;
-		}
 
-		if (EXPECT(T_END)) {
-			CONSUME();
+		if (ACCEPT(T_END))
 			return 0;
-		}
 
 		ERROR(L"expected statement, 'end', 'else' or 'elif'");
 	}
