@@ -52,6 +52,10 @@ struct {
 	{ L"type",	T_TYPE		},
 	{ L"begin",	T_BEGIN		},
 	{ L"end",	T_END		},
+	{ L"if",	T_IF		},
+	{ L"elif",	T_ELIF		},
+	{ L"else",	T_ELSE		},
+	{ L"then",	T_THEN		}
 };
 
 /* Skip whitespace */

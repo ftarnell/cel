@@ -21,7 +21,7 @@ typedef struct cel_parser {
 	cel_token_t	 cp_err_token;
 
 	/* Error message from failed parse */
-	wchar_t const	*cp_error;
+	wchar_t		*cp_error;
 
 	/* Current token (private) */
 	cel_token_t	 cp_tok;
@@ -36,5 +36,8 @@ int	cel_parse_typedef(cel_parser_t *);
 int	cel_parse_type(cel_parser_t *);
 int	cel_parse_stmt(cel_parser_t *);
 int	cel_parse_expr(cel_parser_t *);
+int	cel_parse_value(cel_parser_t *);
+int	cel_parse_arglist(cel_parser_t *);
+int	cel_parse_if(cel_parser_t *);
 
 #endif	/* !CEL_PARSE_H */

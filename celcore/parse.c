@@ -14,6 +14,22 @@
 #include	"celcore/parse.h"
 #include	"celcore/tokens.h"
 
+#define	GET_TOKEN							\
+	do {								\
+		if ((cel_next_token(par->cp_lex, &par->cp_tok) != 0)) {	\
+			par->cp_error = wcsdup(L"lexer failure");	\
+			return -1;					\
+		}							\
+	} while (0)
+
+#define	ERROR(m)							\
+	do {								\
+		free(par->cp_error);					\
+		par->cp_error = wcsdup((m));				\
+		par->cp_err_token = par->cp_tok;			\
+		return -1;						\
+	} while (0)
+
 int
 cel_parser_init(par, lex)
 	cel_parser_t	*par;
@@ -34,36 +50,26 @@ cel_parse(par)
  */
 
 	for (;;) {
-		if (cel_next_token(par->cp_lex, &par->cp_tok) != 0) {
-			par->cp_error = wcsdup(L"lexer failure");
-			return -1;
-		}
+		GET_TOKEN;
 
-		switch (par->cp_tok.ct_token) {
-		case T_FUNC:
-			if (cel_parse_func(par) != 0)
-				return -1;
-			break;
-
-		case T_VAR:
-			if (cel_parse_var(par) != 0)
-				return -1;
-			break;
-
-		case T_TYPE:
-			if (cel_parse_typedef(par) != 0)
-				return -1;
-			break;
-
-		case T_EOT:
+		if (par->cp_tok.ct_token == T_EOT)
 			return 0;
 
-		default:
-			par->cp_error = wcsdup(L"expected function, variable or type definition");
-			par->cp_err_token = par->cp_tok;
-			return -1;
+		if (cel_parse_var(par) == 0 ||
+		    cel_parse_func(par) == 0 ||
+		    cel_parse_typedef(par) == 0 ||
+		    cel_parse_expr(par) == 0) {
+			if (par->cp_tok.ct_token != T_SEMI) {
+				ERROR(L"expected ';'");
+				return -1;
+			}
+			continue;
 		}
+
+		ERROR(L"expected statement");
+		return -1;
 	}
+
 }
 
 int
@@ -78,50 +84,32 @@ cel_parse_typedef(par)
  *	type b, c : string[];
  */
 
+	if (par->cp_tok.ct_token != T_TYPE)
+		ERROR(L"expected type definition");
+
 /* Identifier list, colon */
 	for (;;) {
-		if (cel_next_token(par->cp_lex, &par->cp_tok) != 0) {
-			par->cp_error = wcsdup(L"lexer failure");
-			return -1;
-		}
+		GET_TOKEN;
 
-		if (par->cp_tok.ct_token != T_ID) {
-			par->cp_error = wcsdup(L"expected identifier");
-			par->cp_err_token = par->cp_tok;
-			return -1;
-		}
+		if (par->cp_tok.ct_token != T_ID)
+			ERROR(L"expected identifier");
 
-		if (cel_next_token(par->cp_lex, &par->cp_tok) != 0) {
-			par->cp_error = wcsdup(L"lexer failure");
-			return -1;
-		}
+		GET_TOKEN;
 
 		if (par->cp_tok.ct_token == T_COMMA)
 			continue;
 
-		if (par->cp_tok.ct_token == T_COLON)
+		if (par->cp_tok.ct_token == T_COLON) {
+			GET_TOKEN;
 			break;
+		}
 
-		par->cp_error = wcsdup(L"expected ',' or ':'");
-		par->cp_err_token = par->cp_tok;
-		return -1;
+		ERROR(L"expected ',' or ';'");
 	}
 
 /* Type */
 	if (cel_parse_type(par) != 0)
-		return -1;
-
-/* Semicolon */
-	if (cel_next_token(par->cp_lex, &par->cp_tok) != 0) {
-		par->cp_error = wcsdup(L"lexer failure");
-		return -1;
-	}
-
-	if (par->cp_tok.ct_token != T_SEMI) {
-		par->cp_error = wcsdup(L"expected ';'");
-		par->cp_err_token = par->cp_tok;
-		return -1;
-	}
+		ERROR(L"expected type name");
 
 /* Done - successful parse */
 	return 0;
@@ -139,50 +127,32 @@ cel_parse_var(par)
  *	var b, c : string[];
  */
 
+	if (par->cp_tok.ct_token != T_VAR)
+		ERROR(L"expected variable definition");
+
 /* Identifier list, colon */
 	for (;;) {
-		if (cel_next_token(par->cp_lex, &par->cp_tok) != 0) {
-			par->cp_error = wcsdup(L"lexer failure");
-			return -1;
-		}
+		GET_TOKEN;
 
-		if (par->cp_tok.ct_token != T_ID) {
-			par->cp_error = wcsdup(L"expected identifier");
-			par->cp_err_token = par->cp_tok;
-			return -1;
-		}
+		if (par->cp_tok.ct_token != T_ID)
+			ERROR(L"expected identifier");
 
-		if (cel_next_token(par->cp_lex, &par->cp_tok) != 0) {
-			par->cp_error = wcsdup(L"lexer failure");
-			return -1;
-		}
+		GET_TOKEN;
 
 		if (par->cp_tok.ct_token == T_COMMA)
 			continue;
 
-		if (par->cp_tok.ct_token == T_COLON)
+		if (par->cp_tok.ct_token == T_COLON) {
+			GET_TOKEN;
 			break;
+		}
 
-		par->cp_error = wcsdup(L"expected ',' or ':'");
-		par->cp_err_token = par->cp_tok;
-		return -1;
+		ERROR(L"expected ',' or ':'");
 	}
 
 /* Type */
 	if (cel_parse_type(par) != 0)
-		return -1;
-
-/* Semicolon */
-	if (cel_next_token(par->cp_lex, &par->cp_tok) != 0) {
-		par->cp_error = wcsdup(L"lexer failure");
-		return -1;
-	}
-
-	if (par->cp_tok.ct_token != T_SEMI) {
-		par->cp_error = wcsdup(L"expected ';'");
-		par->cp_err_token = par->cp_tok;
-		return -1;
-	}
+		ERROR(L"expected type name");
 
 /* Done - successful parse */
 	return 0;
@@ -198,37 +168,21 @@ cel_parse_type(par)
  * the type name is valid;
  */
 
-	if (cel_next_token(par->cp_lex, &par->cp_tok) != 0) {
-		par->cp_error = wcsdup(L"lexer failure");
-		return -1;
-	}
-
 /* Optional array specifier */
 	if (par->cp_tok.ct_token == T_LSQ) {
-		if (cel_next_token(par->cp_lex, &par->cp_tok) != 0) {
-			par->cp_error = wcsdup(L"lexer failure");
-			return -1;
-		}
+		GET_TOKEN;
 
-		if (par->cp_tok.ct_token != T_RSQ) {
-			par->cp_error = wcsdup(L"expected ']'");
-			par->cp_err_token = par->cp_tok;
-			return -1;
-		}
+		if (par->cp_tok.ct_token != T_RSQ)
+			ERROR(L"expected ']'");
 
-		if (cel_next_token(par->cp_lex, &par->cp_tok) != 0) {
-			par->cp_error = wcsdup(L"lexer failure");
-			return -1;
-		}
+		GET_TOKEN;
 	}
 
 /* Identifier */
-	if (par->cp_tok.ct_token != T_ID) {
-		par->cp_error = wcsdup(L"expected identifier");
-		par->cp_err_token = par->cp_tok;
-		return -1;
-	}
+	if (par->cp_tok.ct_token != T_ID)
+		ERROR(L"expected identifier");
 
+	GET_TOKEN;
 	return 0;
 }
 
@@ -244,130 +198,84 @@ cel_parse_func(par)
  * comma-separated "identifier : type" pairs, a ')', a '->' and a type.
  */
 
-/* Identifier (function name) */
-	if ((cel_next_token(par->cp_lex, &par->cp_tok) != 0)) {
-		par->cp_error = wcsdup(L"lexer failure");
-		return -1;
-	}
+	if (par->cp_tok.ct_token != T_FUNC)
+		ERROR(L"expected function definition");
 
-	if (par->cp_tok.ct_token != T_ID) {
-		par->cp_error = wcsdup(L"expected identifier");
-		par->cp_err_token = par->cp_tok;
-		return -1;
-	}
+/* Identifier (function name) */
+	GET_TOKEN;
+
+	if (par->cp_tok.ct_token != T_ID)
+		ERROR(L"expected identifier");
 
 /* Colon */
-	if ((cel_next_token(par->cp_lex, &par->cp_tok) != 0)) {
-		par->cp_error = wcsdup(L"lexer failure");
-		return -1;
-	}
+	GET_TOKEN;
 
-	if (par->cp_tok.ct_token != T_COLON) {
-		par->cp_error = wcsdup(L"expected ':'");
-		par->cp_err_token = par->cp_tok;
-		return -1;
-	}
+	if (par->cp_tok.ct_token != T_COLON)
+		ERROR(L"expected ':'");
 
 /* Opening bracket */
-	if ((cel_next_token(par->cp_lex, &par->cp_tok) != 0)) {
-		par->cp_error = wcsdup(L"lexer failure");
-		return -1;
-	}
+	GET_TOKEN;
 
-	if (par->cp_tok.ct_token != T_LPAR) {
-		par->cp_error = wcsdup(L"expected ')'");
-		par->cp_err_token = par->cp_tok;
-		return -1;
-	}
+	if (par->cp_tok.ct_token != T_LPAR)
+		ERROR(L"expected ')'");
 
 /* Argument list */
 	for (;;) {
 	/* Argument name */
-		if ((cel_next_token(par->cp_lex, &par->cp_tok) != 0)) {
-			par->cp_error = wcsdup(L"lexer failure");
-			return -1;
-		}
+		GET_TOKEN;
 
-		if (par->cp_tok.ct_token != T_ID) {
-			par->cp_error = wcsdup(L"expected identifier");
-			par->cp_err_token = par->cp_tok;
-			return -1;
-		}
+		if (par->cp_tok.ct_token != T_ID)
+			ERROR(L"expected identifier");
 
 	/* Colon */
-		if ((cel_next_token(par->cp_lex, &par->cp_tok) != 0)) {
-			par->cp_error = wcsdup(L"lexer failure");
-			return -1;
-		}
+		GET_TOKEN;
 
-		if (par->cp_tok.ct_token != T_COLON) {
-			par->cp_error = wcsdup(L"expected ':'");
-			par->cp_err_token = par->cp_tok;
-			return -1;
-		}
+		if (par->cp_tok.ct_token != T_COLON)
+			ERROR(L"expected ':'");
 
 	/* Type */
+		GET_TOKEN;
+
 		if (cel_parse_type(par) != 0)
-			return -1;
+			ERROR(L"expected type name");
 
 	/* ')' or ',' */
-		if ((cel_next_token(par->cp_lex, &par->cp_tok) != 0)) {
-			par->cp_error = wcsdup(L"lexer failure");
-			return -1;
-		}
-
 		if (par->cp_tok.ct_token == T_RPAR)
 			break;
 		if (par->cp_tok.ct_token == T_COMMA)
 			continue;
 
-		par->cp_error = wcsdup(L"expected ',' or ')'");
-		par->cp_err_token = par->cp_tok;
-		return -1;
-
+		ERROR(L"expected ',' or ')'");
 	}
 
 /* -> */
-	if ((cel_next_token(par->cp_lex, &par->cp_tok) != 0)) {
-		par->cp_error = wcsdup(L"lexer failure");
-		return -1;
-	}
+	GET_TOKEN;
 
-	if (par->cp_tok.ct_token != T_ARROW) {
-		par->cp_error = wcsdup(L"expected '->'");
-		par->cp_err_token = par->cp_tok;
-		return -1;
-	}
+	if (par->cp_tok.ct_token != T_ARROW)
+		ERROR(L"expected '->'");
+
+	GET_TOKEN;
 
 /* Return type */
 	if (cel_parse_type(par) != 0)
-		return -1;
+		ERROR(L"expected type name");
 
 /* Begin */
-	if ((cel_next_token(par->cp_lex, &par->cp_tok) != 0)) {
-		par->cp_error = wcsdup(L"lexer failure");
-		return -1;
-	}
-
-	if (par->cp_tok.ct_token != T_BEGIN) {
-		par->cp_error = wcsdup(L"expected 'begin'");
-		par->cp_err_token = par->cp_tok;
-		return -1;
-	}
+	if (par->cp_tok.ct_token != T_BEGIN)
+		ERROR(L"expected 'begin'");
 
 /*
- * List of statements.  cel_parse_stmt() returns 2 to indicate the special
- * statement 'end', which terminates the function.
+ * List of statements.
  */
-	for (;;) {
-	int	i;
+	GET_TOKEN;
 
-		if ((i = cel_parse_stmt(par)) < 0)
-			return -1;
+	while (cel_parse_stmt(par) == 0)
+		/* ... */;
 
-		if (i == 2)
-			break;
-	}
+	if (par->cp_tok.ct_token != T_END)
+		ERROR(L"expected statement or 'end'");
+
+	GET_TOKEN;
 
 	return 0;
 }
@@ -383,45 +291,17 @@ cel_parse_stmt(par)
  * handled as a special type of statement; we return '2' to distinguish
  * that, as it relates to parsing rather than semantics.
  */
-	for (;;) {
-		if ((cel_next_token(par->cp_lex, &par->cp_tok) != 0)) {
-			par->cp_error = wcsdup(L"lexer failure");
-			return -1;
-		}
+	if (cel_parse_var(par) == 0 ||
+	    cel_parse_func(par) == 0 ||
+	    cel_parse_expr(par) == 0) {
+		if (par->cp_tok.ct_token != T_SEMI)
+			ERROR(L"expected ';'");
 
-	/*
-	 * Variable and function definitions are handled specially;
-	 * everything else must be an expression.
-	 */
-
-		switch (par->cp_tok.ct_token) {
-		case T_END:
-			return 2;
-
-		case T_VAR:
-			if (cel_parse_var(par) != 0)
-				return -1;
-			continue;
-
-		case T_FUNC:
-			par->cp_error = wcsdup(L"nested function definitions "
-					       L"are not supported");
-			par->cp_err_token = par->cp_tok;
-			return -1;
-		}
-
-		if (cel_parse_expr(par) != 0) {
-			par->cp_error = wcsdup(L"expected statement");
-			par->cp_err_token = par->cp_tok;
-			return -1;
-		}
-
-		if (par->cp_tok.ct_token != T_SEMI) {
-			par->cp_error = wcsdup(L"expected ';'");
-			par->cp_err_token = par->cp_tok;
-			return -1;
-		}
+		GET_TOKEN;
+		return 0;
 	}
+
+	ERROR(L"expected statement");
 }
 
 int
@@ -430,23 +310,165 @@ cel_parse_expr(par)
 {
 /* A bracket introduces a nested expression. */
 	if (par->cp_tok.ct_token == T_LPAR) {
-		if ((cel_next_token(par->cp_lex, &par->cp_tok) != 0)) {
-			par->cp_error = wcsdup(L"lexer failure");
-			return -1;
-		}
+		GET_TOKEN;
 
 		if (cel_parse_expr(par) != 0)
-			return -1;
+			ERROR(L"expected expression");
 
-		if (par->cp_tok.ct_token != T_RPAR) {
-			par->cp_error = wcsdup(L"expected ')'");
-			par->cp_err_token = par->cp_tok;
-			return -1;
-		}
+		if (par->cp_tok.ct_token != T_RPAR)
+			ERROR(L"expected ')'");
 
 		return 0;
 	}
 
-/* A numeric or string literal */
-	return 0;
+/* if expression */
+	if (par->cp_tok.ct_token == T_IF)
+		return cel_parse_if(par);
+
+/* First term in an expression should be a value */
+	if (cel_parse_value(par) != 0)
+		ERROR(L"expected value");
+
+/* Optionally followed by an operator or a function call */
+	GET_TOKEN;
+
+/* LPAR indicates a function call. */
+	if (par->cp_tok.ct_token == T_LPAR)
+		return cel_parse_arglist(par);
+
+/* LSQ indicates array dereference */
+	if (par->cp_tok.ct_token == T_LSQ) {
+		GET_TOKEN;
+		if (cel_parse_expr(par) != 0)
+			ERROR(L"expected expression");
+
+		if (par->cp_tok.ct_token != T_RSQ)
+			ERROR(L"expected ']'");
+
+		GET_TOKEN;
+		return 0;
+	}
+
+/* Otherwise, it must be an operator */
+	switch (par->cp_tok.ct_token) {
+	case T_PLUS:
+	case T_MINUS:
+	case T_SLASH:
+	case T_STAR:
+	case T_ASSIGN:
+	case T_LE:
+	case T_LT:
+	case T_GE:
+	case T_GT:
+	case T_EQ:
+		break;
+
+	default:
+		return 0;
+	}
+
+/* Followed by another expression */
+	GET_TOKEN;
+
+	return cel_parse_expr(par);
+}
+
+int
+cel_parse_value(par)
+	cel_parser_t	*par;
+{
+	switch (par->cp_tok.ct_token) {
+	case T_ID:
+	case T_LIT_INT:
+	case T_LIT_STR:
+	case T_LIT_BOOL:
+		return 0;
+
+	default:
+		ERROR(L"expected identifier or literal");
+	}
+}
+
+int
+cel_parse_arglist(par)
+	cel_parser_t	*par;
+{
+/*
+ * An argument list is just a comma-separated list of expressions termined by
+ * an RPAR.
+ */
+
+	GET_TOKEN;
+
+	for (;;) {
+		if (par->cp_tok.ct_token == T_RPAR) {
+			GET_TOKEN;
+			return 0;
+		}
+
+		if (cel_parse_expr(par) != 0)
+			ERROR(L"expected expression or ')'");
+
+		if (par->cp_tok.ct_token == T_COMMA) {
+			GET_TOKEN;
+			continue;
+		}
+		break;
+	}
+
+	if (par->cp_tok.ct_token == T_RPAR) {
+		GET_TOKEN;
+		return 0;
+	}
+
+	ERROR(L"expected ',' or ')'");
+}
+
+int
+cel_parse_if(par)
+	cel_parser_t	*par;
+{
+/*
+ * An if expression begins 'if <expr> then', followed by a code block; the code
+ * block can be followed by a number of 'else' or 'elif' statements also
+ * followed by a code block, and finally an 'end'.
+ */
+	GET_TOKEN;
+
+/* Expression */
+	if (cel_parse_expr(par) != 0)
+		ERROR(L"expected expression");
+
+/* 'then' */
+	if (par->cp_tok.ct_token != T_THEN)
+		ERROR(L"expected 'then'");
+
+/* list of statements */
+	for (;;) {
+		GET_TOKEN;
+		while (cel_parse_stmt(par) == 0)
+			/* ... */;
+
+		if (par->cp_tok.ct_token == T_ELIF) {
+			GET_TOKEN;
+
+			if (cel_parse_expr(par) != 0)
+				ERROR(L"expected expression");
+
+			if (par->cp_tok.ct_token != T_THEN)
+				ERROR(L"expected 'then'");
+
+			continue;
+		}
+
+		if (par->cp_tok.ct_token == T_ELSE)
+			continue;
+
+		if (par->cp_tok.ct_token == T_END) {
+			GET_TOKEN;
+			return 0;
+		}
+
+		ERROR(L"expected statement, 'end', 'else' or 'elif'");
+	}
 }

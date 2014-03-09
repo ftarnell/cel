@@ -18,6 +18,7 @@
 #define	T_VAR		2
 #define	T_BEGIN		3
 #define	T_TYPE		4
+#define	T_IF		5
 #define	T_END		6
 #define	T_LPAR		7	/* (  */
 #define	T_RPAR		8	/* )  */
@@ -45,6 +46,9 @@
 #define	T_STAR		30	/* *  */
 #define	T_SLASH		31	/* /  */
 #define	T_ARROW		32	/* -> */
+#define	T_ELIF		33
+#define	T_ELSE		34
+#define	T_THEN		35
 
 /*
  * Lexer state.

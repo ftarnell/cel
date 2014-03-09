@@ -1,0 +1,26 @@
+type integer : int;
+var aglobal : integer;
+
+func main : (argc : int, argv : []string) -> int
+begin
+	var a, b, res : int;
+
+	a := lib$atoi(argv[1]);
+	b := lib$atoi(argv[2]);
+	res := a + b;
+
+	if a < 0 then
+		io$printf("the result is negative\n");
+	elif a = 0 then
+		io$printf("the result is zero\n");
+	else
+		io$printf("the result is positive\n");
+	end;
+
+	var s : string;
+	s := if a < 0 then "negative"; elif a = 0 then "zero"; else "positive"; end;
+	io$printf("the result is %s\n", s);
+	
+	io$printf("%d + %d = %d\n", a, b, res);
+	return(0);
+end;
