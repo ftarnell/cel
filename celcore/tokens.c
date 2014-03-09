@@ -32,6 +32,8 @@ cel_lexer_init(lex, buf)
 {
 	memset(lex, 0, sizeof(*lex));
 	lex->cl_buf = lex->cl_bufp = buf;
+	lex->cl_line = buf;
+	lex->cl_lineno = 1;
 	return 0;
 }
 
@@ -47,23 +49,27 @@ struct {
 } keywords[] = {
 	{ L"func",	T_FUNC		},
 	{ L"var",	T_VAR		},
+	{ L"type",	T_TYPE		},
 	{ L"begin",	T_BEGIN		},
 	{ L"end",	T_END		},
-	{ L"int",	T_INT		},
-	{ L"string",	T_STRING	}
 };
 
 /* Skip whitespace */
 	while (iswspace(*lex->cl_bufp)) {
-		lex->cl_bufp++;
-
 		if (*lex->cl_bufp == '\n') {
 			lex->cl_lineno++;
+			lex->cl_line = lex->cl_bufp + 1;
 			lex->cl_col = 0;
 		} else {
 			lex->cl_col++;
 		}
+
+		lex->cl_bufp++;
 	}
+
+	ret->ct_col = lex->cl_col;
+	ret->ct_line = lex->cl_line;
+	ret->ct_lineno = lex->cl_lineno;
 
 /* EOT */
 	if (!*lex->cl_bufp) {
@@ -188,4 +194,45 @@ struct {
 	}
 
 	return T_ERR;
+}
+
+void
+cel_token_print_context(lex, tok, stream)
+	cel_lexer_t	*lex;
+	cel_token_t	*tok;
+	FILE		*stream;
+{
+wchar_t const	*p;
+int		 i;
+
+	for (i = 8; i; i--)
+		fputc(' ', stream);
+
+	for (p = tok->ct_line; *p && *p != '\n'; p++) {
+		if (*p == '\t') {
+			for (i = 8; i; i--)
+				fputc(' ', stream);
+		} else {
+			fputc(*p, stream);
+		}
+	}
+
+	fputc('\n', stream);
+
+	for (i = 8; i; i--)
+		fputc(' ', stream);
+
+	for (p = tok->ct_line, i = 0; *p && *p != '\n'; p++, i++) {
+		if (i == tok->ct_col)
+			break;
+
+		if (*p == '\t') {
+			for (i = 8; i; i--)
+				fputc(' ', stream);
+		} else {
+			fputc(' ', stream);
+		}
+	}
+	fputc('^', stream);
+	fputc('\n', stream);
 }

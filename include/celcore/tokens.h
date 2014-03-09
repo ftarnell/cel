@@ -11,12 +11,13 @@
 #ifndef	CEL_TOKENS_H
 #define	CEL_TOKENS_H
 
+#include	<wchar.h>
+
 #define	T_ERR		(-1)
 #define	T_FUNC		1
 #define	T_VAR		2
 #define	T_BEGIN		3
-#define	T_INT		4
-#define	T_STRING	5
+#define	T_TYPE		4
 #define	T_END		6
 #define	T_LPAR		7	/* (  */
 #define	T_RPAR		8	/* )  */
@@ -45,20 +46,64 @@
 #define	T_SLASH		31	/* /  */
 #define	T_ARROW		32	/* -> */
 
+/*
+ * Lexer state.
+ */
 typedef struct cel_lexer {
-	wchar_t const	*cl_buf;
-	wchar_t const	*cl_bufp;
+	/* Current line in the buffer */
 	int		 cl_lineno;
+
+	/* The start of the current line */
+	wchar_t const	*cl_line;
+
+	/* Current column position in the buffer */
 	int		 cl_col;
+
+	/* The buffer passed to cel_lexer_init() (private) */
+	wchar_t const	*cl_buf;
+
+	/* Our current buffer position (private) */
+	wchar_t const	*cl_bufp;
 } cel_lexer_t;
 
-int	cel_lexer_init(cel_lexer_t *, wchar_t const *);
+/*
+ * Create a new lexer in .lex to parse the buffer pointed to by .buf. The
+ * lexer does not own the buffer, and the user is responsible for freeing
+ * it later.
+ */
+int	cel_lexer_init(cel_lexer_t *lex, wchar_t const *buf);
 
+/*
+ * A single token.
+ */
 typedef struct cel_token {
-	int	 ct_token;
-	wchar_t	*ct_literal;
+	/* Token code (T_*) */
+	int		 ct_token;
+
+	/* The literal text comprising the token */
+	wchar_t		*ct_literal;
+
+	/* Line number in the buffer where this token began */
+	int		 ct_lineno;
+
+	/* The start of the line represented by cl_lineno */
+	wchar_t const	*ct_line;
+
+	/* Column position in the line where this token began */
+	int		 ct_col;
 } cel_token_t;
 
-int cel_next_token(cel_lexer_t *, cel_token_t *ret);
+/*
+ * Scan the next token in the buffer and place it in .ret.  If an error
+ * occurs, -1 is returned and .ret is unmodified.  Otherwise, returns 0.
+ */
+int	cel_next_token(cel_lexer_t *, cel_token_t *ret);
+
+/*
+ * Print (to .stream) the current line associated with the provided token,
+ * and underneath it a caret pointing to the specific position within the
+ * line where the token occurred.
+ */
+void	cel_token_print_context(cel_lexer_t *, cel_token_t *, FILE *stream);
 
 #endif	/* !CEL_TOKENS_H */

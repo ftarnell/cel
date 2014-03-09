@@ -25,14 +25,18 @@ libdir		= @libdir@
 
 CELCORE		= @top_builddir@/celcore/libcelcore.a
 
-all: celtokenise
+all: celtokenise celparse
 
 celtokenise: celtokenise.o ${CELCORE}
 	${CC} ${CFLAGS} ${LDFLAGS} celtokenise.o -o celtokenise ${LIBS} -lcelcore
 
+celparse: celparse.o ${CELCORE}
+	${CC} ${CFLAGS} ${LDFLAGS} celparse.o -o celparse ${LIBS} -lcelcore
+
 install:
 	${INSTALL} -d -m 0755 ${bindir}
 	${INSTALL} -c -m 0755 celtokenise ${bindir}
+	${INSTALL} -c -m 0755 celparse ${bindir}
 
 .c.o:
 	${CC} ${CPPFLAGS} ${CFLAGS} -c $<

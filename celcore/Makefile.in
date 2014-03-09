@@ -18,7 +18,7 @@ LDFLAGS		= @LDFLAGS@
 LIBS		= @LIBS@
 INSTALL		= @INSTALL@
 
-OBJS		= tokens.o
+OBJS		= tokens.o parse.o
 
 prefix		= @prefix@
 exec_prefix	= @exec_prefix@
