@@ -49,6 +49,12 @@
 #define	T_ELIF		33
 #define	T_ELSE		34
 #define	T_THEN		35
+#define	T_CARET		36
+#define	T_PERCENT	37
+#define	T_AND		38
+#define	T_OR		39
+#define	T_NEQ		40
+#define	T_NEGATE	41
 
 /*
  * Lexer state.

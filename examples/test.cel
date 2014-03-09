@@ -1,6 +1,32 @@
+"Various expressions to test the expression parser.";
+
+f + 4;
+
+1;
+1 + 1;
+1 * 1;
+1 ^ 1;
+1 + 1 + 1;
+1 + 1 * 1;
+1 * 1 ^ 1;
+1 * (1 + 1);
+1 * if 3 then 4; else 5; end;
+-1 + 3;
+f + 3;
+f();
+1 + f();
+f(3);
+7 + f(3, -4);
+-1 + f();
+-a[7];
+
+"A typedef, defines a new type called 'integer'";
 type integer : int;
+
+"... and a variable of that type";
 var aglobal : integer;
 
+"A function.  Format is: func f : (arglist) -> return type";
 func main : (argc : int, argv : []string) -> int
 begin
 	var a, b, res : int;
@@ -9,6 +35,8 @@ begin
 	b := lib$atoi(argv[2]);
 	res := a + b;
 
+	"if statement.  Note the ';' after 'end' is required.";
+
 	if a < 0 then
 		io$printf("the result is negative\n");
 	elif a = 0 then
@@ -16,6 +44,8 @@ begin
 	else
 		io$printf("the result is positive\n");
 	end;
+
+	"if statements return values, so they can be used as expressions:";
 
 	var s : string;
 	s := if a < 0 then "negative"; elif a = 0 then "zero"; else "positive"; end;

@@ -55,7 +55,9 @@ struct {
 	{ L"if",	T_IF		},
 	{ L"elif",	T_ELIF		},
 	{ L"else",	T_ELSE		},
-	{ L"then",	T_THEN		}
+	{ L"then",	T_THEN		},
+	{ L"and",	T_AND		},
+	{ L"or",	T_OR		}
 };
 
 /* Skip whitespace */
@@ -105,6 +107,8 @@ struct {
 	TK('+', L"+", T_PLUS);
 	TK('*', L"*", T_STAR);
 	TK('/', L"/", T_SLASH);
+	TK('^', L"^", T_CARET);
+	TK('%', L"%", T_PERCENT);
 
 	case ':':
 		if (lex->cl_bufp[1] == '=')
@@ -128,6 +132,12 @@ struct {
 		if (lex->cl_bufp[1] == '>')
 			TR(L"->", T_ARROW, 2);
 		TR(L"-", T_MINUS, 1);
+		break;
+	
+	case '!':
+		if (lex->cl_bufp[1] == '=')
+			TR(L"!=", T_NEQ, 2);
+		TR(L"!", T_NEGATE, 1);
 		break;
 	}
 

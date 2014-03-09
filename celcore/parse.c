@@ -22,6 +22,9 @@
 		}							\
 	} while (0)
 
+#define	EXPECT(t)	(par->cp_tok.ct_token == (t))
+#define	CONSUME()	cel_next_token(par->cp_lex, &par->cp_tok)
+
 #define	ERROR(m)							\
 	do {								\
 		free(par->cp_error);					\
@@ -29,6 +32,27 @@
 		par->cp_err_token = par->cp_tok;			\
 		return -1;						\
 	} while (0)
+
+static int	cel_parse_func(cel_parser_t *);
+static int	cel_parse_var(cel_parser_t *);
+static int	cel_parse_typedef(cel_parser_t *);
+static int	cel_parse_type(cel_parser_t *);
+static int	cel_parse_stmt(cel_parser_t *);
+static int	cel_parse_expr(cel_parser_t *);
+static int	cel_parse_expr_assign(cel_parser_t *);
+static int	cel_parse_expr_or(cel_parser_t *);
+static int	cel_parse_expr_and(cel_parser_t *);
+static int	cel_parse_expr_xor(cel_parser_t *);
+static int	cel_parse_expr_eq1(cel_parser_t *);
+static int	cel_parse_expr_eq2(cel_parser_t *);
+static int	cel_parse_expr_plus(cel_parser_t *);
+static int	cel_parse_expr_mult(cel_parser_t *);
+static int	cel_parse_expr_unary(cel_parser_t *);
+static int	cel_parse_expr_post(cel_parser_t *);
+static int	cel_parse_expr_value(cel_parser_t *);
+static int	cel_parse_value(cel_parser_t *);
+static int	cel_parse_arglist(cel_parser_t *);
+static int	cel_parse_if(cel_parser_t *);
 
 int
 cel_parser_init(par, lex)
@@ -294,10 +318,9 @@ cel_parse_stmt(par)
 	if (cel_parse_var(par) == 0 ||
 	    cel_parse_func(par) == 0 ||
 	    cel_parse_expr(par) == 0) {
-		if (par->cp_tok.ct_token != T_SEMI)
+		if (!EXPECT(T_SEMI))
 			ERROR(L"expected ';'");
-
-		GET_TOKEN;
+		CONSUME();
 		return 0;
 	}
 
@@ -308,85 +331,271 @@ int
 cel_parse_expr(par)
 	cel_parser_t	*par;
 {
-/* A bracket introduces a nested expression. */
-	if (par->cp_tok.ct_token == T_LPAR) {
-		GET_TOKEN;
+	return cel_parse_expr_assign(par);
+}
+
+int
+cel_parse_expr_assign(par)
+	cel_parser_t	*par;
+{
+/* expr_assign --> expr_or   [":=" expr_assign] */
+	if (cel_parse_expr_or(par) != 0)
+		return -1;
+
+	while (EXPECT(T_ASSIGN)) {
+		CONSUME();
+
+		if (cel_parse_expr_assign(par) != 0)
+			return -1;
+	}
+
+	return 0;
+}
+
+int
+cel_parse_expr_or(par)
+	cel_parser_t	*par;
+{
+/* expr_or     --> expr_and   { "or" expr_and } */
+	if (cel_parse_expr_and(par) != 0)
+		return -1;
+
+	while (EXPECT(T_OR)) {
+		CONSUME();
+
+		if (cel_parse_expr_and(par) != 0)
+			return -1;
+	}
+
+	return 0;
+}
+
+int
+cel_parse_expr_and(par)
+	cel_parser_t	*par;
+{
+/* expr_and    --> expr_xor   { "and" expr_xor } */
+	if (cel_parse_expr_xor(par) != 0)
+		return -1;
+
+	while (EXPECT(T_AND)) {
+		CONSUME();
+
+		if (cel_parse_expr_xor(par) != 0)
+			return -1;
+	}
+
+	return 0;
+}
+
+int
+cel_parse_expr_xor(par)
+	cel_parser_t	*par;
+{
+/* expr_xor    --> expr_eq1   ["^" expr_eq1] */
+	if (cel_parse_expr_eq1(par) != 0)
+		return -1;
+
+	while (EXPECT(T_CARET)) {
+		CONSUME();
+
+		if (cel_parse_expr_eq1(par) != 0)
+			return -1;
+	}
+
+	return 0;
+}
+
+int
+cel_parse_expr_eq1(par)
+	cel_parser_t	*par;
+{
+/* expr_eq1    --> expr_eq2   {( "=" | "!="} expr_eq2} */
+	if (cel_parse_expr_eq2(par) != 0)
+		return -1;
+	
+	while (EXPECT(T_EQ) || EXPECT(T_NEQ)) {
+		CONSUME();
+
+		if (cel_parse_expr_eq2(par) != 0)
+			return -1;
+	}
+
+	return 0;
+}
+
+int
+cel_parse_expr_eq2(par)
+	cel_parser_t	*par;
+{
+/* expr_eq2    --> expr_plus  {( ">" | ">=" | "<" | "<=") expr_plus} */
+	if (cel_parse_expr_plus(par) != 0)
+		return -1;
+
+	while (EXPECT(T_GT) || EXPECT(T_GE) || EXPECT(T_LT) || EXPECT(T_LE)) {
+		CONSUME();
+
+		if (cel_parse_expr_plus(par) != 0)
+			return -1;
+	}
+
+	return 0;
+}
+
+int
+cel_parse_expr_plus(par)
+	cel_parser_t	*par;
+{
+/* expr_plus   --> expr_mult  {( "+" | "-" ) expr_mult} */
+	if (cel_parse_expr_mult(par) != 0)
+		return -1;
+
+	while (EXPECT(T_PLUS) || EXPECT(T_MINUS)) {
+		CONSUME();
+
+		if (cel_parse_expr_mult(par) != 0)
+			return -1;
+	}
+
+	return 0;
+}
+
+int
+cel_parse_expr_mult(par)
+	cel_parser_t	*par;
+{
+/* expr_mult   --> expr_unary {( "*" | "/" | "%" ) expr_unary} */
+	if (cel_parse_expr_unary(par) != 0)
+		return -1;
+
+	while (EXPECT(T_STAR) || EXPECT(T_SLASH) || EXPECT(T_PERCENT)) {
+		CONSUME();
+
+		if (cel_parse_expr_unary(par) != 0)
+			return -1;
+	}
+
+	return 0;
+}
+
+int
+cel_parse_expr_unary(par)
+	cel_parser_t	*par;
+{
+/* expr_unary  --> expr_post  | "-" expr_unary | "!" expr_unary */
+
+	if (EXPECT(T_MINUS)) {
+		CONSUME();
+
+		if (cel_parse_expr_unary(par) != 0)
+			return -1;
+	} else if (EXPECT(T_NEGATE)) {
+		CONSUME();
+
+		if (cel_parse_expr_unary(par) != 0)
+			return -1;
+	} else {
+		if (cel_parse_expr_post(par) != 0)
+			return -1;
+	}
+
+	return 0;
+}
+
+int
+cel_parse_expr_post(par)
+	cel_parser_t	*par;
+{
+/* expr_post   --> expr_value [ ( "(" arglist ")" | "[" expr "]" ) ] */
+
+	if (cel_parse_expr_value(par) != 0)
+		return -1;
+
+/* Function call */
+	if (EXPECT(T_LPAR)) {
+		CONSUME();
+
+		if (cel_parse_arglist(par) != 0)
+			return -1;
+
+		if (!EXPECT(T_RPAR))
+			ERROR(L"expected ')'");
+
+		CONSUME();
+	}
+
+/* Array dereference */
+	else if (EXPECT(T_LSQ)) {
+		CONSUME();
+
+		if (cel_parse_expr(par) != 0)
+			return -1;
+
+		if (!EXPECT(T_RSQ))
+			ERROR(L"expected ']'");
+		CONSUME();
+	}
+
+	return 0;
+}
+
+int cel_parse_expr_value(par)
+	cel_parser_t	*par;
+{
+/* expr_value  --> value | "(" expr ")" | ifexpr */
+
+	if (cel_parse_value(par) == 0)
+		return 0;
+
+	if (EXPECT(T_LPAR)) {
+		CONSUME();
 
 		if (cel_parse_expr(par) != 0)
 			ERROR(L"expected expression");
 
-		if (par->cp_tok.ct_token != T_RPAR)
+		if (!EXPECT(T_RPAR))
 			ERROR(L"expected ')'");
 
+		CONSUME();
 		return 0;
 	}
 
 /* if expression */
-	if (par->cp_tok.ct_token == T_IF)
-		return cel_parse_if(par);
-
-/* First term in an expression should be a value */
-	if (cel_parse_value(par) != 0)
-		ERROR(L"expected value");
-
-/* Optionally followed by an operator or a function call */
-	GET_TOKEN;
-
-/* LPAR indicates a function call. */
-	if (par->cp_tok.ct_token == T_LPAR)
-		return cel_parse_arglist(par);
-
-/* LSQ indicates array dereference */
-	if (par->cp_tok.ct_token == T_LSQ) {
-		GET_TOKEN;
-		if (cel_parse_expr(par) != 0)
-			ERROR(L"expected expression");
-
-		if (par->cp_tok.ct_token != T_RSQ)
-			ERROR(L"expected ']'");
-
-		GET_TOKEN;
+	if (EXPECT(T_IF)) {
+		CONSUME();
+		if (cel_parse_if(par) != 0)
+			return -1;
 		return 0;
 	}
 
-/* Otherwise, it must be an operator */
-	switch (par->cp_tok.ct_token) {
-	case T_PLUS:
-	case T_MINUS:
-	case T_SLASH:
-	case T_STAR:
-	case T_ASSIGN:
-	case T_LE:
-	case T_LT:
-	case T_GE:
-	case T_GT:
-	case T_EQ:
-		break;
-
-	default:
-		return 0;
-	}
-
-/* Followed by another expression */
-	GET_TOKEN;
-
-	return cel_parse_expr(par);
+	return -1;
 }
 
 int
 cel_parse_value(par)
 	cel_parser_t	*par;
 {
-	switch (par->cp_tok.ct_token) {
-	case T_ID:
-	case T_LIT_INT:
-	case T_LIT_STR:
-	case T_LIT_BOOL:
+	if (EXPECT(T_ID)) {
+		CONSUME();
 		return 0;
-
-	default:
-		ERROR(L"expected identifier or literal");
 	}
+
+	if (EXPECT(T_LIT_INT)) {
+		CONSUME();
+		return 0;
+	}
+
+	if (EXPECT(T_LIT_STR)) {
+		CONSUME();
+		return 0;
+	}
+
+	if (EXPECT(T_LIT_BOOL)) {
+		CONSUME();
+		return 0;
+	}
+
+	return -1;
 }
 
 int
@@ -398,30 +607,14 @@ cel_parse_arglist(par)
  * an RPAR.
  */
 
-	GET_TOKEN;
-
-	for (;;) {
-		if (par->cp_tok.ct_token == T_RPAR) {
-			GET_TOKEN;
-			return 0;
-		}
-
-		if (cel_parse_expr(par) != 0)
-			ERROR(L"expected expression or ')'");
-
-		if (par->cp_tok.ct_token == T_COMMA) {
-			GET_TOKEN;
+	while (cel_parse_expr(par) == 0) {
+		if (EXPECT(T_COMMA)) {
+			CONSUME();
 			continue;
 		}
-		break;
 	}
 
-	if (par->cp_tok.ct_token == T_RPAR) {
-		GET_TOKEN;
-		return 0;
-	}
-
-	ERROR(L"expected ',' or ')'");
+	return 0;
 }
 
 int
@@ -433,39 +626,40 @@ cel_parse_if(par)
  * block can be followed by a number of 'else' or 'elif' statements also
  * followed by a code block, and finally an 'end'.
  */
-	GET_TOKEN;
 
 /* Expression */
 	if (cel_parse_expr(par) != 0)
 		ERROR(L"expected expression");
 
 /* 'then' */
-	if (par->cp_tok.ct_token != T_THEN)
+	if (!EXPECT(T_THEN))
 		ERROR(L"expected 'then'");
+	CONSUME();
 
 /* list of statements */
 	for (;;) {
-		GET_TOKEN;
-		while (cel_parse_stmt(par) == 0)
-			/* ... */;
-
-		if (par->cp_tok.ct_token == T_ELIF) {
-			GET_TOKEN;
+		while (cel_parse_stmt(par) == 0) {
+		}
+			
+		if (EXPECT(T_ELIF)) {
+			CONSUME();
 
 			if (cel_parse_expr(par) != 0)
 				ERROR(L"expected expression");
-
-			if (par->cp_tok.ct_token != T_THEN)
+			if (!EXPECT(T_THEN))
 				ERROR(L"expected 'then'");
 
+			CONSUME();
 			continue;
 		}
 
-		if (par->cp_tok.ct_token == T_ELSE)
+		if (EXPECT(T_ELSE)) {
+			CONSUME();
 			continue;
+		}
 
-		if (par->cp_tok.ct_token == T_END) {
-			GET_TOKEN;
+		if (EXPECT(T_END)) {
+			CONSUME();
 			return 0;
 		}
 

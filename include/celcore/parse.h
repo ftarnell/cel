@@ -30,14 +30,5 @@ typedef struct cel_parser {
 int	cel_parser_init(cel_parser_t *, cel_lexer_t *);
 
 int	cel_parse(cel_parser_t *);
-int	cel_parse_func(cel_parser_t *);
-int	cel_parse_var(cel_parser_t *);
-int	cel_parse_typedef(cel_parser_t *);
-int	cel_parse_type(cel_parser_t *);
-int	cel_parse_stmt(cel_parser_t *);
-int	cel_parse_expr(cel_parser_t *);
-int	cel_parse_value(cel_parser_t *);
-int	cel_parse_arglist(cel_parser_t *);
-int	cel_parse_if(cel_parser_t *);
 
 #endif	/* !CEL_PARSE_H */
