@@ -21,11 +21,10 @@ main(argc, argv)
 FILE	*inf;
 char	 line[1024];
 size_t	 buflen = 0;
-wchar_t	*buf = NULL, *bufp;
+wchar_t	*buf = NULL;
 
 cel_lexer_t	lex;
 cel_token_t	tok;
-int		skip;
 
 	if (!argv[1]) {
 		fprintf(stderr, "usage: %s <file>\n", argv[0]);

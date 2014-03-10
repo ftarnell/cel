@@ -43,11 +43,7 @@ int
 main(argc, argv)
 	char	**argv;
 {
-FILE	*inf;
-size_t	 buflen = 0;
-wchar_t	*buf = NULL;
-
-	printf("CEL %s interactive interpreter\n", PACKAGE_VERSION);
+	printf("CEL %s [%s] interactive interpreter\n", CEL_VERSION, CEL_HOST);
 
 	for (;;) {
 	char		 line[1024];
@@ -80,7 +76,7 @@ wchar_t	*buf = NULL;
 		par.cp_error = icel_error;
 		par.cp_warn = icel_warn;
 
-		if ((program = cel_parse(&par)) == NULL) {
+		if ((program = cel_parse(&par)) == NULL || par.cp_nerrs) {
 			fprintf(stderr, "(parse error)\n");
 			continue;
 		}

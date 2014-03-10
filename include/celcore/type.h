@@ -55,7 +55,9 @@ cel_typedef_t	*cel_make_typedef(wchar_t const *name, cel_type_t *type);
  * applied to the supplied values.
  */
 cel_type_t	*cel_derive_unary_type(cel_uni_oper_t op, cel_type_t *v);
+cel_type_t	*cel_derive_unary_promotion(cel_uni_oper_t op, cel_type_t *v);
 cel_type_t	*cel_derive_binary_type(cel_bi_oper_t op, cel_type_t *a, cel_type_t *b);
+cel_type_t	*cel_derive_binary_promotion(cel_bi_oper_t op, cel_type_t *a, cel_type_t *b);
 
 void		 cel_name_type(cel_type_t *type, wchar_t *buf, size_t bsz);
 

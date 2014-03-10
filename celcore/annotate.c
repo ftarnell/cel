@@ -14,7 +14,5 @@ int
 cel_annotate(el)
 	cel_expr_list_t	*el;
 {
-cel_expr_t	*expr;
-	
 	return 0;
 }

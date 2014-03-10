@@ -28,7 +28,6 @@
 #define	T_RCUR		12	/* }  */
 #define	T_LIT_INT	13
 #define	T_LIT_STR	14
-#define	T_LIT_BOOL	15
 #define	T_COMMA		16
 #define	T_COLON		17
 #define	T_SEMI		18	/* ;  */
@@ -58,6 +57,8 @@
 #define	T_INT		42
 #define	T_STRING	43
 #define	T_BOOL		44
+#define	T_TRUE		45
+#define	T_FALSE		46
 
 /*
  * Lexer state.

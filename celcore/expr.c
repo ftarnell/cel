@@ -8,21 +8,33 @@
  * warranty.
  */
 
+#include	<inttypes.h>
+
 #include	"celcore/expr.h"
 #include	"celcore/function.h"
 #include	"celcore/type.h"
 
-cel_expr_t *
-cel_make_int32(i)
-{
-cel_expr_t	*ret;
-	if ((ret = calloc(1, sizeof(*ret))) == NULL)
-		return NULL;
-	ret->ce_type = cel_make_type(cel_type_int32);
-	ret->ce_tag = cel_exp_int;
-	ret->ce_op.ce_int = i;
-	return ret;
-}
+#define	CEL_MAKE_INT(type)						\
+	cel_expr_t *							\
+	cel_make_##type(type##_t i)					\
+	{								\
+	cel_expr_t	*ret;						\
+		if ((ret = calloc(1, sizeof(*ret))) == NULL)		\
+			return NULL;					\
+		ret->ce_type = cel_make_type(cel_type_##type);		\
+		ret->ce_tag = cel_exp_##type;				\
+		ret->ce_op.ce_##type = i;				\
+		return ret;						\
+	}
+
+CEL_MAKE_INT(int8)
+CEL_MAKE_INT(uint8)
+CEL_MAKE_INT(int16)
+CEL_MAKE_INT(uint16)
+CEL_MAKE_INT(int32)
+CEL_MAKE_INT(uint32)
+CEL_MAKE_INT(int64)
+CEL_MAKE_INT(uint64)
 
 cel_expr_t *
 cel_make_bool(i)
@@ -31,7 +43,7 @@ cel_expr_t	*ret;
 	if ((ret = calloc(1, sizeof(*ret))) == NULL)
 		return NULL;
 	ret->ce_type = cel_make_type(cel_type_bool);
-	ret->ce_tag = cel_exp_int;
+	ret->ce_tag = cel_exp_bool;
 	ret->ce_op.ce_bool = i;
 	return ret;
 }
@@ -127,8 +139,18 @@ cel_expr_free(e)
 		cel_expr_free(e->ce_op.ce_binary.right);
 		break;
 
-	case cel_exp_int:
+	case cel_exp_int8:
+	case cel_exp_uint8:
+	case cel_exp_int16:
+	case cel_exp_uint16:
+	case cel_exp_int32:
+	case cel_exp_uint32:
+	case cel_exp_int64:
+	case cel_exp_uint64:
 	case cel_exp_bool:
+	case cel_exp_if:
+	case cel_exp_function:
+	case cel_exp_vardecl:
 		break;
 	}
 }
@@ -143,9 +165,19 @@ cel_expr_t	*ret;
 
 	ret->ce_tag = e->ce_tag;
 	ret->ce_type = e->ce_type;
+
 	switch (ret->ce_tag) {
-	case cel_exp_int:
-		ret->ce_op.ce_int = e->ce_op.ce_int;
+	case cel_exp_int8:	ret->ce_op.ce_int8 = e->ce_op.ce_int8; break;
+	case cel_exp_uint8:	ret->ce_op.ce_uint8 = e->ce_op.ce_uint8; break;
+	case cel_exp_int16:	ret->ce_op.ce_int16 = e->ce_op.ce_int16; break;
+	case cel_exp_uint16:	ret->ce_op.ce_uint16 = e->ce_op.ce_uint16; break;
+	case cel_exp_int32:	ret->ce_op.ce_int32 = e->ce_op.ce_int32; break;
+	case cel_exp_uint32:	ret->ce_op.ce_uint32 = e->ce_op.ce_uint32; break;
+	case cel_exp_int64:	ret->ce_op.ce_int64 = e->ce_op.ce_int64; break;
+	case cel_exp_uint64:	ret->ce_op.ce_uint64 = e->ce_op.ce_uint64; break;
+
+	case cel_exp_bool:
+		ret->ce_op.ce_bool = e->ce_op.ce_bool;
 		break;
 
 	case cel_exp_unary:
@@ -157,6 +189,16 @@ cel_expr_t	*ret;
 		ret->ce_op.ce_binary.oper = e->ce_op.ce_binary.oper;
 		ret->ce_op.ce_binary.left = cel_expr_copy(e->ce_op.ce_binary.left);
 		ret->ce_op.ce_binary.right = cel_expr_copy(e->ce_op.ce_binary.right);
+		break;
+
+	case cel_exp_string:
+		ret->ce_op.ce_string = wcsdup(e->ce_op.ce_string);
+		break;
+
+	case cel_exp_function:
+	case cel_exp_vardecl:
+	case cel_exp_identifier:
+	case cel_exp_if:
 		break;
 	}
 
@@ -173,12 +215,29 @@ cel_expr_print(e, b, bsz)
 	wcslcat(b, L"<error>", bsz);
 
 	switch (e->ce_tag) {
-	case cel_exp_int:
-		swprintf(b, bsz, L"%d", e->ce_op.ce_int);
-		return;
+	case cel_exp_int8:	swprintf(b, bsz, L"%"PRId8, e->ce_op.ce_int8); break;
+	case cel_exp_uint8:	swprintf(b, bsz, L"%"PRIu8, e->ce_op.ce_uint8); break;
+	case cel_exp_int16:	swprintf(b, bsz, L"%"PRId16, e->ce_op.ce_int16); break;
+	case cel_exp_uint16:	swprintf(b, bsz, L"%"PRIu16, e->ce_op.ce_uint16); break;
+	case cel_exp_int32:	swprintf(b, bsz, L"%"PRId32, e->ce_op.ce_int32); break;
+	case cel_exp_uint32:	swprintf(b, bsz, L"%"PRIu32, e->ce_op.ce_uint32); break;
+	case cel_exp_int64:	swprintf(b, bsz, L"%"PRId64, e->ce_op.ce_int64); break;
+	case cel_exp_uint64:	swprintf(b, bsz, L"%"PRIu64, e->ce_op.ce_uint64); break;
 
 	case cel_exp_string:
-		wcslcpy(b, e->ce_op.ce_string, bsz);
-		return;
+		swprintf(b, bsz, L"\"%ls\"", e->ce_op.ce_string);
+		break;
+
+	case cel_exp_bool:
+		wcslcpy(b, e->ce_op.ce_bool ? L"true" : L"false", bsz);
+		break;
+
+	case cel_exp_unary:
+	case cel_exp_binary:
+	case cel_exp_function:
+	case cel_exp_if:
+	case cel_exp_vardecl:
+	case cel_exp_identifier:
+		break;
 	}
 }

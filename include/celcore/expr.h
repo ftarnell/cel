@@ -19,7 +19,14 @@
 struct cel_function;
 
 typedef enum cel_expr_tag {
-	cel_exp_int,
+	cel_exp_int8,
+	cel_exp_uint8,
+	cel_exp_int16,
+	cel_exp_uint16,
+	cel_exp_int32,
+	cel_exp_uint32,
+	cel_exp_int64,
+	cel_exp_uint64,
 	cel_exp_string,
 	cel_exp_identifier,
 	cel_exp_bool,
@@ -66,7 +73,15 @@ typedef struct cel_expr {
 	struct cel_type	*ce_type;
 
 	union {
-		int	 ce_int;
+		int8_t	 ce_int8;
+		uint8_t	 ce_uint8;
+		int16_t	 ce_int16;
+		uint16_t ce_uint16;
+		int32_t	 ce_int32;
+		uint32_t ce_uint32;
+		int64_t	 ce_int64;
+		uint64_t ce_uint64;
+
 		int	 ce_bool;
 		wchar_t	*ce_string;
 		wchar_t	*ce_identifier;
@@ -104,7 +119,14 @@ cel_expr_t	*cel_expr_copy(cel_expr_t *);
 void		 cel_expr_free(cel_expr_t *);
 void		 cel_expr_print(cel_expr_t *, wchar_t *buf, size_t bufsz);
 
-cel_expr_t	*cel_make_int32(int);
+cel_expr_t	*cel_make_int8(int8_t);
+cel_expr_t	*cel_make_uint8(uint8_t);
+cel_expr_t	*cel_make_int16(int16_t);
+cel_expr_t	*cel_make_uint16(uint16_t);
+cel_expr_t	*cel_make_int32(int32_t);
+cel_expr_t	*cel_make_uint32(uint32_t);
+cel_expr_t	*cel_make_int64(int64_t);
+cel_expr_t	*cel_make_uint64(uint64_t);
 cel_expr_t	*cel_make_bool(int);
 cel_expr_t	*cel_make_string(wchar_t const *);
 cel_expr_t	*cel_make_identifier(wchar_t const *);
@@ -131,5 +153,6 @@ cel_expr_t	*cel_make_binary(cel_bi_oper_t, cel_expr_t *, cel_expr_t *);
 #define	cel_make_xor(e,f)	cel_make_binary(cel_op_xor, (e), (f))
 
 cel_expr_t	*cel_make_function(struct cel_function *);
+cel_expr_t	*cel_promote_expr(struct cel_type *, cel_expr_t *);
 
 #endif	/* !CEL_EXPR_H */

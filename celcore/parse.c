@@ -27,6 +27,7 @@
 	do {								\
 		if (par->cp_error)					\
 			par->cp_error(par, (t), (m));			\
+		++par->cp_nerrs;					\
 		return NULL;						\
 	} while (0)
 
@@ -36,6 +37,7 @@
 	do {								\
 		if (par->cp_warn)					\
 			par->cp_warn(par, m);				\
+		++par->cp_warns;					\
 		return NULL;						\
 	} while (0)
 
@@ -397,19 +399,44 @@ cel_expr_t *
 cel_parse_expr_or(par)
 	cel_parser_t	*par;
 {
-/* expr_or     --> expr_and   { "or" expr_and } */
 cel_expr_t	*e, *f;
+cel_token_t	 op_tok;
+int		 op;
 
 	if ((e = cel_parse_expr_and(par)) == NULL)
 		return NULL;
 
-	while (ACCEPT(T_OR)) {
+	for (;;) {
+	cel_type_t	*type;
+
+		op_tok = par->cp_tok;
+
+		if (!(op = ACCEPT(T_OR)))
+			break;
+
 		if ((f = cel_parse_expr_and(par)) == NULL) {
 			cel_expr_free(e);
-			return NULL;
+			ERROR(L"expected expression");
+		}
+
+		if ((type = cel_derive_binary_type(cel_op_or, e->ce_type, f->ce_type)) == NULL) {
+		wchar_t	a1[64], a2[64];
+		wchar_t	err[128];
+
+			cel_name_type(e->ce_type, a1, sizeof(a1) / sizeof(wchar_t));
+			cel_name_type(f->ce_type, a2, sizeof(a2) / sizeof(wchar_t));
+
+			swprintf(err, sizeof(err) / sizeof(wchar_t),
+				 L"incompatible types in expression: \"%ls\", \"%ls\"",
+				 a1, a2);
+
+			cel_expr_free(e);
+			cel_expr_free(f);
+			ERROR_TOK(&op_tok, err);
 		}
 
 		e = cel_make_or(e, f);
+		e->ce_type = type;
 	}
 
 	return e;
@@ -419,19 +446,44 @@ cel_expr_t *
 cel_parse_expr_and(par)
 	cel_parser_t	*par;
 {
-/* expr_and    --> expr_xor   { "and" expr_xor } */
 cel_expr_t	*e, *f;
+cel_token_t	 op_tok;
+int		 op;
 
 	if ((e = cel_parse_expr_xor(par)) == NULL)
 		return NULL;
 
-	while (ACCEPT(T_AND)) {
+	for (;;) {
+	cel_type_t	*type;
+
+		op_tok = par->cp_tok;
+
+		if (!(op = ACCEPT(T_AND)))
+			break;
+
 		if ((f = cel_parse_expr_xor(par)) == NULL) {
 			cel_expr_free(e);
-			return NULL;
+			ERROR(L"expected expression");
+		}
+
+		if ((type = cel_derive_binary_type(cel_op_and, e->ce_type, f->ce_type)) == NULL) {
+		wchar_t	a1[64], a2[64];
+		wchar_t	err[128];
+
+			cel_name_type(e->ce_type, a1, sizeof(a1) / sizeof(wchar_t));
+			cel_name_type(f->ce_type, a2, sizeof(a2) / sizeof(wchar_t));
+
+			swprintf(err, sizeof(err) / sizeof(wchar_t),
+				 L"incompatible types in expression: \"%ls\", \"%ls\"",
+				 a1, a2);
+
+			cel_expr_free(e);
+			cel_expr_free(f);
+			ERROR_TOK(&op_tok, err);
 		}
 
 		e = cel_make_and(e, f);
+		e->ce_type = type;
 	}
 
 	return e;
@@ -441,19 +493,44 @@ cel_expr_t *
 cel_parse_expr_xor(par)
 	cel_parser_t	*par;
 {
-/* expr_xor    --> expr_eq1   ["^" expr_eq1] */
 cel_expr_t	*e, *f;
+cel_token_t	 op_tok;
+int		 op;
 
 	if ((e = cel_parse_expr_eq1(par)) == NULL)
 		return NULL;
 
-	while (ACCEPT(T_CARET)) {
+	for (;;) {
+	cel_type_t	*type;
+
+		op_tok = par->cp_tok;
+
+		if (!(op = ACCEPT(T_CARET)))
+			break;
+
 		if ((f = cel_parse_expr_eq1(par)) == NULL) {
 			cel_expr_free(e);
-			return NULL;
+			ERROR(L"expected expression");
+		}
+
+		if ((type = cel_derive_binary_type(cel_op_xor, e->ce_type, f->ce_type)) == NULL) {
+		wchar_t	a1[64], a2[64];
+		wchar_t	err[128];
+
+			cel_name_type(e->ce_type, a1, sizeof(a1) / sizeof(wchar_t));
+			cel_name_type(f->ce_type, a2, sizeof(a2) / sizeof(wchar_t));
+
+			swprintf(err, sizeof(err) / sizeof(wchar_t),
+				 L"incompatible types in expression: \"%ls\", \"%ls\"",
+				 a1, a2);
+
+			cel_expr_free(e);
+			cel_expr_free(f);
+			ERROR_TOK(&op_tok, err);
 		}
 
 		e = cel_make_xor(e, f);
+		e->ce_type = type;
 	}
 
 	return e;
@@ -463,23 +540,50 @@ cel_expr_t *
 cel_parse_expr_eq1(par)
 	cel_parser_t	*par;
 {
-/* expr_eq1    --> expr_eq2   {( "=" | "!="} expr_eq2} */
 cel_expr_t	*e, *f;
+cel_token_t	 op_tok;
 int		 op;
 
 	if ((e = cel_parse_expr_eq2(par)) == NULL)
 		return NULL;
-	
-	while ((op = ACCEPT(T_EQ)) || (op = ACCEPT(T_NEQ))) {
-		if ((f = cel_parse_expr_eq2(par)) != NULL) {
+
+	for (;;) {
+	cel_type_t	*type;
+	cel_bi_oper_t	 oper;
+
+		op_tok = par->cp_tok;
+
+		if (!(op = ACCEPT(T_EQ)) && !(op = ACCEPT(T_NEQ)))
+			break;
+
+		if ((f = cel_parse_expr_eq2(par)) == NULL) {
 			cel_expr_free(e);
 			ERROR(L"expected expression");
 		}
 
 		switch (op) {
-		case T_EQ:	e = cel_make_eq(e, f); break;
-		case T_NEQ:	e = cel_make_neq(e, f); break;
+		case T_EQ:	oper = cel_op_eq; break;
+		case T_NEQ:	oper = cel_op_neq; break;
 		}
+
+		if ((type = cel_derive_binary_type(oper, e->ce_type, f->ce_type)) == NULL) {
+		wchar_t	a1[64], a2[64];
+		wchar_t	err[128];
+
+			cel_name_type(e->ce_type, a1, sizeof(a1) / sizeof(wchar_t));
+			cel_name_type(f->ce_type, a2, sizeof(a2) / sizeof(wchar_t));
+
+			swprintf(err, sizeof(err) / sizeof(wchar_t),
+				 L"incompatible types in expression: \"%ls\", \"%ls\"",
+				 a1, a2);
+
+			cel_expr_free(e);
+			cel_expr_free(f);
+			ERROR_TOK(&op_tok, err);
+		}
+
+		e = cel_make_binary(oper, e, f);
+		e->ce_type = type;
 	}
 
 	return e;
@@ -489,26 +593,53 @@ cel_expr_t *
 cel_parse_expr_eq2(par)
 	cel_parser_t	*par;
 {
-/* expr_eq2    --> expr_plus  {( ">" | ">=" | "<" | "<=") expr_plus} */
 cel_expr_t	*e, *f;
+cel_token_t	 op_tok;
 int		 op;
 
 	if ((e = cel_parse_expr_plus(par)) == NULL)
 		return NULL;
 
-	while ((op = ACCEPT(T_GT)) || (op = ACCEPT(T_GE)) || 
-	       (op = ACCEPT(T_LT)) || (op = ACCEPT(T_LE))) {
+	for (;;) {
+	cel_type_t	*type;
+	cel_bi_oper_t	 oper;
+
+		op_tok = par->cp_tok;
+
+		if (!(op = ACCEPT(T_GT)) && !(op = ACCEPT(T_GE)) &&
+		    !(op = ACCEPT(T_LT)) && !(op = ACCEPT(T_LE)))
+			break;
+
 		if ((f = cel_parse_expr_plus(par)) == NULL) {
 			cel_expr_free(e);
 			ERROR(L"expected expression");
 		}
 
 		switch (op) {
-		case T_GT:	e = cel_make_gt(e, f); break;
-		case T_GE:	e = cel_make_ge(e, f); break;
-		case T_LT:	e = cel_make_lt(e, f); break;
-		case T_LE:	e = cel_make_le(e, f); break;
+		case T_GT:	oper = cel_op_gt; break;
+		case T_GE:	oper = cel_op_ge; break;
+		case T_LT:	oper = cel_op_lt; break;
+		case T_LE:	oper = cel_op_le; break;
 		}
+
+		if ((type = cel_derive_binary_type(oper, e->ce_type, f->ce_type)) == NULL) {
+		wchar_t	a1[64], a2[64];
+		wchar_t	err[128];
+
+			cel_name_type(e->ce_type, a1, sizeof(a1) / sizeof(wchar_t));
+			cel_name_type(f->ce_type, a2, sizeof(a2) / sizeof(wchar_t));
+
+			swprintf(err, sizeof(err) / sizeof(wchar_t),
+				 L"incompatible types in expression: \"%ls\", \"%ls\"",
+				 a1, a2);
+
+			cel_expr_free(e);
+			cel_expr_free(f);
+			ERROR_TOK(&op_tok, err);
+		}
+
+		e = cel_make_binary(oper, e, f);
+		e->ce_type = type;
 	}
 
 	return e;
@@ -518,7 +649,6 @@ cel_expr_t *
 cel_parse_expr_plus(par)
 	cel_parser_t	*par;
 {
-/* expr_plus   --> expr_mult  {( "+" | "-" ) expr_mult} */
 cel_expr_t	*e, *f;
 cel_token_t	 op_tok;
 int		 op;
@@ -573,26 +703,53 @@ cel_expr_t *
 cel_parse_expr_mult(par)
 	cel_parser_t	*par;
 {
-/* expr_mult   --> expr_unary {( "*" | "/" | "%" ) expr_unary} */
 cel_expr_t	*e, *f;
+cel_token_t	 op_tok;
 int		 op;
 
-
-	if ((e = cel_parse_expr_unary(par)) == NULL)
+	if ((e = cel_parse_expr_unary(par)) == NULL) {
 		return NULL;
+	}
 
-	while ((op = ACCEPT(T_STAR)) || (op = ACCEPT(T_SLASH)) ||
-	       (op = ACCEPT(T_PERCENT))) {
+	for (;;) {
+	cel_type_t	*type;
+	cel_bi_oper_t	 oper;
+
+		op_tok = par->cp_tok;
+
+		if (!(op = ACCEPT(T_STAR)) && !(op = ACCEPT(T_SLASH)) &&
+		    !(op = ACCEPT(T_PERCENT)))
+			break;
+
 		if ((f = cel_parse_expr_unary(par)) == NULL) {
 			cel_expr_free(e);
 			ERROR(L"expected expression");
 		}
 
 		switch (op) {
-		case T_STAR:	e = cel_make_mult(e, f); break;
-		case T_SLASH:	e = cel_make_div(e, f); break;
-		case T_PERCENT:	e = cel_make_modulus(e, f); break;
+		case T_STAR:	oper = cel_op_mult; break;
+		case T_SLASH:	oper = cel_op_div; break;
+		case T_PERCENT:	oper = cel_op_modulus; break;
 		}
+
+		if ((type = cel_derive_binary_type(oper, e->ce_type, f->ce_type)) == NULL) {
+		wchar_t	a1[64], a2[64];
+		wchar_t	err[128];
+
+			cel_name_type(e->ce_type, a1, sizeof(a1) / sizeof(wchar_t));
+			cel_name_type(f->ce_type, a2, sizeof(a2) / sizeof(wchar_t));
+
+			swprintf(err, sizeof(err) / sizeof(wchar_t),
+				 L"incompatible types in expression: \"%ls\", \"%ls\"",
+				 a1, a2);
+
+			cel_expr_free(e);
+			cel_expr_free(f);
+			ERROR_TOK(&op_tok, err);
+		}
+
+		e = cel_make_binary(oper, e, f);
+		e->ce_type = type;
 	}
 
 	return e;
@@ -717,12 +874,16 @@ cel_expr_t	*ret = NULL;
 		ret = cel_make_identifier(par->cp_tok.ct_literal);
 	else if (EXPECT(T_LIT_INT))
 		ret = cel_make_int32(wcstol(par->cp_tok.ct_literal, NULL, 0));
-	else if (EXPECT(T_LIT_STR))
-		ret = cel_make_string(par->cp_tok.ct_literal);
-	else if (ACCEPT(T_LIT_BOOL))
-		ret = cel_make_bool(
-			wcscmp(par->cp_tok.ct_literal, L"true") == 0 ?
-			1 : 0);
+	else if (EXPECT(T_LIT_STR)) {
+	wchar_t	*s;
+		s = wcsdup(par->cp_tok.ct_literal + 1);
+		s[wcslen(s) - 1] = 0;
+		ret = cel_make_string(s);
+		free(s);
+	} else if (EXPECT(T_TRUE))
+		ret = cel_make_bool(1);
+	else if (EXPECT(T_FALSE))
+		ret = cel_make_bool(0);
 
 	if (ret)
 		CONSUME();

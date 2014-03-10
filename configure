@@ -1743,7 +1743,7 @@ ac_compiler_gnu=$ac_cv_c_compiler_gnu
 
 
 
-ac_config_headers="$ac_config_headers include/celcore/cel-config.h"
+ac_config_headers="$ac_config_headers build.h"
 
 
 ac_aux_dir=
@@ -1846,6 +1846,16 @@ IFS=$ac_save_IFS
 case $host_os in *\ *) host_os=`echo "$host_os" | sed 's/ /-/g'`;; esac
 
 
+
+cat >>confdefs.h <<_ACEOF
+#define CEL_HOST "$host"
+_ACEOF
+
+
+AC_SIZEOF_CHAR
+AC_SIZEOF_SHORT
+AC_SIZEOF_INT
+AC_SIZEOF_LONG
 
 case $host_os in
 	darwin*)
@@ -2747,6 +2757,9 @@ test -z "$INSTALL_DATA" && INSTALL_DATA='${INSTALL} -m 644'
 
 ac_config_files="$ac_config_files Makefile include/Makefile include/celcore/Makefile celcore/Makefile test/Makefile icel/Makefile"
 
+ac_config_commands="$ac_config_commands cel"
+
+
 cat >confcache <<\_ACEOF
 # This file is a shell script that caches the results of configure
 # tests run on this system so they can be shared between configure
@@ -3280,6 +3293,7 @@ cat >>$CONFIG_STATUS <<_ACEOF || ac_write_fail=1
 # Files that config.status was made for.
 config_files="$ac_config_files"
 config_headers="$ac_config_headers"
+config_commands="$ac_config_commands"
 
 _ACEOF
 
@@ -3308,6 +3322,9 @@ $config_files
 
 Configuration headers:
 $config_headers
+
+Configuration commands:
+$config_commands
 
 Report bugs to <felicity@loreley.flyingparchment.org.uk>."
 
@@ -3429,6 +3446,11 @@ _ASBOX
 
 _ACEOF
 cat >>$CONFIG_STATUS <<_ACEOF || ac_write_fail=1
+#
+# INIT-COMMANDS
+#
+host="$host"; PACKAGE_VERSION="$PACKAGE_VERSION"
+
 _ACEOF
 
 cat >>$CONFIG_STATUS <<\_ACEOF || ac_write_fail=1
@@ -3437,13 +3459,14 @@ cat >>$CONFIG_STATUS <<\_ACEOF || ac_write_fail=1
 for ac_config_target in $ac_config_targets
 do
   case $ac_config_target in
-    "include/celcore/cel-config.h") CONFIG_HEADERS="$CONFIG_HEADERS include/celcore/cel-config.h" ;;
+    "build.h") CONFIG_HEADERS="$CONFIG_HEADERS build.h" ;;
     "Makefile") CONFIG_FILES="$CONFIG_FILES Makefile" ;;
     "include/Makefile") CONFIG_FILES="$CONFIG_FILES include/Makefile" ;;
     "include/celcore/Makefile") CONFIG_FILES="$CONFIG_FILES include/celcore/Makefile" ;;
     "celcore/Makefile") CONFIG_FILES="$CONFIG_FILES celcore/Makefile" ;;
     "test/Makefile") CONFIG_FILES="$CONFIG_FILES test/Makefile" ;;
     "icel/Makefile") CONFIG_FILES="$CONFIG_FILES icel/Makefile" ;;
+    "cel") CONFIG_COMMANDS="$CONFIG_COMMANDS cel" ;;
 
   *) as_fn_error $? "invalid argument: \`$ac_config_target'" "$LINENO" 5;;
   esac
@@ -3457,6 +3480,7 @@ done
 if $ac_need_defaults; then
   test "${CONFIG_FILES+set}" = set || CONFIG_FILES=$config_files
   test "${CONFIG_HEADERS+set}" = set || CONFIG_HEADERS=$config_headers
+  test "${CONFIG_COMMANDS+set}" = set || CONFIG_COMMANDS=$config_commands
 fi
 
 # Have a temporary directory for convenience.  Make it in the build tree
@@ -3753,7 +3777,7 @@ cat >>$CONFIG_STATUS <<\_ACEOF || ac_write_fail=1
 fi # test -n "$CONFIG_HEADERS"
 
 
-eval set X "  :F $CONFIG_FILES  :H $CONFIG_HEADERS    "
+eval set X "  :F $CONFIG_FILES  :H $CONFIG_HEADERS    :C $CONFIG_COMMANDS"
 shift
 for ac_tag
 do
@@ -3991,9 +4015,36 @@ $as_echo "$as_me: $ac_file is unchanged" >&6;}
   fi
  ;;
 
-
+  :C)  { $as_echo "$as_me:${as_lineno-$LINENO}: executing $ac_file commands" >&5
+$as_echo "$as_me: executing $ac_file commands" >&6;}
+ ;;
   esac
 
+
+  case $ac_file$ac_mode in
+    "cel":C)
+mkdir include 2>/dev/null || true
+mkdir include/celcore 2>/dev/null || true
+cat >include/celcore/cel-config.h.tmp <<EOF
+#ifndef	CEL_CONFIG_H
+#define	CEL_CONFIG_H
+
+#define	CEL_VERSION "$PACKAGE_VERSION"
+#define	CEL_HOST "$host"
+
+#endif	/* !CEL_CONFIG_H */
+EOF
+
+if ! cmp include/celcore/cel-config.h.tmp include/celcore/cel-config.h >/dev/null 2>&1; then
+	mv include/celcore/cel-config.h.tmp include/celcore/cel-config.h
+else
+	echo config.status: include/celcore/cel-config.h is unchanged
+	rm include/celcore/cel-config.h.tmp
+fi
+
+ ;;
+
+  esac
 done # for ac_tag
 
 

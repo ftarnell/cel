@@ -60,7 +60,9 @@ struct {
 	{ L"or",	T_OR		},
 	{ L"int",	T_INT		},
 	{ L"string",	T_STRING	},
-	{ L"bool",	T_BOOL		}
+	{ L"bool",	T_BOOL		},
+	{ L"true",	T_TRUE		},
+	{ L"false",	T_FALSE		}
 };
 
 /* Skip whitespace */

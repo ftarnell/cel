@@ -91,6 +91,41 @@ cel_derive_binary_type(op, a, b)
 	cel_bi_oper_t	 op;
 	cel_type_t	*a, *b;
 {
+#define IS_ORD(t)						\
+	((t) == cel_type_int8  || (t) == cel_type_uint8  ||	\
+	 (t) == cel_type_int16 || (t) == cel_type_uint16 ||	\
+	 (t) == cel_type_int32 || (t) == cel_type_uint32 ||	\
+	 (t) == cel_type_int64 || (t) == cel_type_uint64)
+
+	/*
+	 * These operators always return boolean types; we still do type
+	 * checking on their arguments.
+	 */
+	switch (op) {
+	case cel_op_eq:
+	case cel_op_neq:
+		if (a->ct_tag == cel_type_bool && b->ct_tag == cel_type_bool)
+			return cel_make_type(cel_type_bool);
+
+	case cel_op_lt:
+	case cel_op_le:
+	case cel_op_gt:
+	case cel_op_ge:
+		if (!IS_ORD(a->ct_tag) || !IS_ORD(b->ct_tag))
+			return NULL;
+		return cel_make_type(cel_type_bool);
+
+	case cel_op_and:
+	case cel_op_or:
+		if (a->ct_tag == cel_type_bool && b->ct_tag == cel_type_bool)
+			return cel_make_type(cel_type_bool);
+		return NULL;
+
+	default:
+		break;
+	}
+#undef IS_ORD
+
 	switch (a->ct_tag) {
 	/*
 	 * Anything <= 32 bits is promoted to the 32-bit type.
@@ -157,6 +192,115 @@ cel_derive_binary_type(op, a, b)
 	case cel_type_string:
 		if (op == cel_op_plus && b->ct_tag == cel_type_string)
 			return cel_make_type(cel_type_string);
+		return NULL;
+
+	/*
+	 * Bools can only be compared for equality with each other; not with
+	 * integer types, as that almost certainly doesn't make sense.
+	 */
+	case cel_type_bool:
+		if ((op == cel_op_eq || op == cel_op_neq) &&
+		    b->ct_tag == cel_type_bool)
+			return cel_make_type(cel_type_bool);
+		return NULL;
+
+	default:
+		return NULL;
+	}
+}
+
+cel_type_t *
+cel_derive_binary_promotion(op, a, b)
+	cel_bi_oper_t	 op;
+	cel_type_t	*a, *b;
+{
+	switch (op) {
+	case cel_op_and:
+	case cel_op_or:
+		if (a->ct_tag == cel_type_bool && b->ct_tag == cel_type_bool)
+			return cel_make_type(cel_type_bool);
+		return NULL;
+
+	default:
+		break;
+	}
+
+	switch (a->ct_tag) {
+	/*
+	 * Anything <= 32 bits is promoted to the 32-bit type.
+	 */
+	case cel_type_int8:
+	case cel_type_uint8:
+	case cel_type_int16:
+	case cel_type_uint16:
+	case cel_type_int32:
+		switch (b->ct_tag) {
+		case cel_type_int8:	return cel_make_type(cel_type_int32);
+		case cel_type_uint8:	return cel_make_type(cel_type_int32);
+		case cel_type_int16:	return cel_make_type(cel_type_int32);
+		case cel_type_uint16:	return cel_make_type(cel_type_int32);
+		case cel_type_int32:	return cel_make_type(cel_type_int32);
+		case cel_type_uint32:	return cel_make_type(cel_type_uint32);
+		case cel_type_int64:	return cel_make_type(cel_type_int64);
+		case cel_type_uint64:	return cel_make_type(cel_type_uint64);
+		default:		return NULL;
+		}
+
+	case cel_type_uint32:
+		switch (b->ct_tag) {
+		case cel_type_int8:	return cel_make_type(cel_type_uint32);
+		case cel_type_uint8:	return cel_make_type(cel_type_uint32);
+		case cel_type_int16:	return cel_make_type(cel_type_uint32);
+		case cel_type_uint16:	return cel_make_type(cel_type_uint32);
+		case cel_type_int32:	return cel_make_type(cel_type_uint32);
+		case cel_type_uint32:	return cel_make_type(cel_type_uint32);
+		case cel_type_int64:	return cel_make_type(cel_type_int64);
+		case cel_type_uint64:	return cel_make_type(cel_type_uint64);
+		default:		return NULL;
+		}
+
+	case cel_type_int64:
+		switch (b->ct_tag) {
+		case cel_type_int8:	return cel_make_type(cel_type_int64);
+		case cel_type_uint8:	return cel_make_type(cel_type_int64);
+		case cel_type_int16:	return cel_make_type(cel_type_int64);
+		case cel_type_uint16:	return cel_make_type(cel_type_int64);
+		case cel_type_int32:	return cel_make_type(cel_type_int64);
+		case cel_type_uint32:	return cel_make_type(cel_type_int64);
+		case cel_type_int64:	return cel_make_type(cel_type_int64);
+		case cel_type_uint64:	return cel_make_type(cel_type_uint64);
+		default:		return NULL;
+		}
+
+	case cel_type_uint64:
+		switch (b->ct_tag) {
+		case cel_type_int8:	return cel_make_type(cel_type_uint64);
+		case cel_type_uint8:	return cel_make_type(cel_type_uint64);
+		case cel_type_int16:	return cel_make_type(cel_type_uint64);
+		case cel_type_uint16:	return cel_make_type(cel_type_uint64);
+		case cel_type_int32:	return cel_make_type(cel_type_uint64);
+		case cel_type_uint32:	return cel_make_type(cel_type_uint64);
+		case cel_type_int64:	return cel_make_type(cel_type_uint64);
+		case cel_type_uint64:	return cel_make_type(cel_type_uint64);
+		default:		return NULL;
+		}
+
+	/*
+	 * The only valid operations on strings is + (concat).
+	 */
+	case cel_type_string:
+		if (op == cel_op_plus && b->ct_tag == cel_type_string)
+			return cel_make_type(cel_type_string);
+		return NULL;
+
+	/*
+	 * Bools can only be compared for equality with each other; not with
+	 * integer types, as that almost certainly doesn't make sense.
+	 */
+	case cel_type_bool:
+		if ((op == cel_op_eq || op == cel_op_neq) &&
+		    b->ct_tag == cel_type_bool)
+			return cel_make_type(cel_type_bool);
 		return NULL;
 
 	default:
