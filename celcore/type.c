@@ -56,3 +56,110 @@ cel_type_free(t)
 		cel_type_free(t->ct_type.ct_array_type);
 	free(t);
 }
+
+void
+cel_name_type(type, buf, bsz)
+	cel_type_t	*type;
+	wchar_t		*buf;
+	size_t		 bsz;
+{
+	*buf = 0;
+
+	while (type->ct_tag == cel_type_array) {
+		wcslcat(buf, L"[]", bsz);
+		type = type->ct_type.ct_array_type;
+	}
+
+	switch (type->ct_tag) {
+	case cel_type_int8:	wcslcat(buf, L"int8", bsz); break;
+	case cel_type_int16:	wcslcat(buf, L"int16", bsz); break;
+	case cel_type_int32:	wcslcat(buf, L"int32", bsz); break;
+	case cel_type_int64:	wcslcat(buf, L"int64", bsz); break;
+	case cel_type_uint8:	wcslcat(buf, L"uint8", bsz); break;
+	case cel_type_uint16:	wcslcat(buf, L"uint16", bsz); break;
+	case cel_type_uint32:	wcslcat(buf, L"uint32", bsz); break;
+	case cel_type_uint64:	wcslcat(buf, L"uint64", bsz); break;
+	case cel_type_bool:	wcslcat(buf, L"bool", bsz); break;
+	case cel_type_string:	wcslcat(buf, L"string", bsz); break;
+	case cel_type_function:	wcslcat(buf, L"function", bsz); break;
+	default:		wcslcat(buf, L"<unknown>", bsz); break;
+	}
+}
+
+cel_type_t *
+cel_derive_binary_type(op, a, b)
+	cel_bi_oper_t	 op;
+	cel_type_t	*a, *b;
+{
+	switch (a->ct_tag) {
+	/*
+	 * Anything <= 32 bits is promoted to the 32-bit type.
+	 */
+	case cel_type_int8:
+	case cel_type_uint8:
+	case cel_type_int16:
+	case cel_type_uint16:
+	case cel_type_int32:
+		switch (b->ct_tag) {
+		case cel_type_int8:	return cel_make_type(cel_type_int32);
+		case cel_type_uint8:	return cel_make_type(cel_type_int32);
+		case cel_type_int16:	return cel_make_type(cel_type_int32);
+		case cel_type_uint16:	return cel_make_type(cel_type_int32);
+		case cel_type_int32:	return cel_make_type(cel_type_int32);
+		case cel_type_uint32:	return cel_make_type(cel_type_uint32);
+		case cel_type_int64:	return cel_make_type(cel_type_int64);
+		case cel_type_uint64:	return cel_make_type(cel_type_uint64);
+		default:		return NULL;
+		}
+
+	case cel_type_uint32:
+		switch (b->ct_tag) {
+		case cel_type_int8:	return cel_make_type(cel_type_uint32);
+		case cel_type_uint8:	return cel_make_type(cel_type_uint32);
+		case cel_type_int16:	return cel_make_type(cel_type_uint32);
+		case cel_type_uint16:	return cel_make_type(cel_type_uint32);
+		case cel_type_int32:	return cel_make_type(cel_type_uint32);
+		case cel_type_uint32:	return cel_make_type(cel_type_uint32);
+		case cel_type_int64:	return cel_make_type(cel_type_int64);
+		case cel_type_uint64:	return cel_make_type(cel_type_uint64);
+		default:		return NULL;
+		}
+
+	case cel_type_int64:
+		switch (b->ct_tag) {
+		case cel_type_int8:	return cel_make_type(cel_type_int64);
+		case cel_type_uint8:	return cel_make_type(cel_type_int64);
+		case cel_type_int16:	return cel_make_type(cel_type_int64);
+		case cel_type_uint16:	return cel_make_type(cel_type_int64);
+		case cel_type_int32:	return cel_make_type(cel_type_int64);
+		case cel_type_uint32:	return cel_make_type(cel_type_int64);
+		case cel_type_int64:	return cel_make_type(cel_type_int64);
+		case cel_type_uint64:	return cel_make_type(cel_type_uint64);
+		default:		return NULL;
+		}
+
+	case cel_type_uint64:
+		switch (b->ct_tag) {
+		case cel_type_int8:	return cel_make_type(cel_type_uint64);
+		case cel_type_uint8:	return cel_make_type(cel_type_uint64);
+		case cel_type_int16:	return cel_make_type(cel_type_uint64);
+		case cel_type_uint16:	return cel_make_type(cel_type_uint64);
+		case cel_type_int32:	return cel_make_type(cel_type_uint64);
+		case cel_type_uint32:	return cel_make_type(cel_type_uint64);
+		case cel_type_int64:	return cel_make_type(cel_type_uint64);
+		case cel_type_uint64:	return cel_make_type(cel_type_uint64);
+		default:		return NULL;
+		}
+
+	/*
+	 * The only valid operations on strings is + (concat).
+	 */
+	case cel_type_string:
+		if (op == cel_op_plus && b->ct_tag == cel_type_string)
+			return cel_make_type(cel_type_string);
+		return NULL;
+
+	default:
+		return NULL;
+	}
+}

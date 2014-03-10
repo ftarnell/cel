@@ -23,11 +23,19 @@
 #define	CONSUME()	cel_next_token(par->cp_lex, &par->cp_tok)
 #define	ACCEPT(t)	(EXPECT((t)) ? (CONSUME(), t) : 0)
 
-#define	ERROR(m)							\
+#define	ERROR_TOK(t,m)							\
 	do {								\
-		free(par->cp_error);					\
-		par->cp_error = wcsdup((m));				\
-		par->cp_err_token = par->cp_tok;			\
+		if (par->cp_error)					\
+			par->cp_error(par, (t), (m));			\
+		return NULL;						\
+	} while (0)
+
+#define	ERROR(m)	ERROR_TOK(&par->cp_tok, (m))
+
+#define	WARN(m)								\
+	do {								\
+		if (par->cp_warn)					\
+			par->cp_warn(par, m);				\
 		return NULL;						\
 	} while (0)
 
@@ -72,13 +80,19 @@ cel_parse(par)
  */
 cel_expr_list_t	*list;
 cel_expr_t	*e;
+cel_token_t	 start_tok;
 
 	list = calloc(1, sizeof(*list));
 	CEL_TAILQ_INIT(list);
 
 	CONSUME();
 
-	while (e = cel_parse_expr(par)) {
+	for (;;) {
+		start_tok = par->cp_tok;
+
+		if ((e = cel_parse_expr(par)) == NULL)
+			break;
+
 		CEL_TAILQ_INSERT_TAIL(list, e, ce_entry);
 
 		if (!ACCEPT(T_SEMI)) {
@@ -96,7 +110,7 @@ cel_expr_t	*e;
 	if (EXPECT(T_EOT))
 		return list;
 
-	ERROR(L"expected expression");
+	ERROR_TOK(&start_tok, L"failed to parse statement");
 }
 
 cel_typedef_t *
@@ -213,7 +227,7 @@ cel_type_t	*type;
 
 /* Identifier */
 	if (ACCEPT(T_INT))
-		type = cel_make_type(cel_type_int);
+		type = cel_make_type(cel_type_int32);
 	else if (ACCEPT(T_STRING))
 		type = cel_make_type(cel_type_string);
 	else if (ACCEPT(T_BOOL))
@@ -506,22 +520,50 @@ cel_parse_expr_plus(par)
 {
 /* expr_plus   --> expr_mult  {( "+" | "-" ) expr_mult} */
 cel_expr_t	*e, *f;
+cel_token_t	 op_tok;
 int		 op;
 
 	if ((e = cel_parse_expr_mult(par)) == NULL) {
 		return NULL;
 	}
 
-	while ((op = ACCEPT(T_PLUS)) || (op = ACCEPT(T_MINUS))) {
+	for (;;) {
+	cel_type_t	*type;
+	cel_bi_oper_t	 oper;
+
+		op_tok = par->cp_tok;
+
+		if (!(op = ACCEPT(T_PLUS)) && !(op = ACCEPT(T_MINUS)))
+			break;
+
 		if ((f = cel_parse_expr_mult(par)) == NULL) {
 			cel_expr_free(e);
 			ERROR(L"expected expression");
 		}
 
 		switch (op) {
-		case T_EQ:	e = cel_make_eq(e, f); break;
-		case T_NEQ:	e = cel_make_neq(e, f); break;
+		case T_PLUS:	oper = cel_op_plus; break;
+		case T_MINUS:	oper = cel_op_minus; break;
 		}
+
+		if ((type = cel_derive_binary_type(oper, e->ce_type, f->ce_type)) == NULL) {
+		wchar_t	a1[64], a2[64];
+		wchar_t	err[128];
+
+			cel_name_type(e->ce_type, a1, sizeof(a1) / sizeof(wchar_t));
+			cel_name_type(f->ce_type, a2, sizeof(a2) / sizeof(wchar_t));
+
+			swprintf(err, sizeof(err) / sizeof(wchar_t),
+				 L"incompatible types in expression: \"%ls\", \"%ls\"",
+				 a1, a2);
+
+			cel_expr_free(e);
+			cel_expr_free(f);
+			ERROR_TOK(&op_tok, err);
+		}
+
+		e = cel_make_binary(op, e, f);
+		e->ce_type = type;
 	}
 
 	return e;
@@ -674,7 +716,7 @@ cel_parse_value(par)
 		return cel_make_identifier(par->cp_tok.ct_literal);
 
 	if (ACCEPT(T_LIT_INT)) {
-		return cel_make_int(wcstol(par->cp_tok.ct_literal, NULL, 0));
+		return cel_make_int32(wcstol(par->cp_tok.ct_literal, NULL, 0));
 	}
 
 	if (ACCEPT(T_LIT_STR))
@@ -743,7 +785,7 @@ cel_expr_t	*ret;
 
 /* list of statements */
 	for (;;) {
-		while (cel_parse_stmt(par) == 0) {
+		while (cel_parse_stmt(par) != NULL) {
 			/*
 			 * Each statement has to be followed by a semicolon,
 			 * except for the last one in the block.

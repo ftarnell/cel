@@ -54,6 +54,7 @@ typedef enum cel_uni_oper {
 } cel_uni_oper_t;
 
 struct cel_expr;
+struct cel_type;
 
 typedef struct cel_if_branch {
 	struct cel_expr	*ib_condition;
@@ -62,6 +63,7 @@ typedef struct cel_if_branch {
 
 typedef struct cel_expr {
 	cel_expr_tag_t	 ce_tag;
+	struct cel_type	*ce_type;
 
 	union {
 		int	 ce_int;
@@ -100,7 +102,7 @@ typedef struct cel_arglist {
 
 void		 cel_expr_free(cel_expr_t *);
 
-cel_expr_t	*cel_make_int(int);
+cel_expr_t	*cel_make_int32(int);
 cel_expr_t	*cel_make_bool(int);
 cel_expr_t	*cel_make_string(wchar_t const *);
 cel_expr_t	*cel_make_identifier(wchar_t const *);

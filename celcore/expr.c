@@ -10,13 +10,15 @@
 
 #include	"celcore/expr.h"
 #include	"celcore/function.h"
+#include	"celcore/type.h"
 
 cel_expr_t *
-cel_make_int(i)
+cel_make_int32(i)
 {
 cel_expr_t	*ret;
 	if ((ret = calloc(1, sizeof(*ret))) == NULL)
 		return NULL;
+	ret->ce_type = cel_make_type(cel_type_int32);
 	ret->ce_tag = cel_exp_int;
 	ret->ce_op.ce_int = i;
 	return ret;
@@ -28,6 +30,7 @@ cel_make_bool(i)
 cel_expr_t	*ret;
 	if ((ret = calloc(1, sizeof(*ret))) == NULL)
 		return NULL;
+	ret->ce_type = cel_make_type(cel_type_bool);
 	ret->ce_tag = cel_exp_int;
 	ret->ce_op.ce_bool = i;
 	return ret;
@@ -40,6 +43,7 @@ cel_make_string(s)
 cel_expr_t	*ret;
 	if ((ret = calloc(1, sizeof(*ret))) == NULL)
 		return NULL;
+	ret->ce_type = cel_make_type(cel_type_string);
 	ret->ce_tag = cel_exp_string;
 	ret->ce_op.ce_string = wcsdup(s);
 	return ret;

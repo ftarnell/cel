@@ -225,6 +225,27 @@ int		 i;
 	if (!tok->ct_line)
 		return;
 
+	if (tok->ct_token == T_EOT) {
+		fputc('a', stream);
+		fputc('t', stream);
+		fputc(' ', stream);
+		fputc('<', stream);
+		fputc('e', stream);
+		fputc('n', stream);
+		fputc('d', stream);
+		fputc(' ', stream);
+		fputc('o', stream);
+		fputc('f', stream);
+		fputc(' ', stream);
+		fputc('f', stream);
+		fputc('i', stream);
+		fputc('l', stream);
+		fputc('e', stream);
+		fputc('>', stream);
+		fputc('\n', stream);
+		return;
+	}
+
 	for (i = 8; i; i--)
 		fputc(' ', stream);
 

@@ -14,15 +14,19 @@
 #include	"celcore/tokens.h"
 #include	"celcore/expr.h"
 
+struct cel_parser;
+
+typedef void (*cel_emit_error) (struct cel_parser *, cel_token_t *, wchar_t const *);
+typedef void (*cel_emit_warning) (struct cel_parser *, cel_token_t *, wchar_t const *);
+
 typedef struct cel_parser {
 	/* Our lexer */
 	cel_lexer_t	*cp_lex;
 
-	/* In case of error, the token that caused it */
-	cel_token_t	 cp_err_token;
-
-	/* Error message from failed parse */
-	wchar_t		*cp_error;
+	cel_emit_error	 cp_error;
+	cel_emit_warning cp_warn;
+	int		 cp_nerrs;
+	int		 cp_nwarns;
 
 	/* Current token (private) */
 	cel_token_t	 cp_tok;

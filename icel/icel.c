@@ -15,6 +15,27 @@
 #include	"celcore/cel-config.h"
 #include	"celcore/tokens.h"
 #include	"celcore/parse.h"
+#include	"celcore/annotate.h"
+
+static void
+icel_error(par, tok, s)
+	cel_token_t	*tok;
+	cel_parser_t	*par;
+	wchar_t const	*s;
+{
+	fprintf(stderr, "error: %ls\n", s);
+	cel_token_print_context(par->cp_lex, tok, stderr);
+}
+
+static void
+icel_warn(par, tok, s)
+	cel_token_t	*tok;
+	cel_parser_t	*par;
+	wchar_t const	*s;
+{
+	fprintf(stderr, "warning: %ls\n", s);
+	cel_token_print_context(par->cp_lex, tok, stderr);
+}
 
 int
 main(argc, argv)
@@ -31,9 +52,10 @@ wchar_t	*buf = NULL;
 	wchar_t		 wline[1024];
 	cel_lexer_t	 lex;
 	cel_parser_t	 par;
+	cel_expr_list_t	*program;
 
 
-		printf(":");
+		printf(">>> ");
 		fflush(stdout);
 
 		if (fgets(line, sizeof(line), stdin) == NULL)
@@ -51,9 +73,10 @@ wchar_t	*buf = NULL;
 			return 1;
 		}
 
-		if (cel_parse(&par) == 0) {
-			fprintf(stderr, "error: %ls\n", par.cp_error);
-			cel_token_print_context(&lex, &par.cp_err_token, stderr);
+		par.cp_error = icel_error;
+		par.cp_warn = icel_warn;
+
+		if ((program = cel_parse(&par)) == NULL) {
 			continue;
 		}
 	}
