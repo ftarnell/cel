@@ -872,8 +872,22 @@ cel_expr_t	*ret = NULL;
 
 	if (EXPECT(T_ID))
 		ret = cel_make_identifier(par->cp_tok.ct_literal);
-	else if (EXPECT(T_LIT_INT))
+	else if (EXPECT(T_LIT_INT8))
+		ret = cel_make_int8(wcstol(par->cp_tok.ct_literal, NULL, 0));
+	else if (EXPECT(T_LIT_UINT8))
+		ret = cel_make_uint8(wcstol(par->cp_tok.ct_literal, NULL, 0));
+	else if (EXPECT(T_LIT_INT16))
+		ret = cel_make_int16(wcstol(par->cp_tok.ct_literal, NULL, 0));
+	else if (EXPECT(T_LIT_UINT16))
+		ret = cel_make_uint16(wcstol(par->cp_tok.ct_literal, NULL, 0));
+	else if (EXPECT(T_LIT_INT32))
 		ret = cel_make_int32(wcstol(par->cp_tok.ct_literal, NULL, 0));
+	else if (EXPECT(T_LIT_UINT32))
+		ret = cel_make_uint32(wcstol(par->cp_tok.ct_literal, NULL, 0));
+	else if (EXPECT(T_LIT_INT64))
+		ret = cel_make_int64(wcstol(par->cp_tok.ct_literal, NULL, 0));
+	else if (EXPECT(T_LIT_UINT64))
+		ret = cel_make_uint64(wcstol(par->cp_tok.ct_literal, NULL, 0));
 	else if (EXPECT(T_LIT_STR)) {
 	wchar_t	*s;
 		s = wcsdup(par->cp_tok.ct_literal + 1);

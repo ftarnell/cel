@@ -170,13 +170,41 @@ struct {
 
 	if (wcschr(L"0123456789", lex->cl_bufp[0])) {
 	size_t	span;
-		span = wcsspn(lex->cl_bufp + 1, L"0123456789");
+	int	width = 32;
+	int	signed_ = 1;
 
-		ret->ct_literal = calloc(sizeof(wchar_t), span + 2);
-		ret->ct_token = T_LIT_INT;
-		wmemcpy(ret->ct_literal, lex->cl_bufp, span + 1);
-		lex->cl_bufp += span + 1;
-		lex->cl_col += span + 1;
+		span = wcsspn(lex->cl_bufp, L"0123456789");
+
+		ret->ct_literal = calloc(sizeof(wchar_t), span + 1);
+		wmemcpy(ret->ct_literal, lex->cl_bufp, span);
+
+		/* Optional trailing 'i' or 'u'. */
+		switch (lex->cl_bufp[span]) {
+		case 'u':	signed_ = 0;
+		case 'i':	span++;
+
+			/* Optional trailing width */
+			if (lex->cl_bufp[span] == '8')
+				++span, width = 8;
+			else if (lex->cl_bufp[span] == '1' && lex->cl_bufp[span + 1] == '6')
+				span += 2, width = 16;
+			else if (lex->cl_bufp[span] == '3' && lex->cl_bufp[span + 1] == '2')
+				span += 2, width = 32;
+			else if (lex->cl_bufp[span] == '6' && lex->cl_bufp[span + 1] == '4')
+				span += 2, width = 64;
+
+			break;
+		}
+
+		switch (width) {
+		case 8:		ret->ct_token = signed_? T_LIT_INT8  : T_LIT_UINT8; break;
+		case 16:	ret->ct_token = signed_? T_LIT_INT16 : T_LIT_UINT16; break;
+		case 32:	ret->ct_token = signed_? T_LIT_INT32 : T_LIT_UINT32; break;
+		case 64:	ret->ct_token = signed_? T_LIT_INT64 : T_LIT_UINT64; break;
+		}
+
+		lex->cl_bufp += span;
+		lex->cl_col += span;
 		return 0;
 	}
 
