@@ -57,7 +57,10 @@ struct {
 	{ L"else",	T_ELSE		},
 	{ L"then",	T_THEN		},
 	{ L"and",	T_AND		},
-	{ L"or",	T_OR		}
+	{ L"or",	T_OR		},
+	{ L"int",	T_INT		},
+	{ L"string",	T_STRING	},
+	{ L"bool",	T_BOOL		}
 };
 
 /* Skip whitespace */

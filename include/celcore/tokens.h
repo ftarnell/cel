@@ -55,6 +55,9 @@
 #define	T_OR		39
 #define	T_NEQ		40
 #define	T_NEGATE	41
+#define	T_INT		42
+#define	T_STRING	43
+#define	T_BOOL		44
 
 /*
  * Lexer state.

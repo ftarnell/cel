@@ -27,8 +27,9 @@ typedef struct cel_parser {
 	cel_token_t	 cp_tok;
 } cel_parser_t;
 
-int	cel_parser_init(cel_parser_t *, cel_lexer_t *);
+int cel_parser_init(cel_parser_t *, cel_lexer_t *);
 
-int	cel_parse(cel_parser_t *);
+struct cel_block;
+struct cel_block	*cel_parse(cel_parser_t *);
 
 #endif	/* !CEL_PARSE_H */
