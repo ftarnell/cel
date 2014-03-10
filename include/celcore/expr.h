@@ -14,6 +14,8 @@
 #include	<wchar.h>
 #include	<stdlib.h>
 
+#include	"celcore/tailq.h"
+
 struct cel_function;
 
 typedef enum cel_expr_tag {
@@ -85,7 +87,11 @@ typedef struct cel_expr {
 		struct cel_function *ce_function;
 		struct cel_vardecl  *ce_vardecl;
 	} ce_op;
+
+	CEL_TAILQ_ENTRY(cel_expr) ce_entry;
 } cel_expr_t;
+
+typedef CEL_TAILQ_HEAD(cel_expr_list, cel_expr) cel_expr_list_t;
 
 typedef struct cel_arglist {
 	int		 ca_nargs;

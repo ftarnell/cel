@@ -21,7 +21,7 @@
 
 #define	EXPECT(t)	(par->cp_tok.ct_token == (t))
 #define	CONSUME()	cel_next_token(par->cp_lex, &par->cp_tok)
-#define	ACCEPT(t)	(EXPECT((t)) ? (CONSUME(), 1) : 0)
+#define	ACCEPT(t)	(EXPECT((t)) ? (CONSUME(), t) : 0)
 
 #define	ERROR(m)							\
 	do {								\
@@ -62,7 +62,7 @@ cel_parser_init(par, lex)
 	return 0;
 }
 
-cel_block_t *
+cel_expr_list_t *
 cel_parse(par)
 	cel_parser_t	*par;
 {
@@ -70,26 +70,33 @@ cel_parse(par)
  * Top-level parser.  The only things which can occur at the top level are
  * functions, typedefs or variables.
  */
-cel_block_t	*block;
+cel_expr_list_t	*list;
+cel_expr_t	*e;
+
+	list = calloc(1, sizeof(*list));
+	CEL_TAILQ_INIT(list);
 
 	CONSUME();
 
-	block = calloc(1, sizeof(*block));
+	while (e = cel_parse_expr(par)) {
+		CEL_TAILQ_INSERT_TAIL(list, e, ce_entry);
 
-	for (;;) {
-		if (EXPECT(T_EOT))
-			return block;
+		if (!ACCEPT(T_SEMI)) {
+			/*
+			 * The last statement in the file doesn't need a
+			 * semicolon.
+			 */
+			if (EXPECT(T_EOT))
+				return list;
 
-		if (cel_parse_typedef(par) == 0 ||
-		    cel_parse_expr(par) == 0) {
-			if (!ACCEPT(T_SEMI))
-				ERROR(L"expected ';'");
-			continue;
+			ERROR(L"expected ';'");
 		}
-
-		return NULL;
 	}
 
+	if (EXPECT(T_EOT))
+		return list;
+
+	ERROR(L"expected expression");
 }
 
 cel_typedef_t *
@@ -235,7 +242,7 @@ cel_parse_func(par)
 cel_function_t	*func;
 
 	if (!ACCEPT(T_FUNC))
-		ERROR(L"expected function definition");
+		return NULL;
 
 	func = calloc(1, sizeof(*func));
 
@@ -274,7 +281,7 @@ cel_function_t	*func;
 		}
 
 	/* Type */
-		if (cel_parse_type(par) != 0) {
+		if (cel_parse_type(par) == NULL) {
 			cel_function_free(func);
 			ERROR(L"expected type name");
 		}
@@ -296,7 +303,7 @@ cel_function_t	*func;
 	}
 
 /* Return type */
-	if (cel_parse_type(par) != 0) {
+	if (cel_parse_type(par) == NULL) {
 		cel_function_free(func);
 		ERROR(L"expected type name");
 	}
@@ -310,8 +317,10 @@ cel_function_t	*func;
 /*
  * List of statements.
  */
-	while (cel_parse_stmt(par) == 0)
-		/* ... */;
+	while (cel_parse_stmt(par) == 0) {
+		if (ACCEPT(T_SEMI))
+			continue;
+	}
 
 	if (!ACCEPT(T_END)) {
 		cel_function_free(func);
@@ -334,14 +343,9 @@ cel_parse_stmt(par)
  */
 cel_expr_t	*e;
 
-	if (e = cel_parse_expr(par)) {
-		if (!ACCEPT(T_SEMI)) {
-			cel_expr_free(e);
-			ERROR(L"expected ';'");
-		}
-
+	if (e = cel_parse_expr(par))
 		return e;
-	}
+
 
 	return NULL;
 }
@@ -372,7 +376,7 @@ cel_expr_t	*e, *f;
 		e = cel_make_assign(e, f);
 	}
 
-	return 0;
+	return e;
 }
 
 cel_expr_t *
@@ -504,8 +508,9 @@ cel_parse_expr_plus(par)
 cel_expr_t	*e, *f;
 int		 op;
 
-	if ((e = cel_parse_expr_mult(par)) == NULL)
+	if ((e = cel_parse_expr_mult(par)) == NULL) {
 		return NULL;
+	}
 
 	while ((op = ACCEPT(T_PLUS)) || (op = ACCEPT(T_MINUS))) {
 		if ((f = cel_parse_expr_mult(par)) == NULL) {
@@ -530,6 +535,7 @@ cel_parse_expr_mult(par)
 cel_expr_t	*e, *f;
 int		 op;
 
+
 	if ((e = cel_parse_expr_unary(par)) == NULL)
 		return NULL;
 
@@ -547,7 +553,7 @@ int		 op;
 		}
 	}
 
-	return NULL;
+	return e;
 }
 
 cel_expr_t *
@@ -582,33 +588,37 @@ cel_parse_expr_post(par)
 {
 /* expr_post   --> expr_value [ ( "(" arglist ")" | "[" expr "]" ) ] */
 cel_expr_t	*e;
+int		 op;
 
 	if ((e = cel_parse_expr_value(par)) == NULL)
 		return NULL;
 
 /* Function call */
-	if (ACCEPT(T_LPAR)) {
-		if (cel_parse_arglist(par) != 0) {
-			cel_expr_free(e);
-			return NULL;
-		}
+	while ((op = ACCEPT(T_LPAR)) || (op = ACCEPT(T_LSQ))) {
+		switch (op) {
+		case T_LPAR:
+			if (cel_parse_arglist(par) == NULL) {
+				cel_expr_free(e);
+				return NULL;
+			}
 
-		if (!ACCEPT(T_RPAR)) {
-			cel_expr_free(e);
-			ERROR(L"expected ')'");
-		}
-	}
+			if (!ACCEPT(T_RPAR)) {
+				cel_expr_free(e);
+				ERROR(L"expected ')'");
+			}
+			break;
 
-/* Array dereference */
-	else if (ACCEPT(T_LSQ)) {
-		if (cel_parse_expr(par) != 0) {
-			cel_expr_free(e);
-			ERROR(L"expected expression");
-		}
+		case T_LSQ:
+			if (cel_parse_expr(par) == NULL) {
+				cel_expr_free(e);
+				ERROR(L"expected expression");
+			}
 
-		if (!ACCEPT(T_RSQ)) {
-			cel_expr_free(e);
-			ERROR(L"expected ']'");
+			if (!ACCEPT(T_RSQ)) {
+				cel_expr_free(e);
+				ERROR(L"expected ']'");
+			}
+			break;
 		}
 	}
 
@@ -659,11 +669,13 @@ cel_expr_t *
 cel_parse_value(par)
 	cel_parser_t	*par;
 {
+
 	if (ACCEPT(T_ID))
 		return cel_make_identifier(par->cp_tok.ct_literal);
 
-	if (ACCEPT(T_LIT_INT))
+	if (ACCEPT(T_LIT_INT)) {
 		return cel_make_int(wcstol(par->cp_tok.ct_literal, NULL, 0));
+	}
 
 	if (ACCEPT(T_LIT_STR))
 		return cel_make_string(par->cp_tok.ct_literal);
@@ -718,7 +730,7 @@ cel_expr_t	*ret;
 	ret->ce_tag = cel_exp_if;
 
 /* Expression */
-	if (cel_parse_expr(par) != 0) {
+	if (cel_parse_expr(par) == NULL) {
 		cel_expr_free(ret);
 		ERROR(L"expected expression");
 	}
@@ -731,11 +743,17 @@ cel_expr_t	*ret;
 
 /* list of statements */
 	for (;;) {
-		while (cel_parse_stmt(par) == 0)
-			/* ... */
+		while (cel_parse_stmt(par) == 0) {
+			/*
+			 * Each statement has to be followed by a semicolon,
+			 * except for the last one in the block.
+			 */
+			if (ACCEPT(T_SEMI))
+				continue;
+		}
 			
 		if (ACCEPT(T_ELIF)) {
-			if (cel_parse_expr(par) != 0) {
+			if (cel_parse_expr(par) == NULL) {
 				cel_expr_free(ret);
 				ERROR(L"expected expression");
 			}

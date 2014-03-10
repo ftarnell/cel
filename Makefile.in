@@ -6,7 +6,7 @@
 # freely. This software is provided 'as-is', without any express or implied
 # warranty.
 
-SUBDIRS		= include celcore test
+SUBDIRS		= include celcore icel test 
 
 all clean depend install:
 	@for d in ${SUBDIRS}; do		\

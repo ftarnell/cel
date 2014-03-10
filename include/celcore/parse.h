@@ -12,6 +12,7 @@
 #define	CEL_PARSE_H
 
 #include	"celcore/tokens.h"
+#include	"celcore/expr.h"
 
 typedef struct cel_parser {
 	/* Our lexer */
@@ -29,7 +30,6 @@ typedef struct cel_parser {
 
 int cel_parser_init(cel_parser_t *, cel_lexer_t *);
 
-struct cel_block;
-struct cel_block	*cel_parse(cel_parser_t *);
+cel_expr_list_t	*cel_parse(cel_parser_t *);
 
 #endif	/* !CEL_PARSE_H */

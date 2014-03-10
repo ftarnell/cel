@@ -23,5 +23,5 @@ esac
 AC_PROG_CC
 AC_PROG_INSTALL
 
-AC_CONFIG_FILES([Makefile include/Makefile include/celcore/Makefile celcore/Makefile test/Makefile])
+AC_CONFIG_FILES([Makefile include/Makefile include/celcore/Makefile celcore/Makefile test/Makefile icel/Makefile])
 AC_OUTPUT

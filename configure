@@ -2745,7 +2745,7 @@ test -z "$INSTALL_SCRIPT" && INSTALL_SCRIPT='${INSTALL}'
 test -z "$INSTALL_DATA" && INSTALL_DATA='${INSTALL} -m 644'
 
 
-ac_config_files="$ac_config_files Makefile include/Makefile include/celcore/Makefile celcore/Makefile test/Makefile"
+ac_config_files="$ac_config_files Makefile include/Makefile include/celcore/Makefile celcore/Makefile test/Makefile icel/Makefile"
 
 cat >confcache <<\_ACEOF
 # This file is a shell script that caches the results of configure
@@ -3443,6 +3443,7 @@ do
     "include/celcore/Makefile") CONFIG_FILES="$CONFIG_FILES include/celcore/Makefile" ;;
     "celcore/Makefile") CONFIG_FILES="$CONFIG_FILES celcore/Makefile" ;;
     "test/Makefile") CONFIG_FILES="$CONFIG_FILES test/Makefile" ;;
+    "icel/Makefile") CONFIG_FILES="$CONFIG_FILES icel/Makefile" ;;
 
   *) as_fn_error $? "invalid argument: \`$ac_config_target'" "$LINENO" 5;;
   esac

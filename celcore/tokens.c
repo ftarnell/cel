@@ -222,6 +222,9 @@ cel_token_print_context(lex, tok, stream)
 wchar_t const	*p;
 int		 i;
 
+	if (!tok->ct_line)
+		return;
+
 	for (i = 8; i; i--)
 		fputc(' ', stream);
 
