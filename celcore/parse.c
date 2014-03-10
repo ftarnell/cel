@@ -562,7 +562,7 @@ int		 op;
 			ERROR_TOK(&op_tok, err);
 		}
 
-		e = cel_make_binary(op, e, f);
+		e = cel_make_binary(oper, e, f);
 		e->ce_type = type;
 	}
 
@@ -711,23 +711,23 @@ cel_expr_t *
 cel_parse_value(par)
 	cel_parser_t	*par;
 {
+cel_expr_t	*ret = NULL;
 
-	if (ACCEPT(T_ID))
-		return cel_make_identifier(par->cp_tok.ct_literal);
-
-	if (ACCEPT(T_LIT_INT)) {
-		return cel_make_int32(wcstol(par->cp_tok.ct_literal, NULL, 0));
-	}
-
-	if (ACCEPT(T_LIT_STR))
-		return cel_make_string(par->cp_tok.ct_literal);
-
-	if (ACCEPT(T_LIT_BOOL))
-		return cel_make_bool(
+	if (EXPECT(T_ID))
+		ret = cel_make_identifier(par->cp_tok.ct_literal);
+	else if (EXPECT(T_LIT_INT))
+		ret = cel_make_int32(wcstol(par->cp_tok.ct_literal, NULL, 0));
+	else if (EXPECT(T_LIT_STR))
+		ret = cel_make_string(par->cp_tok.ct_literal);
+	else if (ACCEPT(T_LIT_BOOL))
+		ret = cel_make_bool(
 			wcscmp(par->cp_tok.ct_literal, L"true") == 0 ?
 			1 : 0);
 
-	return NULL;
+	if (ret)
+		CONSUME();
+
+	return ret;
 }
 
 cel_arglist_t *

@@ -14,5 +14,6 @@
 #include	"celcore/expr.h"
 
 cel_expr_t	*cel_eval(cel_expr_t *);
+cel_expr_t	*cel_eval_list(cel_expr_list_t *);
 
 #endif	/* !CEL_EVAL_H */

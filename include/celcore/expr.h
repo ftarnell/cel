@@ -100,7 +100,9 @@ typedef struct cel_arglist {
 	cel_expr_t	**ca_args;
 } cel_arglist_t;
 
+cel_expr_t	*cel_expr_copy(cel_expr_t *);
 void		 cel_expr_free(cel_expr_t *);
+void		 cel_expr_print(cel_expr_t *, wchar_t *buf, size_t bufsz);
 
 cel_expr_t	*cel_make_int32(int);
 cel_expr_t	*cel_make_bool(int);

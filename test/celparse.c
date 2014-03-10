@@ -15,6 +15,26 @@
 #include	"celcore/tokens.h"
 #include	"celcore/parse.h"
 
+static void
+celparse_error(par, tok, s)
+	cel_token_t	*tok;
+	cel_parser_t	*par;
+	wchar_t const	*s;
+{
+	fprintf(stderr, "error: %ls\n", s);
+	cel_token_print_context(par->cp_lex, tok, stderr);
+}
+
+static void
+celparse_warn(par, tok, s)
+	cel_token_t	*tok;
+	cel_parser_t	*par;
+	wchar_t const	*s;
+{
+	fprintf(stderr, "warning: %ls\n", s);
+	cel_token_print_context(par->cp_lex, tok, stderr);
+}
+
 int
 main(argc, argv)
 	char	**argv;
@@ -58,11 +78,10 @@ cel_parser_t	par;
 		return 1;
 	}
 
+	par.cp_error = celparse_error;
+	par.cp_warn = celparse_warn;
+
 	if (cel_parse(&par) != 0) {
-		fprintf(stderr, "\"%s\", line %d: %ls\n",
-			argv[1], par.cp_err_token.ct_lineno,
-			par.cp_error);
-		cel_token_print_context(&lex, &par.cp_err_token, stderr);
 		return 1;
 	}
 

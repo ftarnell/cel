@@ -16,6 +16,8 @@
 #include	"celcore/tokens.h"
 #include	"celcore/parse.h"
 #include	"celcore/annotate.h"
+#include	"celcore/type.h"
+#include	"celcore/eval.h"
 
 static void
 icel_error(par, tok, s)
@@ -50,9 +52,11 @@ wchar_t	*buf = NULL;
 	for (;;) {
 	char		 line[1024];
 	wchar_t		 wline[1024];
+	wchar_t		 type[64], value[128];
 	cel_lexer_t	 lex;
 	cel_parser_t	 par;
 	cel_expr_list_t	*program;
+	cel_expr_t	*result;
 
 
 		printf(">>> ");
@@ -77,8 +81,18 @@ wchar_t	*buf = NULL;
 		par.cp_warn = icel_warn;
 
 		if ((program = cel_parse(&par)) == NULL) {
+			fprintf(stderr, "(parse error)\n");
 			continue;
 		}
+
+		if ((result = cel_eval_list(program)) == NULL) {
+			fprintf(stderr, "(eval error)\n");
+			continue;
+		}
+
+		cel_name_type(result->ce_type, type, sizeof(type) / sizeof(wchar_t));
+		cel_expr_print(result, value, sizeof(value) / sizeof(wchar_t));
+		printf("<%ls> %ls\n", type, value);
 	}
 
 	return 0;

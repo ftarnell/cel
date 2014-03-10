@@ -106,6 +106,9 @@ void
 cel_expr_free(e)
 	cel_expr_t	*e;
 {
+	if (!e)
+		return;
+
 	switch (e->ce_tag) {
 	case cel_exp_string:
 		free(e->ce_op.ce_string);
@@ -127,5 +130,55 @@ cel_expr_free(e)
 	case cel_exp_int:
 	case cel_exp_bool:
 		break;
+	}
+}
+
+cel_expr_t *
+cel_expr_copy(e)
+	cel_expr_t	*e;
+{
+cel_expr_t	*ret;
+	if ((ret = calloc(1, sizeof(*ret))) == NULL)
+		return NULL;
+
+	ret->ce_tag = e->ce_tag;
+	ret->ce_type = e->ce_type;
+	switch (ret->ce_tag) {
+	case cel_exp_int:
+		ret->ce_op.ce_int = e->ce_op.ce_int;
+		break;
+
+	case cel_exp_unary:
+		ret->ce_op.ce_unary.oper = e->ce_op.ce_unary.oper;
+		ret->ce_op.ce_unary.operand = cel_expr_copy(e->ce_op.ce_unary.operand);
+		break;
+
+	case cel_exp_binary:
+		ret->ce_op.ce_binary.oper = e->ce_op.ce_binary.oper;
+		ret->ce_op.ce_binary.left = cel_expr_copy(e->ce_op.ce_binary.left);
+		ret->ce_op.ce_binary.right = cel_expr_copy(e->ce_op.ce_binary.right);
+		break;
+	}
+
+	return ret;
+}
+
+void
+cel_expr_print(e, b, bsz)
+	cel_expr_t	*e;
+	wchar_t		*b;
+	size_t		 bsz;
+{
+	*b = 0;
+	wcslcat(b, L"<error>", bsz);
+
+	switch (e->ce_tag) {
+	case cel_exp_int:
+		swprintf(b, bsz, L"%d", e->ce_op.ce_int);
+		return;
+
+	case cel_exp_string:
+		wcslcpy(b, e->ce_op.ce_string, bsz);
+		return;
 	}
 }
