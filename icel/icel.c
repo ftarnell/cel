@@ -15,7 +15,6 @@
 #include	"celcore/cel-config.h"
 #include	"celcore/tokens.h"
 #include	"celcore/parse.h"
-#include	"celcore/annotate.h"
 #include	"celcore/type.h"
 #include	"celcore/eval.h"
 
