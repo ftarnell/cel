@@ -435,8 +435,12 @@ cel_scope_t	*sc;
 
 /* Single-statement function */
 	if (ACCEPT(T_EQ)) {
+	cel_expr_t	*f;
 		if ((e = cel_parse_expr(par)) == NULL)
 			ERROR("expected expression");
+		f = cel_make_return(e);
+		cel_expr_free(e);
+		e = f;
 		CEL_TAILQ_INSERT_TAIL(&func->cf_body, e, ce_entry);
 	} else {
 
