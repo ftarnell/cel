@@ -12,12 +12,14 @@
 #include	<stdio.h>
 #include	<wchar.h>
 
-#include	"celcore/cel-config.h"
 #include	"celcore/tokens.h"
 #include	"celcore/parse.h"
 #include	"celcore/type.h"
 #include	"celcore/eval.h"
 #include	"celcore/scope.h"
+#include	"celcore/cel-config.h"
+
+#include	"build.h"
 
 static void
 icel_error(par, tok, s)
