@@ -67,13 +67,7 @@ typedef enum cel_uni_oper {
 struct cel_expr;
 struct cel_type;
 
-typedef struct cel_if_branch {
-	struct cel_expr	*ib_condition;
-	struct cel_expr	*ib_expr;
-	CEL_TAILQ_ENTRY(cel_if_branch) ib_entry;
-} cel_if_branch_t;
-
-typedef CEL_TAILQ_HEAD(cel_if, cel_if_branch) cel_if_list_t;
+struct cel_if_list;
 
 typedef struct cel_expr {
 	cel_expr_tag_t	 ce_tag;
@@ -105,7 +99,7 @@ typedef struct cel_expr {
 			struct cel_expr	*operand;
 		} ce_unary;
 
-		cel_if_list_t	ce_if;
+		struct cel_if_list	*ce_if;
 
 		struct cel_function	*ce_function;
 		struct cel_vardecl 	*ce_vardecl;
@@ -115,6 +109,14 @@ typedef struct cel_expr {
 } cel_expr_t;
 
 typedef CEL_TAILQ_HEAD(cel_expr_list, cel_expr) cel_expr_list_t;
+
+typedef struct cel_if_branch {
+	struct cel_expr	*ib_condition;
+	cel_expr_list_t	 ib_exprs;
+	CEL_TAILQ_ENTRY(cel_if_branch) ib_entry;
+} cel_if_branch_t;
+
+typedef CEL_TAILQ_HEAD(cel_if_list, cel_if_branch) cel_if_list_t;
 
 typedef struct cel_arglist {
 	int		 ca_nargs;

@@ -15,6 +15,47 @@
 #include	"celcore/function.h"
 
 static cel_expr_t *
+cel_eval_if(e)
+	cel_expr_t	*e;
+{
+cel_expr_t	*stmt;
+cel_expr_t	*ret;
+cel_if_branch_t	*if_;
+
+	CEL_TAILQ_FOREACH(if_, e->ce_op.ce_if, ib_entry) {
+	cel_expr_t	*e;
+		e = cel_eval(if_->ib_condition);
+		if (!e->ce_op.ce_bool) {
+			cel_expr_free(e);
+			continue;
+		}
+
+		cel_expr_free(e);
+
+		CEL_TAILQ_FOREACH(stmt, &if_->ib_exprs, ce_entry) {
+		cel_expr_t	*v, *w;
+			if ((v = cel_eval(stmt)) == NULL)
+				return NULL;
+
+			cel_expr_free(v);
+#if 0
+			if (v->ce_tag != cel_exp_return)
+				continue;
+
+			w = cel_eval(v->ce_op.ce_unary.operand);
+			cel_expr_free(v);
+			v = cel_expr_convert(w, e->ce_op.ce_function->cf_return_type);
+			cel_expr_free(w);
+			return v;
+#endif
+		}
+		break;
+	}
+
+	return cel_make_void();
+}
+
+static cel_expr_t *
 cel_call_function(e)
 	cel_expr_t	*e;
 {
@@ -36,7 +77,7 @@ cel_expr_t	*ret;
 		return v;
 	}
 
-	return NULL;
+	return cel_make_void();
 }
 
 static cel_expr_t *
@@ -387,9 +428,11 @@ cel_eval(e)
 	case cel_exp_call:
 		return cel_call_function(e->ce_op.ce_unary.operand);
 
+	case cel_exp_if:
+		return cel_eval_if(e);
+
 	case cel_exp_identifier:
 	case cel_exp_vardecl:
-	case cel_exp_if:
 		return NULL;
 	}
 

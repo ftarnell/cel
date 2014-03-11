@@ -1181,26 +1181,49 @@ cel_parse_if(par)
  * followed by a code block, and finally an 'end'.
  */
 
-cel_expr_t	*ret;
+cel_expr_t	*ret, *e;
+cel_if_branch_t	*if_;
+cel_type_t	*bool_;
 
 	ret = calloc(1, sizeof(*ret));
 	ret->ce_tag = cel_exp_if;
+	ret->ce_op.ce_if = calloc(1, sizeof(*ret->ce_op.ce_if));
+	CEL_TAILQ_INIT(ret->ce_op.ce_if);
+
+	if_ = calloc(1, sizeof(*if_));
 
 /* Expression */
-	if (cel_parse_expr(par) == NULL) {
+	if ((e = cel_parse_expr(par)) == NULL) {
 		cel_expr_free(ret);
 		ERROR("expected expression");
 	}
 
+	bool_ = cel_make_type(cel_type_bool);
+	if (!cel_type_convertable(bool_, e->ce_type)) {
+		free(if_);
+		cel_expr_free(e);
+		cel_type_free(bool_);
+		ERROR("type error: expected boolean");
+	}
+
+	if_->ib_condition = e;
+	cel_type_free(bool_);
+
 /* 'then' */
 	if (!ACCEPT(T_THEN)) {
 		cel_expr_free(ret);
+		free(if_);
 		ERROR("expected 'then'");
 	}
 
+	CEL_TAILQ_INIT(&if_->ib_exprs);
+
 /* list of statements */
 	for (;;) {
-		while (cel_parse_stmt(par) != NULL) {
+	cel_expr_t	*e;
+		while ((e = cel_parse_stmt(par)) != NULL) {
+			CEL_TAILQ_INSERT_TAIL(&if_->ib_exprs, e, ce_entry);
+
 			/*
 			 * Each statement has to be followed by a semicolon,
 			 * except for the last one in the block.
@@ -1210,7 +1233,9 @@ cel_expr_t	*ret;
 		}
 			
 		if (ACCEPT(T_ELIF)) {
-			if (cel_parse_expr(par) == NULL) {
+			CEL_TAILQ_INSERT_TAIL(e->ce_op.ce_if, if_, ib_entry);
+
+			if ((e = cel_parse_expr(par)) == NULL) {
 				cel_expr_free(ret);
 				ERROR("expected expression");
 			}
@@ -1220,14 +1245,33 @@ cel_expr_t	*ret;
 				ERROR("expected 'then'");
 			}
 
+			if_ = calloc(1, sizeof(*if_));
+
+			bool_ = cel_make_type(cel_type_bool);
+			if (!cel_type_convertable(bool_, e->ce_type)) {
+				free(if_);
+				cel_expr_free(e);
+				cel_type_free(bool_);
+				ERROR("type error: expected boolean");
+			}
+
+			if_->ib_condition = e;
+			cel_type_free(bool_);
+			CEL_TAILQ_INIT(&if_->ib_exprs);
 			continue;
 		}
 
-		if (ACCEPT(T_ELSE))
+		if (ACCEPT(T_ELSE)) {
+			CEL_TAILQ_INSERT_TAIL(ret->ce_op.ce_if, if_, ib_entry);
+			if_ = calloc(1, sizeof(*if_));
+			CEL_TAILQ_INIT(&if_->ib_exprs);
 			continue;
+		}
 
-		if (ACCEPT(T_END))
+		if (ACCEPT(T_END)) {
+			CEL_TAILQ_INSERT_TAIL(ret->ce_op.ce_if, if_, ib_entry);
 			return ret;
+		}
 
 		cel_expr_free(ret);
 		ERROR("expected statement, 'end', 'else' or 'elif'");
