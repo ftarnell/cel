@@ -18,6 +18,7 @@
 #include	"celcore/variable.h"
 #include	"celcore/function.h"
 #include	"celcore/block.h"
+#include	"celcore/scope.h"
 
 #define	EXPECT(t)	(par->cp_tok.ct_token == (t))
 #define	CONSUME()	cel_next_token(par->cp_lex, &par->cp_tok)
@@ -62,14 +63,19 @@ static cel_expr_t	*cel_parse_value(cel_parser_t *);
 static cel_arglist_t	*cel_parse_arglist(cel_parser_t *);
 static cel_expr_t	*cel_parse_if(cel_parser_t *);
 
-int
-cel_parser_init(par, lex)
-	cel_parser_t	*par;
+cel_parser_t *
+cel_parser_new(lex, scope)
 	cel_lexer_t	*lex;
+	cel_scope_t	*scope;
 {
+cel_parser_t	*par;
+	if ((par = calloc(1, sizeof(*par))) == NULL)
+		return NULL;
+
 	memset(par, 0, sizeof(*par));
 	par->cp_lex = lex;
-	return 0;
+	par->cp_scope = scope;
+	return par;
 }
 
 cel_expr_list_t *
@@ -157,6 +163,16 @@ char		*name;
 	return cel_make_typedef(name, type);
 }
 
+static void
+free_strvec(v, n)
+	char	**v;
+	size_t	n;
+{
+	while (n--)
+		free(v[n]);
+	free(v);
+}
+
 cel_expr_t *
 cel_parse_var(par)
 	cel_parser_t	*par;
@@ -168,25 +184,36 @@ cel_parse_var(par)
  *	var a : int;
  *	var b, c : []string;
  */
-cel_vardecl_t	*var;
+char		**names = NULL;
+size_t		  nnames = 0, i;
+cel_type_t	 *type = NULL;
 
 	if (!EXPECT(T_VAR))
 		return NULL;
 	CONSUME();
 
-	var = calloc(1, sizeof(*var));
-
 /* Identifier list, colon */
 	for (;;) {
-		if (!ACCEPT(T_ID)) {
-			cel_vardecl_free(var);
+		if (!EXPECT(T_ID)) {
+			free_strvec(names, nnames);
 			ERROR("expected identifier");
 		}
 
-		var->cv_names = realloc(var->cv_names,
-					(var->cv_nnames + 1) * sizeof(char *));
-		var->cv_names[var->cv_nnames + 1] = strdup(par->cp_tok.ct_literal);
-		var->cv_nnames++;
+		if (cel_scope_find_item(par->cp_scope, par->cp_tok.ct_literal)) {
+		char		err[128];
+		cel_token_t	err_tok = par->cp_tok;
+
+			snprintf(err, sizeof(err), "symbol \"%s\" already declared",
+				 par->cp_tok.ct_literal);
+			CONSUME();
+			ERROR_TOK(&err_tok, err);
+		}
+
+		names = realloc(names, (nnames + 1) * sizeof(char *));
+		names[nnames] = strdup(par->cp_tok.ct_literal);
+		nnames++;
+
+		CONSUME();
 
 		if (ACCEPT(T_COMMA))
 			continue;
@@ -194,17 +221,25 @@ cel_vardecl_t	*var;
 		if (ACCEPT(T_COLON))
 			break;
 
-		cel_vardecl_free(var);
+		free_strvec(names, nnames);
 		ERROR("expected ',' or ':'");
 	}
 
 /* Type */
-	if ((var->cv_type = cel_parse_type(par)) == NULL) {
-		cel_vardecl_free(var);
+	if ((type = cel_parse_type(par)) == NULL) {
+		free_strvec(names, nnames);
 		ERROR("expected type name");
 	}
 
-	return cel_make_vardecl(var);
+	for (i = 0; i < nnames; i++) {
+	cel_expr_t	*e;
+		e = cel_make_any(type);
+		e->ce_mutable = 1;
+		cel_scope_add_expr(par->cp_scope, names[i], e);
+	}
+	
+	cel_type_free(type);
+	return cel_make_void();
 }
 
 cel_type_t *
@@ -228,14 +263,19 @@ cel_type_t	*type;
 	}
 
 /* Identifier */
-	if (ACCEPT(T_INT))
-		type = cel_make_type(cel_type_int32);
-	else if (ACCEPT(T_STRING))
-		type = cel_make_type(cel_type_string);
-	else if (ACCEPT(T_BOOL))
-		type = cel_make_type(cel_type_bool);
+	if (ACCEPT(T_INT))		type = cel_make_type(cel_type_int32);
+	else if (ACCEPT(T_INT8))	type = cel_make_type(cel_type_int8);
+	else if (ACCEPT(T_UINT8))	type = cel_make_type(cel_type_uint8);
+	else if (ACCEPT(T_INT16))	type = cel_make_type(cel_type_int16);
+	else if (ACCEPT(T_UINT16))	type = cel_make_type(cel_type_uint16);
+	else if (ACCEPT(T_INT32))	type = cel_make_type(cel_type_int32);
+	else if (ACCEPT(T_UINT32))	type = cel_make_type(cel_type_uint32);
+	else if (ACCEPT(T_INT64))	type = cel_make_type(cel_type_int64);
+	else if (ACCEPT(T_UINT64))	type = cel_make_type(cel_type_uint64);
+	else if (ACCEPT(T_STRING))	type = cel_make_type(cel_type_string);
+	else if (ACCEPT(T_BOOL))	type = cel_make_type(cel_type_bool);
 	else
-		ERROR("expected identifier");
+		return NULL;
 
 	while (array--)
 		type = cel_make_array(type);
@@ -377,19 +417,47 @@ cel_expr_t *
 cel_parse_expr_assign(par)
 	cel_parser_t	*par;
 {
-/* expr_assign --> expr_or   [":=" expr_assign] */
 cel_expr_t	*e, *f;
+cel_token_t	 lv_tok, op_tok;
+int		 op;
+
+	lv_tok = par->cp_tok;
 
 	if ((e = cel_parse_expr_or(par)) == NULL)
 		return NULL;
 
-	while (ACCEPT(T_ASSIGN)) {
+	for (;;) {
+	cel_type_t	*type;
+		op_tok = par->cp_tok;
+
+		if (!(op = ACCEPT(T_ASSIGN)))
+			break;
+
 		if ((f = cel_parse_expr_assign(par)) == NULL) {
 			cel_expr_free(e);
-			return NULL;
+			ERROR("expected expression");
 		}
 
+		if (!e->ce_mutable)
+			ERROR_TOK(&op_tok, "assignment to read-only location");
+
+		if (!cel_type_convertable(e->ce_type, f->ce_type)) {
+		char	a1[64], a2[64];
+		char	err[128];
+
+			cel_name_type(e->ce_type, a1, sizeof(a1) / sizeof(char));
+			cel_name_type(f->ce_type, a2, sizeof(a2) / sizeof(char));
+
+			snprintf(err, sizeof(err) / sizeof(char),
+				 "incompatible types in assignment: \"%s\" := \"%s\"",
+				 a1, a2);
+
+			ERROR_TOK(&op_tok, err);
+		}
+
+		type = e->ce_type;
 		e = cel_make_assign(e, f);
+		e->ce_type = type;
 	}
 
 	return e;
@@ -891,9 +959,34 @@ cel_parse_value(par)
 {
 cel_expr_t	*ret = NULL;
 
-	if (EXPECT(T_ID))
-		ret = cel_make_identifier(par->cp_tok.ct_literal);
-	else if (EXPECT(T_LIT_INT8))
+	if (EXPECT(T_ID)) {
+	cel_scope_item_t	*v;
+	cel_token_t		 err_tok = par->cp_tok;
+
+		v = cel_scope_find_item(par->cp_scope,
+					par->cp_tok.ct_literal);
+
+		if (v == NULL) {
+		char	err[128];
+			snprintf(err, sizeof(err), "undeclared identifier \"%s\"",
+				 par->cp_tok.ct_literal);
+			CONSUME();
+
+			ERROR_TOK(&err_tok, err);
+		}
+
+		if (v->si_type != cel_item_expr) {
+		char	err[128];
+			snprintf(err, sizeof(err), "not a variable type: \"%s\"",
+				 par->cp_tok.ct_literal);
+			CONSUME();
+
+			ERROR_TOK(&err_tok, err);
+		}
+
+		CONSUME();
+		return v->si_ob.si_expr;
+	} else if (EXPECT(T_LIT_INT8))
 		ret = cel_make_int8(strtol(par->cp_tok.ct_literal, NULL, 0));
 	else if (EXPECT(T_LIT_UINT8))
 		ret = cel_make_uint8(strtol(par->cp_tok.ct_literal, NULL, 0));

@@ -83,6 +83,7 @@ cel_name_type(type, buf, bsz)
 	case cel_type_bool:	strlcat(buf, "bool", bsz); break;
 	case cel_type_string:	strlcat(buf, "string", bsz); break;
 	case cel_type_function:	strlcat(buf, "function", bsz); break;
+	case cel_type_void:	strlcat(buf, "void", bsz); break;
 	default:		strlcat(buf, "<unknown>", bsz); break;
 	}
 }
@@ -385,4 +386,47 @@ cel_derive_binary_promotion(op, a, b)
 	default:
 		return NULL;
 	}
+}
+
+int
+cel_type_convertable(lhs, rhs)
+	cel_type_t	*lhs, *rhs;
+{
+	switch (lhs->ct_tag) {
+	case cel_type_int8:
+	case cel_type_uint8:
+	case cel_type_int16:
+	case cel_type_uint16:
+	case cel_type_int32:
+	case cel_type_uint32:
+	case cel_type_int64:
+	case cel_type_uint64:
+		switch (rhs->ct_tag) {
+		case cel_type_int8:
+		case cel_type_uint8:
+		case cel_type_int16:
+		case cel_type_uint16:
+		case cel_type_int32:
+		case cel_type_uint32:
+		case cel_type_int64:
+		case cel_type_uint64:
+			return 1;
+		default:
+			return 0;
+		}
+		break;
+
+	case cel_type_bool:
+		return (rhs->ct_tag == cel_type_bool);
+
+	case cel_type_string:
+		return (rhs->ct_tag == cel_type_string);
+
+	case cel_type_void:
+	case cel_type_function:
+	case cel_type_array:
+		return 0;
+	}
+
+	return 0;
 }

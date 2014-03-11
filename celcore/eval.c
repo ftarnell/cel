@@ -62,12 +62,34 @@ cel_type_t	*ptype;
 }
 
 static cel_expr_t *
+cel_eval_assign(l, r)
+	cel_expr_t	*l, *r;
+{
+cel_expr_t	*er, *cr;
+
+	if ((er = cel_eval(r)) == NULL)
+		return NULL;
+
+	cr = cel_expr_convert(er, l->ce_type);
+	cel_expr_assign(l, cr);
+	cel_expr_free(cr);
+	return cel_expr_copy(l);
+}
+
+static cel_expr_t *
 cel_eval_binary(e)
 	cel_expr_t	*e;
 {
 cel_expr_t	*l, *r, *pl, *pr, *ret = NULL;
 cel_type_t	*rtype;
 char		*s;
+
+	/* This one is not like the others */
+	if (e->ce_op.ce_binary.oper == cel_op_assign) {
+		ret = cel_eval_assign(e->ce_op.ce_binary.left,
+				      e->ce_op.ce_binary.right);
+		return ret;
+	}
 
 	if ((l = cel_eval(e->ce_op.ce_binary.left)) == NULL)
 		return NULL;
@@ -292,6 +314,7 @@ char		*s;
 		break;
 
 	case cel_op_assign:
+		/*NOTREACHED*/
 		break;
 	}
 
@@ -316,6 +339,7 @@ cel_eval(e)
 	case cel_exp_uint64:
 	case cel_exp_string:
 	case cel_exp_bool:
+	case cel_exp_void:
 		return cel_expr_copy(e);
 
 	case cel_exp_unary:
@@ -439,6 +463,7 @@ cel_expr_t	*ret;
 	case cel_type_array:
 	case cel_type_function:
 	case cel_type_string:
+	case cel_type_void:
 		return NULL;
 	}
 

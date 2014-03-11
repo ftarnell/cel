@@ -52,17 +52,25 @@ struct {
 	{ "type",	T_TYPE		},
 	{ "begin",	T_BEGIN		},
 	{ "end",	T_END		},
-	{ "if",	T_IF		},
+	{ "if",		T_IF		},
 	{ "elif",	T_ELIF		},
 	{ "else",	T_ELSE		},
 	{ "then",	T_THEN		},
 	{ "and",	T_AND		},
-	{ "or",	T_OR		},
+	{ "or",		T_OR		},
 	{ "int",	T_INT		},
 	{ "string",	T_STRING	},
 	{ "bool",	T_BOOL		},
 	{ "true",	T_TRUE		},
-	{ "false",	T_FALSE		}
+	{ "false",	T_FALSE		},
+	{ "int8",	T_INT8		},
+	{ "uint8",	T_UINT8		},
+	{ "int16",	T_INT16		},
+	{ "uint16",	T_UINT16	},
+	{ "int32",	T_INT32		},
+	{ "uint32",	T_UINT32	},
+	{ "int64",	T_INT64		},
+	{ "uint64",	T_UINT64	},
 };
 
 /* Skip whitespace */

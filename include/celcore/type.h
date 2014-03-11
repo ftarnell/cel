@@ -16,6 +16,7 @@
 #include	"celcore/expr.h"
 
 typedef enum cel_type_tag {
+	cel_type_void,
 	cel_type_int8,
 	cel_type_int16,
 	cel_type_int32,
@@ -58,6 +59,8 @@ cel_type_t	*cel_derive_unary_type(cel_uni_oper_t op, cel_type_t *v);
 cel_type_t	*cel_derive_unary_promotion(cel_uni_oper_t op, cel_type_t *v);
 cel_type_t	*cel_derive_binary_type(cel_bi_oper_t op, cel_type_t *a, cel_type_t *b);
 cel_type_t	*cel_derive_binary_promotion(cel_bi_oper_t op, cel_type_t *a, cel_type_t *b);
+
+int		 cel_type_convertable(cel_type_t *lhs, cel_type_t *rhs);
 
 void		 cel_name_type(cel_type_t *type, char *buf, size_t bsz);
 

@@ -14,6 +14,7 @@
 
 #include	"celcore/tokens.h"
 #include	"celcore/parse.h"
+#include	"celcore/scope.h"
 
 static void
 celparse_error(par, tok, s)
@@ -45,7 +46,8 @@ size_t	 buflen = 0;
 char	*buf = NULL;
 
 cel_lexer_t	lex;
-cel_parser_t	par;
+cel_parser_t	*par;
+cel_scope_t	*scope;
 
 	if (!argv[1]) {
 		fprintf(stderr, "usage: %s <file>\n", argv[0]);
@@ -66,20 +68,22 @@ cel_parser_t	par;
 
 	fclose(inf);
 
+	scope = cel_scope_new(NULL);
+
 	if (cel_lexer_init(&lex, buf) != 0) {
 		fprintf(stderr, "%s: cannot init lexer\n", argv[1]);
 		return 1;
 	}
 
-	if (cel_parser_init(&par, &lex) != 0) {
+	if ((par = cel_parser_new(&lex, scope)) == NULL) {
 		fprintf(stderr, "%s: cannot init parser\n", argv[1]);
 		return 1;
 	}
 
-	par.cp_error = celparse_error;
-	par.cp_warn = celparse_warn;
+	par->cp_error = celparse_error;
+	par->cp_warn = celparse_warn;
 
-	if (cel_parse(&par) != 0) {
+	if (cel_parse(par) != 0) {
 		return 1;
 	}
 

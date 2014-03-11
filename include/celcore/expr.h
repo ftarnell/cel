@@ -19,6 +19,7 @@
 struct cel_function;
 
 typedef enum cel_expr_tag {
+	cel_exp_void, 
 	cel_exp_int8,
 	cel_exp_uint8,
 	cel_exp_int16,
@@ -70,6 +71,8 @@ typedef struct cel_if_branch {
 
 typedef struct cel_expr {
 	cel_expr_tag_t	 ce_tag;
+	int		 ce_mutable;
+	int		 ce_const;	/* true if known at compile time */
 	struct cel_type	*ce_type;
 
 	union {
@@ -130,6 +133,8 @@ cel_expr_t	*cel_make_uint64(uint64_t);
 cel_expr_t	*cel_make_bool(int);
 cel_expr_t	*cel_make_string(char const *);
 cel_expr_t	*cel_make_identifier(char const *);
+cel_expr_t	*cel_make_void(void);
+cel_expr_t	*cel_make_any(struct cel_type *);
 
 cel_expr_t	*cel_make_unary(cel_uni_oper_t, cel_expr_t *);
 #define	cel_make_negate(e)	cel_make_unary(cel_op_negate, (e))
@@ -154,5 +159,8 @@ cel_expr_t	*cel_make_binary(cel_bi_oper_t, cel_expr_t *, cel_expr_t *);
 
 cel_expr_t	*cel_make_function(struct cel_function *);
 cel_expr_t	*cel_promote_expr(struct cel_type *, cel_expr_t *);
+
+cel_expr_t	*cel_expr_convert(cel_expr_t *v, struct cel_type *type);
+void		 cel_expr_assign(cel_expr_t *l, cel_expr_t *r);
 
 #endif	/* !CEL_EXPR_H */

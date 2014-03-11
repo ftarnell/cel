@@ -17,6 +17,7 @@
 #include	"celcore/parse.h"
 #include	"celcore/type.h"
 #include	"celcore/eval.h"
+#include	"celcore/scope.h"
 
 static void
 icel_error(par, tok, s)
@@ -42,13 +43,17 @@ int
 main(argc, argv)
 	char	**argv;
 {
+cel_scope_t	*scope;
+
 	printf("CEL %s [%s] interactive interpreter\n", CEL_VERSION, CEL_HOST);
+	
+	scope = cel_scope_new(NULL);
 
 	for (;;) {
 	char		 line[1024];
 	char		 type[64], value[128];
 	cel_lexer_t	 lex;
-	cel_parser_t	 par;
+	cel_parser_t	*par;
 	cel_expr_list_t	*program;
 	cel_expr_t	*result;
 
@@ -64,15 +69,15 @@ main(argc, argv)
 			return 1;
 		}
 
-		if (cel_parser_init(&par, &lex) != 0) {
+		if ((par = cel_parser_new(&lex, scope)) == NULL) {
 			fprintf(stderr, "%s: cannot init parser\n", argv[1]);
 			return 1;
 		}
 
-		par.cp_error = icel_error;
-		par.cp_warn = icel_warn;
+		par->cp_error = icel_error;
+		par->cp_warn = icel_warn;
 
-		if ((program = cel_parse(&par)) == NULL || par.cp_nerrs) {
+		if ((program = cel_parse(par)) == NULL || par->cp_nerrs) {
 			fprintf(stderr, "(parse error)\n");
 			continue;
 		}
