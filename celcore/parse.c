@@ -880,7 +880,7 @@ cel_parse_expr_unary(par)
 	cel_parser_t	*par;
 {
 /* expr_unary  --> expr_post  | "-" expr_unary | "!" expr_unary */
-cel_expr_t	*e;
+cel_expr_t	*e = NULL;
 
 	for (;;) {
 	cel_type_t	*type;
@@ -893,7 +893,7 @@ cel_expr_t	*e;
 		if (!(op = ACCEPT(T_MINUS)) && !(op = ACCEPT(T_NEGATE)))
 			break;
 
-		if ((e = cel_parse_expr_post(par)) == NULL) {
+		if ((e = cel_parse_expr_unary(par)) == NULL) {
 			cel_expr_free(e);
 			ERROR("expected expression");
 		}
@@ -917,8 +917,10 @@ cel_expr_t	*e;
 
 		e = cel_make_unary(oper, e);
 		e->ce_type = type;
-		return e;
 	}
+
+	if (e)
+		return e;
 
 	return cel_parse_expr_post(par);
 }
