@@ -163,13 +163,19 @@ char		*name;
 	return cel_make_typedef(name, type);
 }
 
+struct vard {
+	char		*name;
+	cel_expr_t	*init;
+	cel_token_t	 err_tok;
+};
+
 static void
-free_strvec(v, n)
-	char	**v;
-	size_t	n;
+free_varvec(v, n)
+	struct vard	*v;
+	size_t		 n;
 {
 	while (n--)
-		free(v[n]);
+		free(v[n].name);
 	free(v);
 }
 
@@ -184,9 +190,9 @@ cel_parse_var(par)
  *	var a : int;
  *	var b, c : []string;
  */
-char		**names = NULL;
-size_t		  nnames = 0, i;
-cel_type_t	 *type = NULL;
+struct vard	*names = NULL;
+size_t		 nnames = 0, i;
+cel_type_t	*type = NULL;
 
 	if (!EXPECT(T_VAR))
 		return NULL;
@@ -194,8 +200,12 @@ cel_type_t	 *type = NULL;
 
 /* Identifier list, colon */
 	for (;;) {
+	cel_expr_t	*e = NULL;
+	char		*name;
+	cel_token_t	 err_tok;
+
 		if (!EXPECT(T_ID)) {
-			free_strvec(names, nnames);
+			free_varvec(names, nnames);
 			ERROR("expected identifier");
 		}
 
@@ -209,36 +219,79 @@ cel_type_t	 *type = NULL;
 			ERROR_TOK(&err_tok, err);
 		}
 
-		names = realloc(names, (nnames + 1) * sizeof(char *));
-		names[nnames] = strdup(par->cp_tok.ct_literal);
-		nnames++;
-
+		name = strdup(par->cp_tok.ct_literal);
 		CONSUME();
+
+		if (ACCEPT(T_ASSIGN)) {
+			err_tok = par->cp_tok;
+
+			if ((e = cel_parse_expr(par)) == NULL) {
+				free(name);
+				ERROR("expected expression");
+			}
+		}
+
+		names = realloc(names, (nnames + 1) * sizeof(struct vard));
+		names[nnames].name = name;
+		names[nnames].init = e;
+		names[nnames].err_tok = err_tok;
+		nnames++;
 
 		if (ACCEPT(T_COMMA))
 			continue;
-
-		if (ACCEPT(T_COLON))
+		else
 			break;
-
-		free_strvec(names, nnames);
-		ERROR("expected ',' or ':'");
 	}
 
 /* Type */
-	if ((type = cel_parse_type(par)) == NULL) {
-		free_strvec(names, nnames);
-		ERROR("expected type name");
+	if (ACCEPT(T_COLON)) {
+		if ((type = cel_parse_type(par)) == NULL) {
+			free_varvec(names, nnames);
+			ERROR("expected type name");
+		}
 	}
 
 	for (i = 0; i < nnames; i++) {
 	cel_expr_t	*e;
-		e = cel_make_any(type);
+	cel_type_t	*atype = type;
+	cel_token_t	 err_tok = names[i].err_tok;
+
+		if (!type && !names[i].init) {
+			free_varvec(names, nnames);
+			ERROR_TOK(&err_tok, "variable must have either initialiser or type");
+		}
+			
+		if (!atype)
+			atype = names[i].init->ce_type;
+
+		e = cel_make_any(atype);
 		e->ce_mutable = 1;
-		cel_scope_add_expr(par->cp_scope, names[i], e);
+
+		if (names[i].init) {
+			if (!cel_type_convertable(atype, names[i].init->ce_type)) {
+			char	a1[64], a2[64];
+			char	err[128];
+
+				cel_name_type(atype, a1, sizeof(a1));
+				cel_name_type(names[i].init->ce_type, a2, sizeof(a2));
+
+				snprintf(err, sizeof(err) / sizeof(char),
+					 "incompatible types in initialisation: \"%s\" := \"%s\"",
+					 a1, a2);
+
+				free_varvec(names, nnames);
+				cel_expr_free(e);
+				ERROR_TOK(&err_tok, err);
+			}
+			cel_expr_assign(e, names[i].init);
+		}
+
+		cel_scope_add_expr(par->cp_scope, names[i].name, e);
 	}
+	free_varvec(names, nnames);
 	
-	cel_type_free(type);
+	if (type)
+		cel_type_free(type);
 	return cel_make_void();
 }
 
