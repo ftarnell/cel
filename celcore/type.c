@@ -59,6 +59,30 @@ cel_type_free(t)
 }
 
 void
+cel_name_function(type, buf, bsz)
+	cel_type_t	*type;
+	char		*buf;
+	size_t		 bsz;
+{
+cel_type_t	*u;
+char		 buf_[64];
+
+	strlcpy(buf, "((", bsz);
+
+	CEL_TAILQ_FOREACH(u, type->ct_type.ct_function.ct_args, ct_entry) {
+		cel_name_type(u, buf_, sizeof(buf_));
+		strlcat(buf, buf_, bsz);
+		strlcat(buf, ", ", bsz);
+	}
+
+	buf[strlen(buf) - 2] = '\0';
+	strlcat(buf, ") -> ", bsz);
+	cel_name_type(type->ct_type.ct_function.ct_return_type, buf_, sizeof(buf_));
+	strlcat(buf, buf_, bsz);
+	strlcat(buf, ")", bsz);
+}
+
+void
 cel_name_type(type, buf, bsz)
 	cel_type_t	*type;
 	char		*buf;
@@ -82,7 +106,7 @@ cel_name_type(type, buf, bsz)
 	case cel_type_uint64:	strlcat(buf, "uint64", bsz); break;
 	case cel_type_bool:	strlcat(buf, "bool", bsz); break;
 	case cel_type_string:	strlcat(buf, "string", bsz); break;
-	case cel_type_function:	strlcat(buf, "function", bsz); break;
+	case cel_type_function:	return cel_name_function(type, buf, bsz);
 	case cel_type_void:	strlcat(buf, "void", bsz); break;
 	default:		strlcat(buf, "<unknown>", bsz); break;
 	}

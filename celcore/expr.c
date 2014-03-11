@@ -88,7 +88,7 @@ cel_expr_t	*ret;
 		return NULL;
 	ret->ce_tag = cel_exp_function;
 	ret->ce_op.ce_function = f;
-	ret->ce_type = f->cf_return_type;
+	ret->ce_type = f->cf_type;
 	return ret;
 }
 
@@ -337,7 +337,7 @@ char	t[64];
 		break;
 
 	case cel_exp_function:
-		strlcpy(b, "<function>", bsz);
+		snprintf(b, bsz, "<function @ %p>", e->ce_op.ce_function);
 		break;
 
 	case cel_exp_unary:

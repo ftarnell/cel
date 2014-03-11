@@ -19,6 +19,7 @@ struct cel_scope;
 
 typedef struct cel_function {
 	char			 *cf_name;
+	struct cel_type		 *cf_type;
 	struct cel_type		**cf_args;
 	int			  cf_nargs;
 	cel_expr_list_t		  cf_body;

@@ -363,6 +363,10 @@ cel_type_t	*t;
 		return NULL;
 
 	func = calloc(1, sizeof(*func));
+	func->cf_type = calloc(1, sizeof(*func->cf_type));
+	func->cf_type->ct_tag = cel_type_function;
+	func->cf_type->ct_type.ct_function.ct_args = calloc(1, sizeof(cel_type_list_t));
+	CEL_TAILQ_INIT(func->cf_type->ct_type.ct_function.ct_args);
 	CEL_TAILQ_INIT(&func->cf_body);
 
 /* Identifier (function name) */
@@ -400,7 +404,13 @@ cel_type_t	*t;
 	func->cf_argscope = cel_scope_new(sc_);
 	func->cf_scope = cel_scope_new(func->cf_argscope);
 
+
 /* Argument list */
+	if (!ACCEPT(T_LPAR)) {
+		cel_function_free(func);
+		ERROR("expected '('");
+	}
+
 	while (EXPECT(T_ID)) {
 	cel_type_t	*a;
 	char		*nm;
@@ -420,6 +430,8 @@ cel_type_t	*t;
 			ERROR("expected type name");
 		}
 
+		CEL_TAILQ_INSERT_TAIL(func->cf_type->ct_type.ct_function.ct_args,
+				      a, ct_entry);
 		cel_scope_add_expr(func->cf_argscope, nm, cel_make_any(a));
 		free(nm);
 
@@ -445,9 +457,15 @@ cel_type_t	*t;
 		ERROR("expected type name");
 	}
 	func->cf_return_type = t;
+	func->cf_type->ct_type.ct_function.ct_return_type = t;
 
 	ef = cel_make_function(func);
 	cel_scope_add_expr(sc_, func->cf_name, ef);
+
+	if (!ACCEPT(T_RPAR)) {
+		cel_function_free(func);
+		ERROR("expected ')'");
+	}
 
 /* Single-statement function */
 	if (ACCEPT(T_EQ)) {

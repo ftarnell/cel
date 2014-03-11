@@ -11,9 +11,8 @@
 #ifndef	CEL_TYPE_H
 #define	CEL_TYPE_H
 
-#include	<wchar.h>
-
 #include	"celcore/expr.h"
+#include	"celcore/tailq.h"
 
 typedef enum cel_type_tag {
 	cel_type_void,
@@ -31,13 +30,25 @@ typedef enum cel_type_tag {
 	cel_type_function,
 } cel_type_tag_t;
 
+struct cel_type_list;
+
 typedef struct cel_type {
 	cel_type_tag_t	ct_tag;
 
 	union {
 		struct cel_type	*ct_array_type;
+
+		struct {
+			struct cel_type		*ct_return_type;
+			struct cel_type_list	*ct_args;
+			int			 ct_nargs;
+		} ct_function;
 	} ct_type;
+
+	CEL_TAILQ_ENTRY(cel_type) ct_entry;
 } cel_type_t;
+
+typedef CEL_TAILQ_HEAD(cel_type_list, cel_type) cel_type_list_t;
 
 void		 cel_type_free(cel_type_t *);
 
