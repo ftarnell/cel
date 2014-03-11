@@ -79,6 +79,10 @@
 #define	T_VOID		65
 #define	T_WHILE		66
 #define	T_DO		67
+#define	T_INCRN		68 /* :+= */
+#define	T_DECRN		69 /* :-= */
+#define	T_MULTN		70 /* :*= */
+#define	T_DIVN		71 /* :/= */
 
 /*
  * Lexer state.

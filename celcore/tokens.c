@@ -129,6 +129,15 @@ struct {
 	TK('%', "%", T_PERCENT);
 
 	case ':':
+		if (lex->cl_bufp[1] == '+' && lex->cl_bufp[2] == '=')
+			TR(":+=", T_INCRN, 3);
+		else if (lex->cl_bufp[1] == '-' && lex->cl_bufp[2] == '=')
+			TR(":-=", T_DECRN, 3);
+		else if (lex->cl_bufp[1] == '*' && lex->cl_bufp[2] == '=')
+			TR(":*=", T_MULTN, 3);
+		else if (lex->cl_bufp[1] == '/' && lex->cl_bufp[2] == '=')
+			TR(":/=", T_DIVN, 3);
+
 		if (lex->cl_bufp[1] == '=')
 			TR(":=", T_ASSIGN, 2);
 		TR(":", T_COLON, 1);

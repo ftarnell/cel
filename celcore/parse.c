@@ -590,9 +590,14 @@ int		 op;
 
 	for (;;) {
 	cel_type_t	*type;
+	cel_type_t	*t;
+	cel_bi_oper_t	 oper;
+
 		op_tok = par->cp_tok;
 
-		if (!(op = ACCEPT(T_ASSIGN)))
+		if (!(op = ACCEPT(T_ASSIGN)) && !(op = ACCEPT(T_INCRN)) &&
+		    !(op = ACCEPT(T_DECRN)) && !(op = ACCEPT(T_MULTN)) &&
+		    !(op = ACCEPT(T_DIVN)))
 			break;
 
 		if ((f = cel_parse_expr_assign(par, sc)) == NULL) {
@@ -602,6 +607,17 @@ int		 op;
 
 		if (!e->ce_mutable)
 			ERROR_TOK(&op_tok, "assignment to read-only location");
+
+		switch (op) {
+		case T_INCRN:	oper = cel_op_plus; break;
+		case T_DECRN:	oper = cel_op_minus; break;
+		case T_MULTN:	oper = cel_op_mult; break;
+		case T_DIVN:	oper = cel_op_div; break;
+		}
+
+		t = cel_derive_binary_type(oper, e->ce_type, f->ce_type);
+		f = cel_make_binary(oper, e, f);
+		f->ce_type = t;
 
 		if (!cel_type_convertable(e->ce_type, f->ce_type)) {
 		char	a1[64], a2[64];
