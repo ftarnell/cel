@@ -413,35 +413,39 @@ cel_type_t	*t;
 		ERROR("expected '('");
 	}
 
-	while (EXPECT(T_ID)) {
-	cel_type_t	*a;
-	char		*nm;
-
-		nm = strdup(par->cp_tok.ct_literal);
+	if (EXPECT(T_VOID)) {
 		CONSUME();
+	} else {
+		while (EXPECT(T_ID)) {
+		cel_type_t	*a;
+		char		*nm;
 
-	/* Colon */
-		if (!ACCEPT(T_COLON)) {
-			cel_function_free(func);
-			ERROR("expected ':'");
+			nm = strdup(par->cp_tok.ct_literal);
+			CONSUME();
+
+		/* Colon */
+			if (!ACCEPT(T_COLON)) {
+				cel_function_free(func);
+				ERROR("expected ':'");
+			}
+
+		/* Type */
+			if ((a = cel_parse_type(par, sc_)) == NULL) {
+				cel_function_free(func);
+				ERROR("expected type name");
+			}
+
+			CEL_TAILQ_INSERT_TAIL(func->cf_type->ct_type.ct_function.ct_args,
+					      a, ct_entry);
+			cel_scope_add_expr(func->cf_argscope, nm, cel_make_any(a));
+			free(nm);
+
+		/* ')' or ',' */
+			if (ACCEPT(T_COMMA))
+				continue;
+
+			break;
 		}
-
-	/* Type */
-		if ((a = cel_parse_type(par, sc_)) == NULL) {
-			cel_function_free(func);
-			ERROR("expected type name");
-		}
-
-		CEL_TAILQ_INSERT_TAIL(func->cf_type->ct_type.ct_function.ct_args,
-				      a, ct_entry);
-		cel_scope_add_expr(func->cf_argscope, nm, cel_make_any(a));
-		free(nm);
-
-	/* ')' or ',' */
-		if (ACCEPT(T_COMMA))
-			continue;
-
-		break;
 	}
 
 	if (!ACCEPT(T_RPAR))
