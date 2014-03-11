@@ -193,9 +193,10 @@ cel_eval_assign(s, l, r)
 	cel_scope_t	*s;
 	cel_expr_t	*l, *r;
 {
-cel_expr_t	*er, *cr, *el;
-cel_type_t	*sc;
+cel_expr_t		*cr, *el, *er;
+cel_type_t		*sc;
 cel_scope_item_t	*scope;
+int			 free_el = 0;
 
 	if (l->ce_tag == cel_exp_variable) {
 		if ((scope = cel_scope_find_item(s, l->ce_op.ce_variable)) == NULL)
@@ -204,14 +205,17 @@ cel_scope_item_t	*scope;
 	} else {
 		if ((el = cel_eval(s, l)) == NULL)
 			return NULL;
+		free_el = 1;
 	}
 
 	if ((er = cel_eval(s, r)) == NULL) {
-		cel_expr_free(el);
+		if (free_el)
+			cel_expr_free(el);
 		return NULL;
 	}
 
 	cr = cel_expr_convert(er, el->ce_type);
+	cel_expr_free(er);
 	cel_expr_assign(el, cr);
 	cel_expr_free(cr);
 	return cel_expr_copy(el);
@@ -547,10 +551,6 @@ cel_promote_expr(t, e)
 	cel_type_t	*t;
 	cel_expr_t	*e;
 {
-cel_expr_t	*ret;
-	if ((ret = calloc(1, sizeof(*ret))) == NULL)
-		return NULL;
-
 	if (t->ct_tag == e->ce_type->ct_tag)
 		return cel_expr_copy(e);
 

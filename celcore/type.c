@@ -13,15 +13,19 @@
 
 #include	"celcore/type.h"
 
+static cel_type_t *types[cel_last_type];
+
 cel_type_t *
 cel_make_type(t)
 	cel_type_tag_t	t;
 {
 cel_type_t	*ret;
-	if ((ret = calloc(1, sizeof(*ret))) == NULL)
-		return NULL;
-	ret->ct_tag = t;
-	return ret;
+	if (types[t])
+		return types[t];
+	types[t] = malloc(sizeof(cel_type_t));
+	types[t]->ct_const = 1;
+	types[t]->ct_tag = t;
+	return types[t];
 }
 
 cel_type_t *
@@ -29,8 +33,9 @@ cel_make_array(t)
 	cel_type_t	*t;
 {
 cel_type_t	*ret;
-	if ((ret = calloc(1, sizeof(*ret))) == NULL)
+	if ((ret = malloc(sizeof(*ret))) == NULL)
 		return NULL;
+	ret->ct_const = 0;
 	ret->ct_tag = cel_type_array;
 	ret->ct_type.ct_array_type = t;
 	return ret;
@@ -42,7 +47,7 @@ cel_make_typedef(name, type)
 	cel_type_t	*type;
 {
 cel_typedef_t	*ret;
-	if ((ret = calloc(1, sizeof(*ret))) == NULL)
+	if ((ret = malloc(sizeof(*ret))) == NULL)
 		return NULL;
 	ret->ct_type = type;
 	ret->ct_name = strdup(name);
@@ -53,6 +58,9 @@ void
 cel_type_free(t)
 	cel_type_t	*t;
 {
+	if (t->ct_const)
+		return;
+
 	if (t->ct_tag == cel_type_array)
 		cel_type_free(t->ct_type.ct_array_type);
 	free(t);

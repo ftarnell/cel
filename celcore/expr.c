@@ -17,7 +17,8 @@
 #include	"celcore/type.h"
 
 static cel_expr_list_t free_exprs;
-static cel_expr_t *
+
+cel_expr_t *
 cel_make_expr()
 {
 cel_expr_t	*ret;
@@ -39,7 +40,7 @@ cel_expr_t	*ret;
 		ret->ce_tag = cel_exp_##type;				\
 		ret->ce_op.ce_##type = i;				\
 		ret->ce_mutable = 0;					\
-		ret->ce_const = 1;					\
+		ret->ce_const = 0;					\
 		return ret;						\
 	}
 
@@ -53,7 +54,7 @@ CEL_MAKE_INT(int64)
 CEL_MAKE_INT(uint64)
 
 cel_expr_t *
-cel_make_bool(i)
+cel_make_a_bool(i)
 {
 cel_expr_t	*ret;
 	ret = cel_make_expr();
@@ -61,8 +62,25 @@ cel_expr_t	*ret;
 	ret->ce_tag = cel_exp_bool;
 	ret->ce_op.ce_bool = i;
 	ret->ce_mutable = 0;
-	ret->ce_const = 0;
+	ret->ce_const = 1;
 	return ret;
+}
+
+cel_expr_t *
+cel_make_bool(i)
+{
+static cel_expr_t *true_ = NULL, *false_ = NULL;
+
+	if (i)
+		if (true_)
+			return true_;
+		else
+			return (true_ = cel_make_a_bool(1));
+	else
+		if (false_)
+			return false_;
+		else
+			return (false_ = cel_make_a_bool(0));
 }
 
 cel_expr_t *
@@ -198,6 +216,9 @@ cel_expr_free(e)
 	if (!e)
 		return;
 
+	if (e->ce_const)
+		return;
+
 	switch (e->ce_tag) {
 	case cel_exp_string:
 		free(e->ce_op.ce_string);
@@ -244,6 +265,9 @@ cel_expr_copy(e)
 	cel_expr_t	*e;
 {
 cel_expr_t	*ret;
+
+	if (e->ce_const)
+		return e;
 
 	ret = cel_make_expr();
 	ret->ce_mutable = e->ce_mutable;

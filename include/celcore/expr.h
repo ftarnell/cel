@@ -138,6 +138,8 @@ typedef struct cel_arglist {
 	cel_expr_t	**ca_args;
 } cel_arglist_t;
 
+cel_expr_t	*cel_make_expr(void);
+
 cel_expr_t	*cel_expr_copy(cel_expr_t *);
 void		 cel_expr_free(cel_expr_t *);
 void		 cel_expr_print(cel_expr_t *, char *buf, size_t bufsz);

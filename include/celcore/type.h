@@ -28,12 +28,14 @@ typedef enum cel_type_tag {
 	cel_type_string,
 	cel_type_array,
 	cel_type_function,
+	cel_last_type
 } cel_type_tag_t;
 
 struct cel_type_list;
 
 typedef struct cel_type {
 	cel_type_tag_t	ct_tag;
+	int		ct_const;
 
 	union {
 		struct cel_type	*ct_array_type;
