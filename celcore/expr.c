@@ -341,8 +341,26 @@ char	t[64];
 		break;
 
 	case cel_exp_unary:
+		strlcpy(b, "<unary op ", bsz);
+		cel_name_type(e->ce_op.ce_unary.operand->ce_type, t, sizeof(t));
+		strlcat(b, t, bsz);
+		strlcat(b, ">", bsz);
+		break;
+
 	case cel_exp_binary:
+		strlcpy(b, "<binary op ", bsz);
+		cel_name_type(e->ce_op.ce_binary.left->ce_type, t, sizeof(t));
+		strlcat(b, t, bsz);
+		strlcat(b, ", ", bsz);
+		cel_name_type(e->ce_op.ce_binary.right->ce_type, t, sizeof(t));
+		strlcat(b, t, bsz);
+		strlcat(b, ">", bsz);
+		break;
+
 	case cel_exp_if:
+		strlcpy(b, "<if expression>", bsz);
+		break;
+
 	case cel_exp_vardecl:
 		break;
 	}

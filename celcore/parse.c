@@ -526,7 +526,6 @@ cel_parse_expr_return(par, sc)
 		if ((e = cel_parse_expr_assign(par, sc)) == NULL)
 			ERROR("expected expression");
 
-
 		return cel_make_return(e);
 	} else
 		return cel_parse_expr_assign(par, sc);
@@ -1228,6 +1227,7 @@ cel_type_t	*bool_;
 
 	ret = calloc(1, sizeof(*ret));
 	ret->ce_tag = cel_exp_if;
+	ret->ce_type = cel_make_type(cel_type_void);
 	ret->ce_op.ce_if = calloc(1, sizeof(*ret->ce_op.ce_if));
 	CEL_TAILQ_INIT(ret->ce_op.ce_if);
 
