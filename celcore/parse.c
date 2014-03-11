@@ -209,6 +209,8 @@ cel_type_t	*type = NULL;
 	char		*name;
 	cel_token_t	 err_tok;
 
+		err_tok = par->cp_tok;
+
 		if (!EXPECT(T_ID)) {
 			free_varvec(names, nnames);
 			ERROR("expected identifier");
