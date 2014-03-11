@@ -25,12 +25,21 @@
 #define	CONSUME()	cel_next_token(par->cp_lex, &par->cp_tok)
 #define	ACCEPT(t)	(EXPECT((t)) ? (CONSUME(), t) : 0)
 
-#define	ERROR_TOK(t,m)							\
+#define	FATAL_TOK(t,m)							\
 	do {								\
 		if (par->cp_error)					\
 			par->cp_error(par, (t), (m));			\
 		++par->cp_nerrs;					\
 		return NULL;						\
+	} while (0)
+
+#define	FATAL(m)	FATAL_TOK(&par->cp_tok, (m))
+
+#define	ERROR_TOK(t,m)							\
+	do {								\
+		if (par->cp_error)					\
+			par->cp_error(par, (t), (m));			\
+		++par->cp_nerrs;					\
 	} while (0)
 
 #define	ERROR(m)	ERROR_TOK(&par->cp_tok, (m))
@@ -40,7 +49,6 @@
 		if (par->cp_warn)					\
 			par->cp_warn(par, m);				\
 		++par->cp_warns;					\
-		return NULL;						\
 	} while (0)
 
 static cel_expr_t	*cel_parse_func(cel_parser_t *, cel_scope_t *);
@@ -112,16 +120,16 @@ cel_token_t	 start_tok;
 			 * semicolon.
 			 */
 			if (EXPECT(T_EOT))
-				return list;
+				return par->cp_nerrs ? NULL : list;
 
-			ERROR("expected ';'");
+			FATAL("expected ';'");
 		}
 	}
 
 	if (EXPECT(T_EOT))
-		return list;
+		return par->cp_nerrs ? NULL : list;
 
-	ERROR_TOK(&start_tok, "failed to parse statement");
+	FATAL_TOK(&start_tok, "failed to parse statement");
 }
 
 cel_typedef_t *
@@ -145,7 +153,7 @@ char		*name;
 /* Identifier list, colon */
 	for (;;) {
 		if (!ACCEPT(T_ID))
-			ERROR("expected identifier");
+			FATAL("expected identifier");
 		name = strdup(par->cp_tok.ct_literal);
 
 		if (ACCEPT(T_COMMA))
@@ -155,13 +163,13 @@ char		*name;
 			break;
 
 		free(name);
-		ERROR("expected ',' or ';'");
+		FATAL("expected ',' or ';'");
 	}
 
 /* Type */
 	if ((type = cel_parse_type(par, sc)) == 0) {
 		free(name);
-		ERROR("expected type name");
+		FATAL("expected type name");
 	}
 
 	return cel_make_typedef(name, type);
@@ -213,7 +221,7 @@ cel_type_t	*type = NULL;
 
 		if (!EXPECT(T_ID)) {
 			free_varvec(names, nnames);
-			ERROR("expected identifier");
+			FATAL("expected identifier");
 		}
 
 		if (cel_scope_find_item(sc, par->cp_tok.ct_literal)) {
@@ -234,7 +242,7 @@ cel_type_t	*type = NULL;
 
 			if ((e = cel_parse_expr(par, sc)) == NULL) {
 				free(name);
-				ERROR("expected expression");
+				FATAL("expected expression");
 			}
 		}
 
@@ -254,7 +262,7 @@ cel_type_t	*type = NULL;
 	if (ACCEPT(T_COLON)) {
 		if ((type = cel_parse_type(par, sc)) == NULL) {
 			free_varvec(names, nnames);
-			ERROR("expected type name");
+			FATAL("expected type name");
 		}
 	}
 
@@ -268,12 +276,6 @@ cel_type_t	*type = NULL;
 			ERROR_TOK(&err_tok, "variable must have either initialiser or type");
 		}
 
-#if 0
-		if (!atype)
-			atype = names[i].init->ce_type;
-
-		e = cel_make_duplicate(atype);
-#endif
 		if (names[i].init) {
 			if (type && !cel_type_convertable(type, names[i].init->ce_type)) {
 			char	a1[64], a2[64];
@@ -286,12 +288,8 @@ cel_type_t	*type = NULL;
 					 "incompatible types in initialisation: \"%s\" := \"%s\"",
 					 a1, a2);
 
-				free_varvec(names, nnames);
 				ERROR_TOK(&err_tok, err);
 			}
-#if 0
-			cel_expr_assign(e, cel_eval(sc, names[i].init));
-#endif
 			e = cel_expr_copy(names[i].init);
 		} else {
 			e = cel_make_any(type);
@@ -324,7 +322,7 @@ cel_type_t	*type;
 /* Optional array specifier */
 	while (ACCEPT(T_LSQ)) {
 		if (!ACCEPT(T_RSQ))
-			ERROR("expected ']'");
+			FATAL("expected ']'");
 		array++;
 	}
 
@@ -399,13 +397,13 @@ int		 single_stmt = 0;
 /* Colon */
 	if (!ACCEPT(T_COLON)) {
 		cel_function_free(func);
-		ERROR("expected ':'");
+		FATAL("expected ':'");
 	}
 
 /* Opening bracket */
 	if (!ACCEPT(T_LPAR)) {
 		cel_function_free(func);
-		ERROR("expected ')'");
+		FATAL("expected ')'");
 	}
 
 	func->cf_argscope = cel_scope_new(sc_);
@@ -414,7 +412,7 @@ int		 single_stmt = 0;
 /* Argument list */
 	if (!ACCEPT(T_LPAR)) {
 		cel_function_free(func);
-		ERROR("expected '('");
+		FATAL("expected '('");
 	}
 
 	if (EXPECT(T_VOID)) {
@@ -430,13 +428,13 @@ int		 single_stmt = 0;
 		/* Colon */
 			if (!ACCEPT(T_COLON)) {
 				cel_function_free(func);
-				ERROR("expected ':'");
+				FATAL("expected ':'");
 			}
 
 		/* Type */
 			if ((a = cel_parse_type(par, sc_)) == NULL) {
 				cel_function_free(func);
-				ERROR("expected type name");
+				FATAL("expected type name");
 			}
 
 			CEL_TAILQ_INSERT_TAIL(func->cf_type->ct_type.ct_function.ct_args,
@@ -453,14 +451,14 @@ int		 single_stmt = 0;
 	}
 
 	if (!ACCEPT(T_RPAR))
-		ERROR("expected ')'");
+		FATAL("expected ')'");
 
 /* -> */
 	if (ACCEPT(T_ARROW)) {
 	/* Return type */
 		if ((t = cel_parse_type(par, sc_)) == NULL) {
 			cel_function_free(func);
-			ERROR("expected type name");
+			FATAL("expected type name");
 		}
 		func->cf_return_type = t;
 		func->cf_type->ct_type.ct_function.ct_return_type = t;
@@ -473,7 +471,7 @@ int		 single_stmt = 0;
 
 	if (!ACCEPT(T_RPAR)) {
 		cel_function_free(func);
-		ERROR("expected ')'");
+		FATAL("expected ')'");
 	}
 
 /* Single-statement function */
@@ -481,7 +479,7 @@ int		 single_stmt = 0;
 	cel_expr_t	*f;
 		single_stmt = 1;
 		if ((e = cel_parse_expr(par, func->cf_scope)) == NULL)
-			ERROR("expected expression");
+			FATAL("expected expression");
 
 		func->cf_return_type = e->ce_type;
 		func->cf_type->ct_type.ct_function.ct_return_type = e->ce_type;
@@ -507,7 +505,7 @@ int		 single_stmt = 0;
 	/* Begin */
 		if (!ACCEPT(T_BEGIN)) {
 			cel_function_free(func);
-			ERROR("expected 'begin'");
+			FATAL("expected 'begin'");
 		}
 
 	/*
@@ -569,7 +567,7 @@ cel_parse_expr_return(par, sc)
 		cel_expr_t	*e;
 
 		if ((e = cel_parse_expr_assign(par, sc)) == NULL)
-			ERROR("expected expression");
+			FATAL("expected expression");
 
 		return cel_make_return(e);
 	} else
@@ -599,7 +597,7 @@ int		 op;
 
 		if ((f = cel_parse_expr_assign(par, sc)) == NULL) {
 			cel_expr_free(e);
-			ERROR("expected expression");
+			FATAL("expected expression");
 		}
 
 		if (!e->ce_mutable)
@@ -649,7 +647,7 @@ int		 op;
 
 		if ((f = cel_parse_expr_and(par, sc)) == NULL) {
 			cel_expr_free(e);
-			ERROR("expected expression");
+			FATAL("expected expression");
 		}
 
 		if ((type = cel_derive_binary_type(cel_op_or, e->ce_type, f->ce_type)) == NULL) {
@@ -697,7 +695,7 @@ int		 op;
 
 		if ((f = cel_parse_expr_xor(par, sc)) == NULL) {
 			cel_expr_free(e);
-			ERROR("expected expression");
+			FATAL("expected expression");
 		}
 
 		if ((type = cel_derive_binary_type(cel_op_and, e->ce_type, f->ce_type)) == NULL) {
@@ -745,7 +743,7 @@ int		 op;
 
 		if ((f = cel_parse_expr_eq1(par, sc)) == NULL) {
 			cel_expr_free(e);
-			ERROR("expected expression");
+			FATAL("expected expression");
 		}
 
 		if ((type = cel_derive_binary_type(cel_op_xor, e->ce_type, f->ce_type)) == NULL) {
@@ -794,7 +792,7 @@ int		 op;
 
 		if ((f = cel_parse_expr_eq2(par, sc)) == NULL) {
 			cel_expr_free(e);
-			ERROR("expected expression");
+			FATAL("expected expression");
 		}
 
 		switch (op) {
@@ -849,7 +847,7 @@ int		 op;
 
 		if ((f = cel_parse_expr_plus(par, sc)) == NULL) {
 			cel_expr_free(e);
-			ERROR("expected expression");
+			FATAL("expected expression");
 		}
 
 		switch (op) {
@@ -905,7 +903,7 @@ int		 op;
 
 		if ((f = cel_parse_expr_mult(par, sc)) == NULL) {
 			cel_expr_free(e);
-			ERROR("expected expression");
+			FATAL("expected expression");
 		}
 
 		switch (op) {
@@ -961,7 +959,7 @@ int		 op;
 
 		if ((f = cel_parse_expr_unary(par, sc)) == NULL) {
 			cel_expr_free(e);
-			ERROR("expected expression");
+			FATAL("expected expression");
 		}
 
 		switch (op) {
@@ -1014,7 +1012,7 @@ cel_expr_t	*e = NULL;
 
 		if ((e = cel_parse_expr_unary(par, sc)) == NULL) {
 			cel_expr_free(e);
-			ERROR("expected expression");
+			FATAL("expected expression");
 		}
 
 		switch (op) {
@@ -1072,7 +1070,7 @@ cel_token_t	 err_tok;
 
 			if (!ACCEPT(T_RPAR)) {
 				cel_expr_free(e);
-				ERROR("expected ')'");
+				FATAL("expected ')'");
 			}
 
 			e = cel_make_call(e, args);
@@ -1081,12 +1079,12 @@ cel_token_t	 err_tok;
 		case T_LSQ:
 			if (cel_parse_expr(par, sc) == NULL) {
 				cel_expr_free(e);
-				ERROR("expected expression");
+				FATAL("expected expression");
 			}
 
 			if (!ACCEPT(T_RSQ)) {
 				cel_expr_free(e);
-				ERROR("expected ']'");
+				FATAL("expected ']'");
 			}
 			break;
 
@@ -1095,7 +1093,7 @@ cel_token_t	 err_tok;
 
 			if ((t = cel_parse_type(par, sc)) == NULL) {
 				cel_expr_free(e);
-				ERROR("expected type");
+				FATAL("expected type");
 			}
 
 			if (!cel_type_convertable(e->ce_type, t)) {
@@ -1134,11 +1132,11 @@ cel_expr_t	*e;
 
 	if (ACCEPT(T_LPAR)) {
 		if ((e = cel_parse_expr(par, sc)) == NULL)
-			ERROR("expected expression");
+			FATAL("expected expression");
 
 		if (!ACCEPT(T_RPAR)) {
 			cel_expr_free(e);
-			ERROR("expected ')'");
+			FATAL("expected ')'");
 		}
 
 		return e;
@@ -1288,7 +1286,7 @@ cel_type_t	*bool_;
 /* Expression */
 	if ((e = cel_parse_expr(par, sc)) == NULL) {
 		cel_expr_free(ret);
-		ERROR("expected expression");
+		FATAL("expected expression");
 	}
 
 	bool_ = cel_make_type(cel_type_bool);
@@ -1306,7 +1304,7 @@ cel_type_t	*bool_;
 	if (!ACCEPT(T_THEN)) {
 		cel_expr_free(ret);
 		free(if_);
-		ERROR("expected 'then'");
+		FATAL("expected 'then'");
 	}
 
 	CEL_TAILQ_INIT(&if_->ib_exprs);
@@ -1330,12 +1328,12 @@ cel_type_t	*bool_;
 
 			if ((e = cel_parse_expr(par, sc)) == NULL) {
 				cel_expr_free(ret);
-				ERROR("expected expression");
+				FATAL("expected expression");
 			}
 
 			if (!ACCEPT(T_THEN)) {
 				cel_expr_free(ret);
-				ERROR("expected 'then'");
+				FATAL("expected 'then'");
 			}
 
 			if_ = calloc(1, sizeof(*if_));
@@ -1345,7 +1343,7 @@ cel_type_t	*bool_;
 				free(if_);
 				cel_expr_free(e);
 				cel_type_free(bool_);
-				ERROR("type error: expected boolean");
+				FATAL("type error: expected boolean");
 			}
 
 			if_->ib_condition = e;
@@ -1367,7 +1365,7 @@ cel_type_t	*bool_;
 		}
 
 		cel_expr_free(ret);
-		ERROR("expected statement, 'end', 'else' or 'elif'");
+		FATAL("expected statement, 'end', 'else' or 'elif'");
 	}
 }
 
@@ -1387,14 +1385,14 @@ cel_type_t	*bool_;
 /* Expression */
 	if ((e = cel_parse_expr(par, sc)) == NULL) {
 		cel_expr_free(ret);
-		ERROR("expected expression");
+		FATAL("expected expression");
 	}
 
 	bool_ = cel_make_type(cel_type_bool);
 	if (!cel_type_convertable(bool_, e->ce_type)) {
 		cel_expr_free(e);
 		cel_type_free(bool_);
-		ERROR("type error: expected boolean");
+		FATAL("type error: expected boolean");
 	}
 
 	ret->ce_op.ce_while->wh_condition = e;
@@ -1403,7 +1401,7 @@ cel_type_t	*bool_;
 /* 'do' */
 	if (!ACCEPT(T_DO)) {
 		cel_expr_free(ret);
-		ERROR("expected 'do'");
+		FATAL("expected 'do'");
 	}
 
 	CEL_TAILQ_INIT(&ret->ce_op.ce_while->wh_exprs);
@@ -1426,6 +1424,6 @@ cel_type_t	*bool_;
 			return ret;
 
 		cel_expr_free(ret);
-		ERROR("expected statement or 'end'");
+		FATAL("expected statement or 'end'");
 	}
 }
