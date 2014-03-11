@@ -21,6 +21,17 @@
 
 #include	"build.h"
 
+#ifdef	HAVE_LIBEDIT
+# include	<histedit.h>
+
+char const *
+icel_prompt(e)
+	EditLine	*e;
+{
+	return ">>> ";
+}
+#endif
+
 static void
 icel_error(par, tok, s)
 	cel_token_t	*tok;
@@ -46,25 +57,47 @@ main(argc, argv)
 	char	**argv;
 {
 cel_scope_t	*scope;
+	
+#ifdef	HAVE_LIBEDIT
+EditLine	*el;
+History		*hist;
+HistEvent	 ev;
+
+	el = el_init(argv[0], stdin, stdout, stderr);
+	el_set(el, EL_PROMPT, icel_prompt);
+	el_set(el, EL_EDITOR, "emacs");
+	hist = history_init();
+	history(hist, &ev, H_SETSIZE, 800);
+	el_set(el, EL_HIST, history, hist);
+#endif
 
 	printf("CEL %s [%s] interactive interpreter\n", CEL_VERSION, CEL_HOST);
-	
 	scope = cel_scope_new(NULL);
 
 	for (;;) {
-	char		 line[1024];
+#ifndef	HAVE_LIBEDIT
+	char		 line_[1024];
+#endif
+	char const	*line;
 	char		 type[64], value[128];
 	cel_lexer_t	 lex;
 	cel_parser_t	*par;
 	cel_expr_list_t	*program;
 	cel_expr_t	*result;
+#ifdef HAVE_LIBEDIT
+	int		 len;
 
-
+		line = el_gets(el, &len);
+		if (!line)
+			break;
+#else
 		printf(">>> ");
 		fflush(stdout);
 
-		if (fgets(line, sizeof(line), stdin) == NULL)
+		if (fgets(line_, sizeof(line_), stdin) == NULL)
 			break;
+		line = line_;
+#endif
 
 		if (cel_lexer_init(&lex, line) != 0) {
 			fprintf(stderr, "%s: cannot init lexer\n", argv[1]);
@@ -92,6 +125,11 @@ cel_scope_t	*scope;
 		cel_name_type(result->ce_type, type, sizeof(type) / sizeof(char));
 		cel_expr_print(result, value, sizeof(value) / sizeof(char));
 		printf("<%s> %s\n", type, value);
+
+#ifdef	HAVE_LIBEDIT
+		if (len > 0)
+			history(hist, &ev, H_ENTER, line);
+#endif
 	}
 
 	return 0;

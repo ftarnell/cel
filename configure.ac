@@ -24,6 +24,12 @@ esac
 AC_PROG_CC
 AC_PROG_INSTALL
 
+AC_CHECK_HEADERS([histedit.h],[
+	AC_CHECK_LIB([edit], [el_init],
+		[AC_DEFINE([HAVE_LIBEDIT], [1], [Define if libedit is available])
+		 EDIT_LIBS=-ledit
+		 AC_SUBST(EDIT_LIBS)])])
+
 AC_CONFIG_FILES([Makefile include/Makefile include/celcore/Makefile celcore/Makefile test/Makefile icel/Makefile])
 AC_CONFIG_COMMANDS([cel], [
 mkdir include 2>/dev/null || true

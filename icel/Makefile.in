@@ -15,7 +15,7 @@ MAKEDEPEND	= @CC@ -M
 CPPFLAGS	= @CPPFLAGS@ -D_XOPEN_SOURCE_EXTENDED
 CFLAGS		= @CFLAGS@ -I@top_srcdir@/include -I@top_builddir@ -I@top_builddir@/include
 LDFLAGS		= @LDFLAGS@ -L@top_builddir@/celcore
-LIBS		= @LIBS@
+LIBS		= @LIBS@ @EDIT_LIBS@
 INSTALL		= @INSTALL@
 
 prefix		= @prefix@
