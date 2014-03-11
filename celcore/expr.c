@@ -149,15 +149,20 @@ cel_expr_t	*ret;
 }
 
 cel_expr_t *
-cel_make_call(e)
+cel_make_call(e, a)
 	cel_expr_t	*e;
+	cel_arglist_t	*a;
 {
 cel_expr_t	*ret;
+	assert(e);
+
 	if ((ret = calloc(1, sizeof(*ret))) == NULL)
 		return NULL;
+
 	ret->ce_tag = cel_exp_call;
-	ret->ce_type = e->ce_op.ce_function->cf_return_type;
-	ret->ce_op.ce_unary.operand = e;
+	ret->ce_type = e->ce_type;
+	ret->ce_op.ce_call.func = e;
+	ret->ce_op.ce_call.args = a;
 	return ret;
 }
 
@@ -167,6 +172,8 @@ cel_expr_free(e)
 {
 	if (!e)
 		return;
+
+	return;
 
 	switch (e->ce_tag) {
 	case cel_exp_string:
@@ -235,8 +242,12 @@ cel_expr_t	*ret;
 		ret->ce_op.ce_unary.oper = e->ce_op.ce_unary.oper;
 	case cel_exp_return:
 	case cel_exp_cast:
-	case cel_exp_call:
 		ret->ce_op.ce_unary.operand = cel_expr_copy(e->ce_op.ce_unary.operand);
+		break;
+
+	case cel_exp_call:
+		ret->ce_op.ce_call.func = e->ce_op.ce_call.func;
+		ret->ce_op.ce_call.args = e->ce_op.ce_call.args;
 		break;
 
 	case cel_exp_binary:
@@ -397,6 +408,7 @@ cel_expr_assign(l, r)
 		return;
 
 	default:
+		abort();
 		;
 	}
 }

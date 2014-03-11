@@ -24,6 +24,7 @@ typedef struct cel_function {
 	cel_expr_list_t		  cf_body;
 	cel_type_t		 *cf_return_type;
 	struct cel_scope	 *cf_scope;
+	struct cel_scope	 *cf_argscope;
 } cel_function_t;
 
 void	cel_function_free(cel_function_t *);

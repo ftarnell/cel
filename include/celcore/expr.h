@@ -68,6 +68,7 @@ struct cel_expr;
 struct cel_type;
 
 struct cel_if_list;
+struct cel_arglist;
 
 typedef struct cel_expr {
 	cel_expr_tag_t	 ce_tag;
@@ -98,6 +99,11 @@ typedef struct cel_expr {
 			cel_uni_oper_t	 oper;
 			struct cel_expr	*operand;
 		} ce_unary;
+
+		struct {
+			struct cel_expr		*func;
+			struct cel_arglist	*args;
+		} ce_call;
 
 		struct cel_if_list	*ce_if;
 
@@ -165,7 +171,7 @@ cel_expr_t	*cel_make_binary(cel_bi_oper_t, cel_expr_t *, cel_expr_t *);
 cel_expr_t	*cel_make_function(struct cel_function *);
 cel_expr_t	*cel_make_cast(cel_expr_t *, struct cel_type *);
 cel_expr_t	*cel_make_return(cel_expr_t *);
-cel_expr_t	*cel_make_call(cel_expr_t *);
+cel_expr_t	*cel_make_call(cel_expr_t *, cel_arglist_t *);
 cel_expr_t	*cel_promote_expr(struct cel_type *, cel_expr_t *);
 
 cel_expr_t	*cel_expr_convert(cel_expr_t *v, struct cel_type *type);

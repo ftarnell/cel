@@ -19,6 +19,7 @@
 #include	"celcore/function.h"
 #include	"celcore/block.h"
 #include	"celcore/scope.h"
+#include	"celcore/eval.h"
 
 #define	EXPECT(t)	(par->cp_tok.ct_token == (t))
 #define	CONSUME()	cel_next_token(par->cp_lex, &par->cp_tok)
@@ -285,7 +286,7 @@ cel_type_t	*type = NULL;
 				cel_expr_free(e);
 				ERROR_TOK(&err_tok, err);
 			}
-			cel_expr_assign(e, names[i].init);
+			cel_expr_assign(e, cel_eval(sc, names[i].init));
 		}
 
 		cel_scope_add_expr(sc, names[i].name, e);
@@ -356,7 +357,6 @@ cel_parse_func(par, sc_)
 cel_function_t	*func;
 cel_expr_t	*e, *ef;
 cel_type_t	*t;
-cel_scope_t	*sc;
 
 	if (!ACCEPT(T_FUNC))
 		return NULL;
@@ -396,10 +396,15 @@ cel_scope_t	*sc;
 		ERROR("expected ')'");
 	}
 
-	func->cf_scope = cel_scope_new(sc_);
+	func->cf_argscope = cel_scope_new(sc_);
+	func->cf_scope = cel_scope_new(func->cf_argscope);
 
 /* Argument list */
 	while (EXPECT(T_ID)) {
+	cel_type_t	*a;
+	char		*nm;
+
+		nm = strdup(par->cp_tok.ct_literal);
 		CONSUME();
 
 	/* Colon */
@@ -409,10 +414,13 @@ cel_scope_t	*sc;
 		}
 
 	/* Type */
-		if (cel_parse_type(par, sc_) == NULL) {
+		if ((a = cel_parse_type(par, sc_)) == NULL) {
 			cel_function_free(func);
 			ERROR("expected type name");
 		}
+
+		cel_scope_add_expr(func->cf_argscope, nm, cel_make_any(a));
+		free(nm);
 
 	/* ')' or ',' */
 		if (ACCEPT(T_COMMA))
@@ -997,10 +1005,11 @@ cel_token_t	 err_tok;
 	while ((op = ACCEPT(T_LPAR)) || (op = ACCEPT(T_LSQ)) ||
 	       (op = ACCEPT(T_AS))) {
 	cel_type_t	*t;
+	cel_arglist_t	*args;
 
 		switch (op) {
 		case T_LPAR:
-			if (cel_parse_arglist(par, sc) == NULL) {
+			if ((args = cel_parse_arglist(par, sc)) == NULL) {
 				cel_expr_free(e);
 				return NULL;
 			}
@@ -1010,7 +1019,7 @@ cel_token_t	 err_tok;
 				ERROR("expected ')'");
 			}
 
-			e = cel_make_call(e);
+			e = cel_make_call(e, args);
 			break;
 
 		case T_LSQ:

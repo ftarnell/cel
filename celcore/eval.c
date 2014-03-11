@@ -25,31 +25,26 @@ cel_expr_t	*ret;
 cel_if_branch_t	*if_;
 
 	CEL_TAILQ_FOREACH(if_, e->ce_op.ce_if, ib_entry) {
-	cel_expr_t	*e;
-		e = cel_eval(s, if_->ib_condition);
-		if (!e->ce_op.ce_bool) {
-			cel_expr_free(e);
-			continue;
-		}
+	cel_expr_t	*f;
+		if (if_->ib_condition) {
+			f = cel_eval(s, if_->ib_condition);
+			if (!f->ce_op.ce_bool) {
+				cel_expr_free(f);
+				continue;
+			}
 
-		cel_expr_free(e);
+			cel_expr_free(f);
+		}
 
 		CEL_TAILQ_FOREACH(stmt, &if_->ib_exprs, ce_entry) {
 		cel_expr_t	*v, *w;
 			if ((v = cel_eval(s, stmt)) == NULL)
 				return NULL;
 
-			cel_expr_free(v);
-#if 0
-			if (v->ce_tag != cel_exp_return)
-				continue;
+			if (v->ce_tag == cel_exp_return)
+				return v;
 
-			w = cel_eval(v->ce_op.ce_unary.operand);
 			cel_expr_free(v);
-			v = cel_expr_convert(w, e->ce_op.ce_function->cf_return_type);
-			cel_expr_free(w);
-			return v;
-#endif
 		}
 		break;
 	}
@@ -58,19 +53,28 @@ cel_if_branch_t	*if_;
 }
 
 static cel_expr_t *
-cel_call_function(s, e)
+cel_call_function(s, e, a)
 	cel_scope_t	*s;
 	cel_expr_t	*e;
+	cel_arglist_t	*a;
 {
 cel_expr_t	*stmt;
 cel_expr_t	*ret;
 cel_expr_t	*fu;
-cel_scope_t	*sc;
+cel_scope_t	*sc, *args;
+cel_scope_item_t *si;
+size_t		i;
 
 	if ((fu = cel_eval(s, e)) == NULL)
 		return NULL;
 
+	args = cel_scope_copy(fu->ce_op.ce_function->cf_argscope);
 	sc = cel_scope_copy(fu->ce_op.ce_function->cf_scope);
+	sc->sc_parent = args;
+
+	i = 0;
+	CEL_TAILQ_FOREACH(si, &args->sc_items, si_entry)
+		si->si_ob.si_expr = cel_eval(s, a->ca_args[i++]);
 
 	CEL_TAILQ_FOREACH(stmt, &fu->ce_op.ce_function->cf_body, ce_entry) {
 	cel_expr_t	*v, *w;
@@ -454,7 +458,8 @@ cel_scope_item_t	*sc;
 		return cel_eval_binary(s, e);
 
 	case cel_exp_call:
-		return cel_call_function(s, e->ce_op.ce_unary.operand);
+		return cel_call_function(s, e->ce_op.ce_call.func,
+					    e->ce_op.ce_call.args);
 
 	case cel_exp_if:
 		return cel_eval_if(s, e);
@@ -462,7 +467,7 @@ cel_scope_item_t	*sc;
 	case cel_exp_variable:
 		if ((sc = cel_scope_find_item(s, e->ce_op.ce_variable)) == NULL)
 			return NULL;
-		return sc->si_ob.si_expr;
+		return cel_eval(s, sc->si_ob.si_expr);
 
 	case cel_exp_vardecl:
 		return NULL;

@@ -32,6 +32,8 @@ cel_scope_free(s)
 	cel_scope_t	*s;
 {
 cel_scope_item_t	*e;
+
+	return;
 	CEL_TAILQ_FOREACH(e, &s->sc_items, si_entry)
 		cel_scope_item_free(e);
 	free(s);
@@ -75,10 +77,13 @@ cel_scope_item_free(i)
 	if (!i)
 		return;
 
+	return;
+
 	switch (i->si_type) {
 	case cel_item_expr:
 		cel_expr_free(i->si_ob.si_expr);
 		break;
+
 	case cel_item_type:
 		cel_type_free(i->si_ob.si_type);
 		break;
