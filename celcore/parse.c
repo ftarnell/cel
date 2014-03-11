@@ -49,6 +49,7 @@ static cel_typedef_t	*cel_parse_typedef(cel_parser_t *, cel_scope_t *);
 static cel_type_t	*cel_parse_type(cel_parser_t *, cel_scope_t *);
 static cel_expr_t	*cel_parse_stmt(cel_parser_t *, cel_scope_t *);
 static cel_expr_t	*cel_parse_expr(cel_parser_t *, cel_scope_t *);
+static cel_expr_t	*cel_parse_expr_return(cel_parser_t *, cel_scope_t *);
 static cel_expr_t	*cel_parse_expr_assign(cel_parser_t *, cel_scope_t *);
 static cel_expr_t	*cel_parse_expr_or(cel_parser_t *, cel_scope_t *);
 static cel_expr_t	*cel_parse_expr_and(cel_parser_t *, cel_scope_t *);
@@ -511,7 +512,24 @@ cel_parse_expr(par, sc)
 	cel_scope_t	*sc;
 	cel_parser_t	*par;
 {
-	return cel_parse_expr_assign(par, sc);
+	return cel_parse_expr_return(par, sc);
+}
+
+cel_expr_t *
+cel_parse_expr_return(par, sc)
+	cel_scope_t	*sc;
+	cel_parser_t	*par;
+{
+	if (ACCEPT(T_RETURN)) {
+		cel_expr_t	*e;
+
+		if ((e = cel_parse_expr_assign(par, sc)) == NULL)
+			ERROR("expected expression");
+
+
+		return cel_make_return(e);
+	} else
+		return cel_parse_expr_assign(par, sc);
 }
 
 cel_expr_t *
@@ -947,18 +965,12 @@ cel_expr_t	*e = NULL;
 
 		op_tok = par->cp_tok;
 
-		if (!(op = ACCEPT(T_MINUS)) && !(op = ACCEPT(T_NEGATE)) &&
-		    !(op = ACCEPT(T_RETURN)))
+		if (!(op = ACCEPT(T_MINUS)) && !(op = ACCEPT(T_NEGATE)))
 			break;
 
 		if ((e = cel_parse_expr_unary(par, sc)) == NULL) {
 			cel_expr_free(e);
 			ERROR("expected expression");
-		}
-
-		if (op == T_RETURN) {
-			e = cel_make_return(e);
-			return e;
 		}
 
 		switch (op) {
