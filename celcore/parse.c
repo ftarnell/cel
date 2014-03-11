@@ -364,6 +364,8 @@ cel_parse_func(par, sc_)
 cel_function_t	*func;
 cel_expr_t	*e, *ef;
 cel_type_t	*t;
+int		 auto_type = 0;
+int		 single_stmt = 0;
 
 	if (!ACCEPT(T_FUNC))
 		return NULL;
@@ -452,22 +454,20 @@ cel_type_t	*t;
 		ERROR("expected ')'");
 
 /* -> */
-	if (!ACCEPT(T_ARROW)) {
-		cel_function_free(func);
-		ERROR("expected '->'");
-	}
+	if (ACCEPT(T_ARROW)) {
+	/* Return type */
+		if ((t = cel_parse_type(par, sc_)) == NULL) {
+			cel_function_free(func);
+			ERROR("expected type name");
+		}
+		func->cf_return_type = t;
+		func->cf_type->ct_type.ct_function.ct_return_type = t;
 
-/* Return type */
-	if ((t = cel_parse_type(par, sc_)) == NULL) {
-		cel_function_free(func);
-		ERROR("expected type name");
-	}
-	func->cf_return_type = t;
-	func->cf_type->ct_type.ct_function.ct_return_type = t;
-
-	ef = cel_make_function(func);
-	if (func->cf_name)
-		cel_scope_add_expr(sc_, func->cf_name, ef);
+		ef = cel_make_function(func);
+		if (func->cf_name)
+			cel_scope_add_expr(sc_, func->cf_name, ef);
+	} else
+		auto_type = 1;
 
 	if (!ACCEPT(T_RPAR)) {
 		cel_function_free(func);
@@ -477,15 +477,30 @@ cel_type_t	*t;
 /* Single-statement function */
 	if (ACCEPT(T_EQ)) {
 	cel_expr_t	*f;
+		single_stmt = 1;
 		if ((e = cel_parse_expr(par, func->cf_scope)) == NULL)
 			ERROR("expected expression");
+
+		func->cf_return_type = e->ce_type;
+		func->cf_type->ct_type.ct_function.ct_return_type = e->ce_type;
+		ef = cel_make_function(func);
+
 		if (e->ce_tag != cel_exp_return) {
 			f = cel_make_return(e);
 			cel_expr_free(e);
 			e = f;
+		} else {
+			cel_function_free(func);
+			ERROR("single-statement functions should not use 'return'");
 		}
+
 		CEL_TAILQ_INSERT_TAIL(&func->cf_body, e, ce_entry);
 	} else {
+
+		if (auto_type) {
+			cel_function_free(func);
+			ERROR("functions with automatic return type may not contain statement blocks");
+		}
 
 	/* Begin */
 		if (!ACCEPT(T_BEGIN)) {
@@ -508,6 +523,9 @@ cel_type_t	*t;
 			return NULL;
 		}
 	}
+
+	if (auto_type && func->cf_name)
+		cel_scope_add_expr(sc_, func->cf_name, ef);
 
 	return ef;
 }
