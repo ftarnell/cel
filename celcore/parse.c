@@ -581,7 +581,6 @@ cel_parse_expr_assign(par, sc)
 {
 cel_expr_t	*e, *f;
 cel_token_t	 lv_tok, op_tok;
-int		 op;
 
 	lv_tok = par->cp_tok;
 
@@ -591,7 +590,8 @@ int		 op;
 	for (;;) {
 	cel_type_t	*type;
 	cel_type_t	*t;
-	cel_bi_oper_t	 oper;
+	cel_bi_oper_t	 oper = cel_bi_op_last;
+	int		 op;
 
 		op_tok = par->cp_tok;
 
@@ -615,9 +615,11 @@ int		 op;
 		case T_DIVN:	oper = cel_op_div; break;
 		}
 
-		t = cel_derive_binary_type(oper, e->ce_type, f->ce_type);
-		f = cel_make_binary(oper, e, f);
-		f->ce_type = t;
+		if (oper != cel_bi_op_last) {
+			t = cel_derive_binary_type(oper, e->ce_type, f->ce_type);
+			f = cel_make_binary(oper, e, f);
+			f->ce_type = t;
+		}
 
 		if (!cel_type_convertable(e->ce_type, f->ce_type)) {
 		char	a1[64], a2[64];
@@ -633,9 +635,42 @@ int		 op;
 			ERROR_TOK(&op_tok, err);
 		}
 
+		if (f->ce_tag == cel_exp_binary) {
+		cel_expr_t	*n = e;
+		cel_expr_t	*left = f->ce_op.ce_binary.left;
+
+			if (left->ce_tag == cel_exp_variable) {
+				left = cel_scope_find_item(sc, left->ce_op.ce_variable)->si_ob.si_expr;
+			}
+
+			if (n->ce_tag == cel_exp_variable) {
+				n = cel_scope_find_item(sc, e->ce_op.ce_variable)->si_ob.si_expr;
+			}
+				
+			if (left == n) {
+			cel_bi_oper_t	oper_;
+				switch (f->ce_op.ce_binary.oper) {
+				case cel_op_plus:	oper_ = cel_op_incr; break;
+				case cel_op_minus:	oper_ = cel_op_decr; break;
+				case cel_op_mult:	oper_ = cel_op_multn; break;
+				case cel_op_div:	oper_ = cel_op_divn; break;
+				default:		abort();
+				}
+
+				n = cel_make_binary(oper_, n, f->ce_op.ce_binary.right);
+				f->ce_op.ce_binary.left = NULL;
+				f->ce_op.ce_binary.right = NULL;
+				n->ce_type = e->ce_type;
+				e = n;
+				goto done;
+			}
+		}
+
 		type = e->ce_type;
 		e = cel_make_assign(e, f);
 		e->ce_type = type;
+done:
+		;
 	}
 
 	return e;

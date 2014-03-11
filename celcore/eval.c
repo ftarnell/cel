@@ -9,6 +9,7 @@
  */
 
 #include	<string.h>
+#include	<assert.h>
 
 #include	"celcore/eval.h"
 #include	"celcore/type.h"
@@ -189,6 +190,60 @@ cel_type_t	*ptype;
 }
 
 static cel_expr_t *
+cel_eval_incr(s, op, l, r)
+	cel_scope_t	*s;
+	cel_expr_t	*l, *r;
+{
+cel_expr_t		*cr, *el, *er;
+cel_type_t		*sc;
+cel_scope_item_t	*scope;
+int			 free_el = 0;
+
+	if (l->ce_tag == cel_exp_variable) {
+		if ((scope = cel_scope_find_item(s, l->ce_op.ce_variable)) == NULL)
+			return NULL;
+		el = scope->si_ob.si_expr;
+	} else el = l;
+#if 0
+	else {
+		if ((el = cel_eval(s, l)) == NULL)
+			return NULL;
+		free_el = 1;
+	}
+#endif
+
+	if ((er = cel_eval(s, r)) == NULL) {
+		if (free_el)
+			cel_expr_free(el);
+		return NULL;
+	}
+
+	cr = cel_expr_convert(er, el->ce_type);
+	cel_expr_free(er);
+
+	assert(el->ce_type->ct_tag == cr->ce_type->ct_tag);
+
+#define doit(op,t) ((op) == cel_op_incr  ? (el->ce_op.ce_##t += cr->ce_op.ce_##t) :	\
+		    (op) == cel_op_decr  ? (el->ce_op.ce_##t -= cr->ce_op.ce_##t) :	\
+		    (op) == cel_op_multn ? (el->ce_op.ce_##t *= cr->ce_op.ce_##t) :	\
+		                           (el->ce_op.ce_##t /= cr->ce_op.ce_##t))	\
+
+	switch (el->ce_type->ct_tag) {
+	case cel_type_int8:	doit(op, int8); break;
+	case cel_type_uint8:	doit(op, uint8); break;
+	case cel_type_int16:	doit(op, int16); break;
+	case cel_type_uint16:	doit(op, uint16); break;
+	case cel_type_int32:	doit(op, int32); break;
+	case cel_type_uint32:	doit(op, uint32); break;
+	case cel_type_int64:	doit(op, int64); break;
+	case cel_type_uint64:	doit(op, uint64); break;
+	}
+
+	cel_expr_free(cr);
+	return cel_expr_copy(el);
+}
+
+static cel_expr_t *
 cel_eval_assign(s, l, r)
 	cel_scope_t	*s;
 	cel_expr_t	*l, *r;
@@ -231,11 +286,21 @@ cel_type_t	*rtype;
 char		*str;
 
 	/* This one is not like the others */
-	if (e->ce_op.ce_binary.oper == cel_op_assign) {
-		ret = cel_eval_assign(s, e->ce_op.ce_binary.left,
+	if (e->ce_op.ce_binary.oper == cel_op_assign)
+		return cel_eval_assign(s, e->ce_op.ce_binary.left,
 				         e->ce_op.ce_binary.right);
-		return ret;
-	}
+
+	/*
+	 * These ones are not like the others either - they modify the
+	 * target directly
+	 */
+	if (e->ce_op.ce_binary.oper == cel_op_incr ||
+	    e->ce_op.ce_binary.oper == cel_op_decr ||
+	    e->ce_op.ce_binary.oper == cel_op_multn ||
+	    e->ce_op.ce_binary.oper == cel_op_divn)
+		return cel_eval_incr(s, e->ce_op.ce_binary.oper,
+				    e->ce_op.ce_binary.left,
+				    e->ce_op.ce_binary.right);
 
 	if ((l = cel_eval(s, e->ce_op.ce_binary.left)) == NULL)
 		return NULL;

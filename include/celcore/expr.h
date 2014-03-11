@@ -57,7 +57,12 @@ typedef enum cel_bi_oper {
 	cel_op_or,
 	cel_op_and,
 	cel_op_xor,
-	cel_op_modulus
+	cel_op_modulus,
+	cel_op_incr,
+	cel_op_decr,
+	cel_op_multn,
+	cel_op_divn,
+	cel_bi_op_last
 } cel_bi_oper_t;
 
 typedef enum cel_uni_oper {
@@ -178,6 +183,10 @@ cel_expr_t	*cel_make_binary(cel_bi_oper_t, cel_expr_t *, cel_expr_t *);
 #define	cel_make_or(e,f)	cel_make_binary(cel_op_or, (e), (f))
 #define	cel_make_assign(e,f)	cel_make_binary(cel_op_assign, (e), (f))
 #define	cel_make_xor(e,f)	cel_make_binary(cel_op_xor, (e), (f))
+#define	cel_make_incr(e,f)	cel_make_binary(cel_op_incr, (e), (f))
+#define	cel_make_decr(e,f)	cel_make_binary(cel_op_decr, (e), (f))
+#define	cel_make_multn(e,f)	cel_make_binary(cel_op_multn, (e), (f))
+#define	cel_make_divn(e,f)	cel_make_binary(cel_op_divn, (e), (f))
 
 cel_expr_t	*cel_make_function(struct cel_function *);
 cel_expr_t	*cel_make_cast(cel_expr_t *, struct cel_type *);
