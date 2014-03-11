@@ -290,7 +290,7 @@ cel_type_t	*type = NULL;
 
 				ERROR_TOK(&err_tok, err);
 			}
-			e = cel_expr_copy(names[i].init);
+			e = cel_eval(sc, names[i].init);
 		} else {
 			e = cel_make_any(type);
 		}

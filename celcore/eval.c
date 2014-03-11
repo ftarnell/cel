@@ -272,6 +272,7 @@ int			 free_el = 0;
 	cr = cel_expr_convert(er, el->ce_type);
 	cel_expr_free(er);
 	cel_expr_assign(el, cr);
+	el->ce_const = 0;
 	cel_expr_free(cr);
 	return cel_expr_copy(el);
 }
