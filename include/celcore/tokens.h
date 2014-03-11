@@ -11,7 +11,7 @@
 #ifndef	CEL_TOKENS_H
 #define	CEL_TOKENS_H
 
-#include	<wchar.h>
+#include	<stdio.h>
 
 #define	T_ERR		(-1)
 #define	T_FUNC		1
@@ -75,6 +75,8 @@
 #define	T_INT64		61
 #define	T_UINT64	62
 #define	T_AS		63
+#define	T_RETURN	64
+#define	T_VOID		65
 
 /*
  * Lexer state.

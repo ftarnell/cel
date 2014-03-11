@@ -72,6 +72,8 @@ struct {
 	{ "int64",	T_INT64		},
 	{ "uint64",	T_UINT64	},
 	{ "as",		T_AS		},
+	{ "return",	T_RETURN	},
+	{ "void",	T_VOID		}
 };
 
 /* Skip whitespace */

@@ -92,6 +92,9 @@ HistEvent	 ev;
 			fputs("\n", stdout);
 			break;
 		}
+
+		if (len > 0)
+			history(hist, &ev, H_ENTER, line);
 #else
 		printf(">>> ");
 		fflush(stdout);
@@ -130,11 +133,6 @@ HistEvent	 ev;
 		cel_name_type(result->ce_type, type, sizeof(type) / sizeof(char));
 		cel_expr_print(result, value, sizeof(value) / sizeof(char));
 		printf("<%s> %s\n", type, value);
-
-#ifdef	HAVE_LIBEDIT
-		if (len > 0)
-			history(hist, &ev, H_ENTER, line);
-#endif
 	}
 
 	return 0;

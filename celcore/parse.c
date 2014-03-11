@@ -327,6 +327,7 @@ cel_type_t	*type;
 	else if (ACCEPT(T_UINT64))	type = cel_make_type(cel_type_uint64);
 	else if (ACCEPT(T_STRING))	type = cel_make_type(cel_type_string);
 	else if (ACCEPT(T_BOOL))	type = cel_make_type(cel_type_bool);
+	else if (ACCEPT(T_VOID))	type = cel_make_type(cel_type_void);
 	else
 		return NULL;
 
@@ -349,19 +350,35 @@ cel_parse_func(par)
  */
 
 cel_function_t	*func;
+cel_expr_t	*e;
+cel_type_t	*t;
+cel_scope_t	*sc;
 
 	if (!ACCEPT(T_FUNC))
 		return NULL;
 
 	func = calloc(1, sizeof(*func));
+	CEL_TAILQ_INIT(&func->cf_body);
 
 /* Identifier (function name) */
-	if (!ACCEPT(T_ID)) {
+	if (!EXPECT(T_ID)) {
 		cel_function_free(func);
 		ERROR("expected identifier");
 	}
 
+	if (cel_scope_find_item(par->cp_scope, par->cp_tok.ct_literal)) {
+	char		err[128];
+	cel_token_t	err_tok = par->cp_tok;
+
+		snprintf(err, sizeof(err), "symbol \"%s\" already declared",
+			 par->cp_tok.ct_literal);
+		CONSUME();
+		ERROR_TOK(&err_tok, err);
+	}
+
 	func->cf_name = strdup(par->cp_tok.ct_literal);
+
+	CONSUME();
 
 /* Colon */
 	if (!ACCEPT(T_COLON)) {
@@ -375,13 +392,11 @@ cel_function_t	*func;
 		ERROR("expected ')'");
 	}
 
+	sc = cel_scope_new(par->cp_scope);
+
 /* Argument list */
-	for (;;) {
-	/* Argument name */
-		if (!ACCEPT(T_ID)) {
-			cel_function_free(func);
-			ERROR("expected identifier");
-		}
+	while (EXPECT(T_ID)) {
+		CONSUME();
 
 	/* Colon */
 		if (!ACCEPT(T_COLON)) {
@@ -396,14 +411,14 @@ cel_function_t	*func;
 		}
 
 	/* ')' or ',' */
-		if (ACCEPT(T_RPAR))
-			break;
 		if (ACCEPT(T_COMMA))
 			continue;
 
-		cel_function_free(func);
-		ERROR("expected ',' or ')'");
+		break;
 	}
+
+	if (!ACCEPT(T_RPAR))
+		ERROR("expected ')'");
 
 /* -> */
 	if (!ACCEPT(T_ARROW)) {
@@ -412,31 +427,44 @@ cel_function_t	*func;
 	}
 
 /* Return type */
-	if (cel_parse_type(par) == NULL) {
+	if ((t = cel_parse_type(par)) == NULL) {
 		cel_function_free(func);
 		ERROR("expected type name");
 	}
+	func->cf_return_type = t;
 
-/* Begin */
-	if (!ACCEPT(T_BEGIN)) {
-		cel_function_free(func);
-		ERROR("expected 'begin'");
+/* Single-statement function */
+	if (ACCEPT(T_EQ)) {
+		if ((e = cel_parse_expr(par)) == NULL)
+			ERROR("expected expression");
+		CEL_TAILQ_INSERT_TAIL(&func->cf_body, e, ce_entry);
+	} else {
+
+	/* Begin */
+		if (!ACCEPT(T_BEGIN)) {
+			cel_function_free(func);
+			ERROR("expected 'begin'");
+		}
+
+	/*
+	 * List of statements.
+	 */
+		while (e = cel_parse_expr(par)) {
+			CEL_TAILQ_INSERT_TAIL(&func->cf_body, e, ce_entry);
+
+			if (ACCEPT(T_SEMI))
+				continue;
+		}
+
+		if (!ACCEPT(T_END)) {
+			cel_function_free(func);
+			return NULL;
+		}
 	}
 
-/*
- * List of statements.
- */
-	while (cel_parse_stmt(par) == 0) {
-		if (ACCEPT(T_SEMI))
-			continue;
-	}
-
-	if (!ACCEPT(T_END)) {
-		cel_function_free(func);
-		return NULL;
-	}
-
-	return cel_make_function(func);
+	e = cel_make_function(func);
+	cel_scope_add_expr(par->cp_scope, func->cf_name, e);
+	return e;
 }
 
 cel_expr_t *
@@ -454,7 +482,6 @@ cel_expr_t	*e;
 
 	if (e = cel_parse_expr(par))
 		return e;
-
 
 	return NULL;
 }
@@ -890,12 +917,18 @@ cel_expr_t	*e = NULL;
 
 		op_tok = par->cp_tok;
 
-		if (!(op = ACCEPT(T_MINUS)) && !(op = ACCEPT(T_NEGATE)))
+		if (!(op = ACCEPT(T_MINUS)) && !(op = ACCEPT(T_NEGATE)) &&
+		    !(op = ACCEPT(T_RETURN)))
 			break;
 
 		if ((e = cel_parse_expr_unary(par)) == NULL) {
 			cel_expr_free(e);
 			ERROR("expected expression");
+		}
+
+		if (op == T_RETURN) {
+			e = cel_make_return(e);
+			continue;
 		}
 
 		switch (op) {
@@ -953,6 +986,8 @@ cel_token_t	 err_tok;
 				cel_expr_free(e);
 				ERROR("expected ')'");
 			}
+
+			e = cel_make_call(e);
 			break;
 
 		case T_LSQ:

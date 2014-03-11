@@ -11,14 +11,19 @@
 #ifndef	CEL_FUNCTION_H
 #define	CEL_FUNCTION_H
 
-struct cel_block;
+#include	"celcore/expr.h"
+#include	"celcore/type.h"
+
 struct cel_type;
+struct cel_scope;
 
 typedef struct cel_function {
 	char			 *cf_name;
 	struct cel_type		**cf_args;
 	int			  cf_nargs;
-	struct cel_block	 *cf_body;
+	cel_expr_list_t		  cf_body;
+	cel_type_t		 *cf_return_type;
+	struct cel_scope	 *cf_scope;
 } cel_function_t;
 
 void	cel_function_free(cel_function_t *);

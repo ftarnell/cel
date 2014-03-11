@@ -12,6 +12,32 @@
 
 #include	"celcore/eval.h"
 #include	"celcore/type.h"
+#include	"celcore/function.h"
+
+static cel_expr_t *
+cel_call_function(e)
+	cel_expr_t	*e;
+{
+cel_expr_t	*stmt;
+cel_expr_t	*ret;
+
+	CEL_TAILQ_FOREACH(stmt, &e->ce_op.ce_function->cf_body, ce_entry) {
+	cel_expr_t	*v, *w;
+		if ((v = cel_eval(stmt)) == NULL)
+			return NULL;
+
+		if (v->ce_tag != cel_exp_return)
+			continue;
+
+		w = cel_eval(v->ce_op.ce_unary.operand);
+		cel_expr_free(v);
+		v = cel_expr_convert(w, e->ce_op.ce_function->cf_return_type);
+		cel_expr_free(w);
+		return v;
+	}
+
+	return NULL;
+}
 
 static cel_expr_t *
 cel_eval_unary(e)
@@ -347,6 +373,8 @@ cel_eval(e)
 	case cel_exp_string:
 	case cel_exp_bool:
 	case cel_exp_void:
+	case cel_exp_return:
+	case cel_exp_function:
 		return cel_expr_copy(e);
 
 	case cel_exp_unary:
@@ -356,8 +384,10 @@ cel_eval(e)
 	case cel_exp_binary:
 		return cel_eval_binary(e);
 
+	case cel_exp_call:
+		return cel_call_function(e->ce_op.ce_unary.operand);
+
 	case cel_exp_identifier:
-	case cel_exp_function:
 	case cel_exp_vardecl:
 	case cel_exp_if:
 		return NULL;

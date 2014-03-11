@@ -80,10 +80,13 @@ cel_make_function(f)
 	cel_function_t	*f;
 {
 cel_expr_t	*ret;
+	assert(f);
+
 	if ((ret = calloc(1, sizeof(*ret))) == NULL)
 		return NULL;
 	ret->ce_tag = cel_exp_function;
 	ret->ce_op.ce_function = f;
+	ret->ce_type = f->cf_return_type;
 	return ret;
 }
 
@@ -130,6 +133,32 @@ cel_expr_t	*ret;
 	return ret;
 }
 
+cel_expr_t *
+cel_make_return(e)
+	cel_expr_t	*e;
+{
+cel_expr_t	*ret;
+	if ((ret = calloc(1, sizeof(*ret))) == NULL)
+		return NULL;
+	ret->ce_tag = cel_exp_return;
+	ret->ce_type = cel_make_type(cel_type_void);
+	ret->ce_op.ce_unary.operand = e;
+	return ret;
+}
+
+cel_expr_t *
+cel_make_call(e)
+	cel_expr_t	*e;
+{
+cel_expr_t	*ret;
+	if ((ret = calloc(1, sizeof(*ret))) == NULL)
+		return NULL;
+	ret->ce_tag = cel_exp_call;
+	ret->ce_type = e->ce_op.ce_function->cf_return_type;
+	ret->ce_op.ce_unary.operand = e;
+	return ret;
+}
+
 void
 cel_expr_free(e)
 	cel_expr_t	*e;
@@ -148,6 +177,7 @@ cel_expr_free(e)
 
 	case cel_exp_unary:
 	case cel_exp_cast:
+	case cel_exp_return:
 		cel_expr_free(e->ce_op.ce_unary.operand);
 		break;
 
@@ -169,6 +199,7 @@ cel_expr_free(e)
 	case cel_exp_function:
 	case cel_exp_vardecl:
 	case cel_exp_void:
+	case cel_exp_call:
 		break;
 	}
 }
@@ -200,7 +231,9 @@ cel_expr_t	*ret;
 
 	case cel_exp_unary:
 		ret->ce_op.ce_unary.oper = e->ce_op.ce_unary.oper;
+	case cel_exp_return:
 	case cel_exp_cast:
+	case cel_exp_call:
 		ret->ce_op.ce_unary.operand = cel_expr_copy(e->ce_op.ce_unary.operand);
 		break;
 
@@ -215,6 +248,9 @@ cel_expr_t	*ret;
 		break;
 
 	case cel_exp_function:
+		ret->ce_op.ce_function = e->ce_op.ce_function;
+		break;
+
 	case cel_exp_vardecl:
 	case cel_exp_identifier:
 	case cel_exp_if:
@@ -233,8 +269,7 @@ cel_expr_print(e, b, bsz)
 {
 char	t[64];
 
-	*b = 0;
-	strlcat(b, "<error>", bsz);
+	strlcpy(b, "<error>", bsz);
 
 	switch (e->ce_tag) {
 	case cel_exp_int8:	snprintf(b, bsz, "%"PRId8, e->ce_op.ce_int8); break;
@@ -258,16 +293,33 @@ char	t[64];
 		strlcpy(b, "<void>", bsz);
 		break;
 
+	case cel_exp_call:
+		strlcpy(b, "<function call>", bsz);
+		break;
+
 	case cel_exp_cast:
-		cel_expr_print(e, b, bsz);
+		cel_expr_print(e->ce_op.ce_unary.operand, b, bsz);
 		strlcat(b, " as ", bsz);
 		cel_name_type(e->ce_type, t, sizeof(t));
 		strlcat(b, t, bsz);
 		break;
 
+	case cel_exp_return:
+		strlcpy(b, "<return ", bsz);
+		cel_expr_print(e->ce_op.ce_unary.operand, t, sizeof(t));
+		strlcat(b, t, bsz);
+		strlcat(b, " as ", bsz);
+		cel_name_type(e->ce_op.ce_unary.operand->ce_type, t, sizeof(t));
+		strlcat(b, t, bsz);
+		strlcat(b, ">", bsz);
+		break;
+
+	case cel_exp_function:
+		strlcpy(b, "<function>", bsz);
+		break;
+
 	case cel_exp_unary:
 	case cel_exp_binary:
-	case cel_exp_function:
 	case cel_exp_if:
 	case cel_exp_vardecl:
 	case cel_exp_identifier:

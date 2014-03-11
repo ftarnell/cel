@@ -36,7 +36,9 @@ typedef enum cel_expr_tag {
 	cel_exp_function,
 	cel_exp_vardecl,
 	cel_exp_if,
-	cel_exp_cast
+	cel_exp_cast,
+	cel_exp_call,
+	cel_exp_return
 } cel_expr_tag_t;
 
 typedef enum cel_bi_oper {
@@ -160,6 +162,8 @@ cel_expr_t	*cel_make_binary(cel_bi_oper_t, cel_expr_t *, cel_expr_t *);
 
 cel_expr_t	*cel_make_function(struct cel_function *);
 cel_expr_t	*cel_make_cast(cel_expr_t *, struct cel_type *);
+cel_expr_t	*cel_make_return(cel_expr_t *);
+cel_expr_t	*cel_make_call(cel_expr_t *);
 cel_expr_t	*cel_promote_expr(struct cel_type *, cel_expr_t *);
 
 cel_expr_t	*cel_expr_convert(cel_expr_t *v, struct cel_type *type);
