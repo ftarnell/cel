@@ -88,14 +88,19 @@ HistEvent	 ev;
 	int		 len;
 
 		line = el_gets(el, &len);
-		if (!line)
+		if (!line) {
+			fputs("\n", stdout);
 			break;
+		}
 #else
 		printf(">>> ");
 		fflush(stdout);
 
-		if (fgets(line_, sizeof(line_), stdin) == NULL)
+		if (fgets(line_, sizeof(line_), stdin) == NULL) {
+			if (!feof(stdin))
+				fputs("\n", stdout);
 			break;
+		}
 		line = line_;
 #endif
 
