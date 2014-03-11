@@ -8,6 +8,8 @@
  * warranty.
  */
 
+#include	<string.h>
+
 #include	"celcore/eval.h"
 #include	"celcore/type.h"
 
@@ -65,7 +67,7 @@ cel_eval_binary(e)
 {
 cel_expr_t	*l, *r, *pl, *pr, *ret = NULL;
 cel_type_t	*rtype;
-wchar_t		*s;
+char		*s;
 
 	if ((l = cel_eval(e->ce_op.ce_binary.left)) == NULL)
 		return NULL;
@@ -105,10 +107,10 @@ wchar_t		*s;
 	case cel_op_plus:
 		switch (rtype->ct_tag) {
 		case cel_type_string:
-			s = malloc(sizeof(wchar_t) * (wcslen(pl->ce_op.ce_string) +
-						      wcslen(pr->ce_op.ce_string) + 1));
-			wcscpy(s, pl->ce_op.ce_string);
-			wcscat(s, pr->ce_op.ce_string);
+			s = malloc(sizeof(char) * (strlen(pl->ce_op.ce_string) +
+						      strlen(pr->ce_op.ce_string) + 1));
+			strcpy(s, pl->ce_op.ce_string);
+			strcat(s, pr->ce_op.ce_string);
 			ret = cel_make_string(s);
 			free(s);
 			break;

@@ -16,19 +16,19 @@
 #include	"celcore/tokens.h"
 
 /* Valid characters to begin an identifier */
-#define	ID_STARTCHARS	L"abcdefghijklmnopqrstuvwxyz"	\
-			L"ABCDEFGHIJKLMNOPQRSTUVWXYZ"	\
-			L"_"
+#define	ID_STARTCHARS	"abcdefghijklmnopqrstuvwxyz"	\
+			"ABCDEFGHIJKLMNOPQRSTUVWXYZ"	\
+			"_"
 
 /* Valid characters in an identifier */
 #define	ID_CHARS	ID_STARTCHARS			\
-			L"0123456789"			\
-			L"$"
+			"0123456789"			\
+			"$"
 
 int
 cel_lexer_init(lex, buf)
 	cel_lexer_t	*lex;
-	wchar_t const	*buf;
+	char const	*buf;
 {
 	memset(lex, 0, sizeof(*lex));
 	lex->cl_buf = lex->cl_bufp = buf;
@@ -44,25 +44,25 @@ cel_next_token(lex, ret)
 {
 size_t	i;
 struct {
-	wchar_t const	*token;
+	char const	*token;
 	int		 value;
 } keywords[] = {
-	{ L"func",	T_FUNC		},
-	{ L"var",	T_VAR		},
-	{ L"type",	T_TYPE		},
-	{ L"begin",	T_BEGIN		},
-	{ L"end",	T_END		},
-	{ L"if",	T_IF		},
-	{ L"elif",	T_ELIF		},
-	{ L"else",	T_ELSE		},
-	{ L"then",	T_THEN		},
-	{ L"and",	T_AND		},
-	{ L"or",	T_OR		},
-	{ L"int",	T_INT		},
-	{ L"string",	T_STRING	},
-	{ L"bool",	T_BOOL		},
-	{ L"true",	T_TRUE		},
-	{ L"false",	T_FALSE		}
+	{ "func",	T_FUNC		},
+	{ "var",	T_VAR		},
+	{ "type",	T_TYPE		},
+	{ "begin",	T_BEGIN		},
+	{ "end",	T_END		},
+	{ "if",	T_IF		},
+	{ "elif",	T_ELIF		},
+	{ "else",	T_ELSE		},
+	{ "then",	T_THEN		},
+	{ "and",	T_AND		},
+	{ "or",	T_OR		},
+	{ "int",	T_INT		},
+	{ "string",	T_STRING	},
+	{ "bool",	T_BOOL		},
+	{ "true",	T_TRUE		},
+	{ "false",	T_FALSE		}
 };
 
 /* Skip whitespace */
@@ -84,13 +84,13 @@ struct {
 
 /* EOT */
 	if (!*lex->cl_bufp) {
-		ret->ct_literal = wcsdup(L"<end-of-file>");
+		ret->ct_literal = strdup("<end-of-file>");
 		ret->ct_token = T_EOT;
 		return 0;
 	}
 
 #define	TR(s,t,l)	do {					\
-				ret->ct_literal = wcsdup((s));	\
+				ret->ct_literal = strdup((s));	\
 				ret->ct_token = (t);		\
 				lex->cl_bufp += l;		\
 				lex->cl_col += l;		\
@@ -100,65 +100,65 @@ struct {
 
 /* Trivial one- and two-character tokens */
 	switch (*lex->cl_bufp) {
-	TK('{', L"{", T_LCUR);
-	TK('}', L"}", T_RCUR);
-	TK('(', L"(", T_LPAR);
-	TK(')', L")", T_RPAR);
-	TK('[', L"[", T_LSQ);
-	TK(']', L"]", T_RSQ);
-	TK('=', L"=", T_EQ);
-	TK(',', L",", T_COMMA);
-	TK(';', L";", T_SEMI);
-	TK('+', L"+", T_PLUS);
-	TK('*', L"*", T_STAR);
-	TK('/', L"/", T_SLASH);
-	TK('^', L"^", T_CARET);
-	TK('%', L"%", T_PERCENT);
+	TK('{', "{", T_LCUR);
+	TK('}', "}", T_RCUR);
+	TK('(', "(", T_LPAR);
+	TK(')', ")", T_RPAR);
+	TK('[', "[", T_LSQ);
+	TK(']', "]", T_RSQ);
+	TK('=', "=", T_EQ);
+	TK(',', ",", T_COMMA);
+	TK(';', ";", T_SEMI);
+	TK('+', "+", T_PLUS);
+	TK('*', "*", T_STAR);
+	TK('/', "/", T_SLASH);
+	TK('^', "^", T_CARET);
+	TK('%', "%", T_PERCENT);
 
 	case ':':
 		if (lex->cl_bufp[1] == '=')
-			TR(L":=", T_ASSIGN, 2);
-		TR(L":", T_COLON, 1);
+			TR(":=", T_ASSIGN, 2);
+		TR(":", T_COLON, 1);
 		break;
 
 	case '<':
 		if (lex->cl_bufp[1] == '=')
-			TR(L"<=", T_LE, 2);
-		TR(L"<", T_LT, 2);
+			TR("<=", T_LE, 2);
+		TR("<", T_LT, 2);
 		break;
 
 	case '>':
 		if (lex->cl_bufp[1] == '=')
-			TR(L">=", T_GE, 2);
-		TR(L">", T_GT, 1);
+			TR(">=", T_GE, 2);
+		TR(">", T_GT, 1);
 		break;
 
 	case '-':
 		if (lex->cl_bufp[1] == '>')
-			TR(L"->", T_ARROW, 2);
-		TR(L"-", T_MINUS, 1);
+			TR("->", T_ARROW, 2);
+		TR("-", T_MINUS, 1);
 		break;
 	
 	case '!':
 		if (lex->cl_bufp[1] == '=')
-			TR(L"!=", T_NEQ, 2);
-		TR(L"!", T_NEGATE, 1);
+			TR("!=", T_NEQ, 2);
+		TR("!", T_NEGATE, 1);
 		break;
 	}
 
 /* Identifiers and keywords */
 
-	if (wcschr(ID_STARTCHARS, lex->cl_bufp[0])) {
+	if (strchr(ID_STARTCHARS, lex->cl_bufp[0])) {
 	size_t	span;
-		span = wcsspn(lex->cl_bufp + 1, ID_CHARS);
+		span = strspn(lex->cl_bufp + 1, ID_CHARS);
 
-		ret->ct_literal = calloc(sizeof(wchar_t), span + 2);
+		ret->ct_literal = calloc(sizeof(char), span + 2);
 		ret->ct_token = T_ID;
-		wmemcpy(ret->ct_literal, lex->cl_bufp, span + 1);
+		memcpy(ret->ct_literal, lex->cl_bufp, span + 1);
 
 		/* Check if it's a keyword */
 		for (i = 0; i < sizeof(keywords) / sizeof(*keywords); i++)
-			if (wcscmp(ret->ct_literal, keywords[i].token) == 0)
+			if (strcmp(ret->ct_literal, keywords[i].token) == 0)
 				ret->ct_token = keywords[i].value;
 
 		lex->cl_bufp += span + 1;
@@ -168,15 +168,15 @@ struct {
 
 /* Numeric literals */
 
-	if (wcschr(L"0123456789", lex->cl_bufp[0])) {
+	if (strchr("0123456789", lex->cl_bufp[0])) {
 	size_t	span;
 	int	width = 32;
 	int	signed_ = 1;
 
-		span = wcsspn(lex->cl_bufp, L"0123456789");
+		span = strspn(lex->cl_bufp, "0123456789");
 
-		ret->ct_literal = calloc(sizeof(wchar_t), span + 1);
-		wmemcpy(ret->ct_literal, lex->cl_bufp, span);
+		ret->ct_literal = calloc(sizeof(char), span + 1);
+		memcpy(ret->ct_literal, lex->cl_bufp, span);
 
 		/* Optional trailing 'i' or 'u'. */
 		switch (lex->cl_bufp[span]) {
@@ -230,9 +230,9 @@ struct {
 			}
 
 			if (lex->cl_bufp[span] == '"') {
-				ret->ct_literal = calloc(sizeof(wchar_t), span + 2);
+				ret->ct_literal = calloc(sizeof(char), span + 2);
 				ret->ct_token = T_LIT_STR;
-				wmemcpy(ret->ct_literal, lex->cl_bufp, span + 1);
+				memcpy(ret->ct_literal, lex->cl_bufp, span + 1);
 				lex->cl_bufp += span + 1;
 				lex->cl_col += span + 1;
 				return 0;
@@ -249,7 +249,7 @@ cel_token_print_context(lex, tok, stream)
 	cel_token_t	*tok;
 	FILE		*stream;
 {
-wchar_t const	*p;
+char const	*p;
 int		 i;
 
 	if (!tok->ct_line)

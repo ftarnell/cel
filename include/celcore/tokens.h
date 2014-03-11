@@ -75,16 +75,16 @@ typedef struct cel_lexer {
 	int		 cl_lineno;
 
 	/* The start of the current line */
-	wchar_t const	*cl_line;
+	char const	*cl_line;
 
 	/* Current column position in the buffer */
 	int		 cl_col;
 
 	/* The buffer passed to cel_lexer_init() (private) */
-	wchar_t const	*cl_buf;
+	char const	*cl_buf;
 
 	/* Our current buffer position (private) */
-	wchar_t const	*cl_bufp;
+	char const	*cl_bufp;
 } cel_lexer_t;
 
 /*
@@ -92,7 +92,7 @@ typedef struct cel_lexer {
  * lexer does not own the buffer, and the user is responsible for freeing
  * it later.
  */
-int	cel_lexer_init(cel_lexer_t *lex, wchar_t const *buf);
+int	cel_lexer_init(cel_lexer_t *lex, char const *buf);
 
 /*
  * A single token.
@@ -102,13 +102,13 @@ typedef struct cel_token {
 	int		 ct_token;
 
 	/* The literal text comprising the token */
-	wchar_t		*ct_literal;
+	char		*ct_literal;
 
 	/* Line number in the buffer where this token began */
 	int		 ct_lineno;
 
 	/* The start of the line represented by cl_lineno */
-	wchar_t const	*ct_line;
+	char const	*ct_line;
 
 	/* Column position in the line where this token began */
 	int		 ct_col;

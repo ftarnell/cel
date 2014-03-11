@@ -10,7 +10,7 @@
 
 #include	<stdlib.h>
 #include	<stdio.h>
-#include	<wchar.h>
+#include	<string.h>
 
 #include	"celcore/tokens.h"
 
@@ -21,7 +21,7 @@ main(argc, argv)
 FILE	*inf;
 char	 line[1024];
 size_t	 buflen = 0;
-wchar_t	*buf = NULL;
+char	*buf = NULL;
 
 cel_lexer_t	lex;
 cel_token_t	tok;
@@ -37,12 +37,10 @@ cel_token_t	tok;
 	}
 
 	while (fgets(line, sizeof(line), inf)) {
-	wchar_t	wline[1024];
-		mbstowcs(wline, line, sizeof(wline) / sizeof(wchar_t) - 1);
-		buf = realloc(buf, sizeof(wchar_t) * (buflen + wcslen(wline)) + 1);
-		wcscpy(buf + buflen, wline);
-		*(buf + buflen + wcslen(wline)) = '\0';
-		buflen += wcslen(wline);
+		buf = realloc(buf, sizeof(char) * (buflen + strlen(line)) + 1);
+		strcpy(buf + buflen, line);
+		*(buf + buflen + strlen(line)) = '\0';
+		buflen += strlen(line);
 	}
 
 	fclose(inf);
@@ -56,7 +54,7 @@ cel_token_t	tok;
 		if (tok.ct_token == T_EOT)
 			return 0;
 
-		fwprintf(stderr, L"[%ls]:%d\n",
+		fprintf(stderr, "[%s]:%d\n",
 			 tok.ct_literal,
 			 tok.ct_token);
 	}

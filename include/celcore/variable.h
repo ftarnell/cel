@@ -16,7 +16,7 @@
 
 typedef struct cel_vardecl {
 	cel_type_t	*cv_type;
-	wchar_t		**cv_names;
+	char		**cv_names;
 	int		 cv_nnames;
 } cel_vardecl_t;
 

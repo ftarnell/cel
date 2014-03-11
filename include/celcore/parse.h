@@ -16,8 +16,8 @@
 
 struct cel_parser;
 
-typedef void (*cel_emit_error) (struct cel_parser *, cel_token_t *, wchar_t const *);
-typedef void (*cel_emit_warning) (struct cel_parser *, cel_token_t *, wchar_t const *);
+typedef void (*cel_emit_error) (struct cel_parser *, cel_token_t *, char const *);
+typedef void (*cel_emit_warning) (struct cel_parser *, cel_token_t *, char const *);
 
 typedef struct cel_parser {
 	/* Our lexer */

@@ -8,6 +8,7 @@
  * warranty.
  */
 
+#include	<string.h>
 #include	<inttypes.h>
 
 #include	"celcore/expr.h"
@@ -50,26 +51,26 @@ cel_expr_t	*ret;
 
 cel_expr_t *
 cel_make_string(s)
-	wchar_t const	*s;
+	char const	*s;
 {
 cel_expr_t	*ret;
 	if ((ret = calloc(1, sizeof(*ret))) == NULL)
 		return NULL;
 	ret->ce_type = cel_make_type(cel_type_string);
 	ret->ce_tag = cel_exp_string;
-	ret->ce_op.ce_string = wcsdup(s);
+	ret->ce_op.ce_string = strdup(s);
 	return ret;
 }
 
 cel_expr_t *
 cel_make_identifier(s)
-	wchar_t const	*s;
+	char const	*s;
 {
 cel_expr_t	*ret;
 	if ((ret = calloc(1, sizeof(*ret))) == NULL)
 		return NULL;
 	ret->ce_tag = cel_exp_string;
-	ret->ce_op.ce_identifier = wcsdup(s);
+	ret->ce_op.ce_identifier = strdup(s);
 	return ret;
 }
 
@@ -192,7 +193,7 @@ cel_expr_t	*ret;
 		break;
 
 	case cel_exp_string:
-		ret->ce_op.ce_string = wcsdup(e->ce_op.ce_string);
+		ret->ce_op.ce_string = strdup(e->ce_op.ce_string);
 		break;
 
 	case cel_exp_function:
@@ -208,28 +209,28 @@ cel_expr_t	*ret;
 void
 cel_expr_print(e, b, bsz)
 	cel_expr_t	*e;
-	wchar_t		*b;
+	char		*b;
 	size_t		 bsz;
 {
 	*b = 0;
-	wcslcat(b, L"<error>", bsz);
+	strlcat(b, "<error>", bsz);
 
 	switch (e->ce_tag) {
-	case cel_exp_int8:	swprintf(b, bsz, L"%"PRId8, e->ce_op.ce_int8); break;
-	case cel_exp_uint8:	swprintf(b, bsz, L"%"PRIu8, e->ce_op.ce_uint8); break;
-	case cel_exp_int16:	swprintf(b, bsz, L"%"PRId16, e->ce_op.ce_int16); break;
-	case cel_exp_uint16:	swprintf(b, bsz, L"%"PRIu16, e->ce_op.ce_uint16); break;
-	case cel_exp_int32:	swprintf(b, bsz, L"%"PRId32, e->ce_op.ce_int32); break;
-	case cel_exp_uint32:	swprintf(b, bsz, L"%"PRIu32, e->ce_op.ce_uint32); break;
-	case cel_exp_int64:	swprintf(b, bsz, L"%"PRId64, e->ce_op.ce_int64); break;
-	case cel_exp_uint64:	swprintf(b, bsz, L"%"PRIu64, e->ce_op.ce_uint64); break;
+	case cel_exp_int8:	snprintf(b, bsz, "%"PRId8, e->ce_op.ce_int8); break;
+	case cel_exp_uint8:	snprintf(b, bsz, "%"PRIu8, e->ce_op.ce_uint8); break;
+	case cel_exp_int16:	snprintf(b, bsz, "%"PRId16, e->ce_op.ce_int16); break;
+	case cel_exp_uint16:	snprintf(b, bsz, "%"PRIu16, e->ce_op.ce_uint16); break;
+	case cel_exp_int32:	snprintf(b, bsz, "%"PRId32, e->ce_op.ce_int32); break;
+	case cel_exp_uint32:	snprintf(b, bsz, "%"PRIu32, e->ce_op.ce_uint32); break;
+	case cel_exp_int64:	snprintf(b, bsz, "%"PRId64, e->ce_op.ce_int64); break;
+	case cel_exp_uint64:	snprintf(b, bsz, "%"PRIu64, e->ce_op.ce_uint64); break;
 
 	case cel_exp_string:
-		swprintf(b, bsz, L"\"%ls\"", e->ce_op.ce_string);
+		snprintf(b, bsz, "\"%s\"", e->ce_op.ce_string);
 		break;
 
 	case cel_exp_bool:
-		wcslcpy(b, e->ce_op.ce_bool ? L"true" : L"false", bsz);
+		strlcpy(b, e->ce_op.ce_bool ? "true" : "false", bsz);
 		break;
 
 	case cel_exp_unary:

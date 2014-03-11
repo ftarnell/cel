@@ -15,7 +15,7 @@ struct cel_block;
 struct cel_type;
 
 typedef struct cel_function {
-	wchar_t			 *cf_name;
+	char			 *cf_name;
 	struct cel_type		**cf_args;
 	int			  cf_nargs;
 	struct cel_block	 *cf_body;

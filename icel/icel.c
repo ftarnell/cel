@@ -22,9 +22,9 @@ static void
 icel_error(par, tok, s)
 	cel_token_t	*tok;
 	cel_parser_t	*par;
-	wchar_t const	*s;
+	char const	*s;
 {
-	fprintf(stderr, "error: %ls\n", s);
+	fprintf(stderr, "error: %s\n", s);
 	cel_token_print_context(par->cp_lex, tok, stderr);
 }
 
@@ -32,9 +32,9 @@ static void
 icel_warn(par, tok, s)
 	cel_token_t	*tok;
 	cel_parser_t	*par;
-	wchar_t const	*s;
+	char const	*s;
 {
-	fprintf(stderr, "warning: %ls\n", s);
+	fprintf(stderr, "warning: %s\n", s);
 	cel_token_print_context(par->cp_lex, tok, stderr);
 }
 
@@ -46,8 +46,7 @@ main(argc, argv)
 
 	for (;;) {
 	char		 line[1024];
-	wchar_t		 wline[1024];
-	wchar_t		 type[64], value[128];
+	char		 type[64], value[128];
 	cel_lexer_t	 lex;
 	cel_parser_t	 par;
 	cel_expr_list_t	*program;
@@ -60,9 +59,7 @@ main(argc, argv)
 		if (fgets(line, sizeof(line), stdin) == NULL)
 			break;
 
-		mbstowcs(wline, line, sizeof(wline) / sizeof(wchar_t) - 1);
-
-		if (cel_lexer_init(&lex, wline) != 0) {
+		if (cel_lexer_init(&lex, line) != 0) {
 			fprintf(stderr, "%s: cannot init lexer\n", argv[1]);
 			return 1;
 		}
@@ -85,9 +82,9 @@ main(argc, argv)
 			continue;
 		}
 
-		cel_name_type(result->ce_type, type, sizeof(type) / sizeof(wchar_t));
-		cel_expr_print(result, value, sizeof(value) / sizeof(wchar_t));
-		printf("<%ls> %ls\n", type, value);
+		cel_name_type(result->ce_type, type, sizeof(type) / sizeof(char));
+		cel_expr_print(result, value, sizeof(value) / sizeof(char));
+		printf("<%s> %s\n", type, value);
 	}
 
 	return 0;

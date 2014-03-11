@@ -10,7 +10,7 @@
 
 #include	<stdlib.h>
 #include	<stdio.h>
-#include	<wchar.h>
+#include	<string.h>
 
 #include	"celcore/tokens.h"
 #include	"celcore/parse.h"
@@ -19,9 +19,9 @@ static void
 celparse_error(par, tok, s)
 	cel_token_t	*tok;
 	cel_parser_t	*par;
-	wchar_t const	*s;
+	char const	*s;
 {
-	fprintf(stderr, "error: %ls\n", s);
+	fprintf(stderr, "error: %s\n", s);
 	cel_token_print_context(par->cp_lex, tok, stderr);
 }
 
@@ -29,9 +29,9 @@ static void
 celparse_warn(par, tok, s)
 	cel_token_t	*tok;
 	cel_parser_t	*par;
-	wchar_t const	*s;
+	char const	*s;
 {
-	fprintf(stderr, "warning: %ls\n", s);
+	fprintf(stderr, "warning: %s\n", s);
 	cel_token_print_context(par->cp_lex, tok, stderr);
 }
 
@@ -42,7 +42,7 @@ main(argc, argv)
 FILE	*inf;
 char	 line[1024];
 size_t	 buflen = 0;
-wchar_t	*buf = NULL;
+char	*buf = NULL;
 
 cel_lexer_t	lex;
 cel_parser_t	par;
@@ -58,12 +58,10 @@ cel_parser_t	par;
 	}
 
 	while (fgets(line, sizeof(line), inf)) {
-	wchar_t	wline[1024];
-		mbstowcs(wline, line, sizeof(wline) / sizeof(wchar_t) - 1);
-		buf = realloc(buf, sizeof(wchar_t) * (buflen + wcslen(wline)) + 1);
-		wcscpy(buf + buflen, wline);
-		*(buf + buflen + wcslen(wline)) = '\0';
-		buflen += wcslen(wline);
+		buf = realloc(buf, sizeof(char) * (buflen + strlen(line)) + 1);
+		strcpy(buf + buflen, line);
+		*(buf + buflen + strlen(line)) = '\0';
+		buflen += strlen(line);
 	}
 
 	fclose(inf);

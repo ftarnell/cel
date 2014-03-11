@@ -45,10 +45,10 @@ cel_type_t	*cel_make_array(cel_type_t *);
 
 typedef struct cel_typedef {
 	cel_type_t	*ct_type;
-	wchar_t const	*ct_name;
+	char const	*ct_name;
 } cel_typedef_t;
 
-cel_typedef_t	*cel_make_typedef(wchar_t const *name, cel_type_t *type);
+cel_typedef_t	*cel_make_typedef(char const *name, cel_type_t *type);
 
 /*
  * Return the type that results from the given binary operation being
@@ -59,6 +59,6 @@ cel_type_t	*cel_derive_unary_promotion(cel_uni_oper_t op, cel_type_t *v);
 cel_type_t	*cel_derive_binary_type(cel_bi_oper_t op, cel_type_t *a, cel_type_t *b);
 cel_type_t	*cel_derive_binary_promotion(cel_bi_oper_t op, cel_type_t *a, cel_type_t *b);
 
-void		 cel_name_type(cel_type_t *type, wchar_t *buf, size_t bsz);
+void		 cel_name_type(cel_type_t *type, char *buf, size_t bsz);
 
 #endif	/* !CEL_TYPE_H */

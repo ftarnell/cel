@@ -9,6 +9,7 @@
  */
 
 #include	<stdlib.h>
+#include	<string.h>
 
 #include	"celcore/type.h"
 
@@ -37,14 +38,14 @@ cel_type_t	*ret;
 
 cel_typedef_t *
 cel_make_typedef(name, type)
-	wchar_t const	*name;
+	char const	*name;
 	cel_type_t	*type;
 {
 cel_typedef_t	*ret;
 	if ((ret = calloc(1, sizeof(*ret))) == NULL)
 		return NULL;
 	ret->ct_type = type;
-	ret->ct_name = wcsdup(name);
+	ret->ct_name = strdup(name);
 	return ret;
 }
 
@@ -60,29 +61,29 @@ cel_type_free(t)
 void
 cel_name_type(type, buf, bsz)
 	cel_type_t	*type;
-	wchar_t		*buf;
+	char		*buf;
 	size_t		 bsz;
 {
 	*buf = 0;
 
 	while (type->ct_tag == cel_type_array) {
-		wcslcat(buf, L"[]", bsz);
+		strlcat(buf, "[]", bsz);
 		type = type->ct_type.ct_array_type;
 	}
 
 	switch (type->ct_tag) {
-	case cel_type_int8:	wcslcat(buf, L"int8", bsz); break;
-	case cel_type_int16:	wcslcat(buf, L"int16", bsz); break;
-	case cel_type_int32:	wcslcat(buf, L"int32", bsz); break;
-	case cel_type_int64:	wcslcat(buf, L"int64", bsz); break;
-	case cel_type_uint8:	wcslcat(buf, L"uint8", bsz); break;
-	case cel_type_uint16:	wcslcat(buf, L"uint16", bsz); break;
-	case cel_type_uint32:	wcslcat(buf, L"uint32", bsz); break;
-	case cel_type_uint64:	wcslcat(buf, L"uint64", bsz); break;
-	case cel_type_bool:	wcslcat(buf, L"bool", bsz); break;
-	case cel_type_string:	wcslcat(buf, L"string", bsz); break;
-	case cel_type_function:	wcslcat(buf, L"function", bsz); break;
-	default:		wcslcat(buf, L"<unknown>", bsz); break;
+	case cel_type_int8:	strlcat(buf, "int8", bsz); break;
+	case cel_type_int16:	strlcat(buf, "int16", bsz); break;
+	case cel_type_int32:	strlcat(buf, "int32", bsz); break;
+	case cel_type_int64:	strlcat(buf, "int64", bsz); break;
+	case cel_type_uint8:	strlcat(buf, "uint8", bsz); break;
+	case cel_type_uint16:	strlcat(buf, "uint16", bsz); break;
+	case cel_type_uint32:	strlcat(buf, "uint32", bsz); break;
+	case cel_type_uint64:	strlcat(buf, "uint64", bsz); break;
+	case cel_type_bool:	strlcat(buf, "bool", bsz); break;
+	case cel_type_string:	strlcat(buf, "string", bsz); break;
+	case cel_type_function:	strlcat(buf, "function", bsz); break;
+	default:		strlcat(buf, "<unknown>", bsz); break;
 	}
 }
 

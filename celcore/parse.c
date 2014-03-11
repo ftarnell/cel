@@ -105,14 +105,14 @@ cel_token_t	 start_tok;
 			if (EXPECT(T_EOT))
 				return list;
 
-			ERROR(L"expected ';'");
+			ERROR("expected ';'");
 		}
 	}
 
 	if (EXPECT(T_EOT))
 		return list;
 
-	ERROR_TOK(&start_tok, L"failed to parse statement");
+	ERROR_TOK(&start_tok, "failed to parse statement");
 }
 
 cel_typedef_t *
@@ -127,7 +127,7 @@ cel_parse_typedef(par)
  *	type b, c : string[];
  */
 cel_type_t	*type = NULL;
-wchar_t		*name;
+char		*name;
 
 	if (!ACCEPT(T_TYPE))
 		return NULL;
@@ -135,8 +135,8 @@ wchar_t		*name;
 /* Identifier list, colon */
 	for (;;) {
 		if (!ACCEPT(T_ID))
-			ERROR(L"expected identifier");
-		name = wcsdup(par->cp_tok.ct_literal);
+			ERROR("expected identifier");
+		name = strdup(par->cp_tok.ct_literal);
 
 		if (ACCEPT(T_COMMA))
 			continue;
@@ -145,13 +145,13 @@ wchar_t		*name;
 			break;
 
 		free(name);
-		ERROR(L"expected ',' or ';'");
+		ERROR("expected ',' or ';'");
 	}
 
 /* Type */
 	if ((type = cel_parse_type(par)) == 0) {
 		free(name);
-		ERROR(L"expected type name");
+		ERROR("expected type name");
 	}
 
 	return cel_make_typedef(name, type);
@@ -180,12 +180,12 @@ cel_vardecl_t	*var;
 	for (;;) {
 		if (!ACCEPT(T_ID)) {
 			cel_vardecl_free(var);
-			ERROR(L"expected identifier");
+			ERROR("expected identifier");
 		}
 
 		var->cv_names = realloc(var->cv_names,
-					(var->cv_nnames + 1) * sizeof(wchar_t *));
-		var->cv_names[var->cv_nnames + 1] = wcsdup(par->cp_tok.ct_literal);
+					(var->cv_nnames + 1) * sizeof(char *));
+		var->cv_names[var->cv_nnames + 1] = strdup(par->cp_tok.ct_literal);
 		var->cv_nnames++;
 
 		if (ACCEPT(T_COMMA))
@@ -195,13 +195,13 @@ cel_vardecl_t	*var;
 			break;
 
 		cel_vardecl_free(var);
-		ERROR(L"expected ',' or ':'");
+		ERROR("expected ',' or ':'");
 	}
 
 /* Type */
 	if ((var->cv_type = cel_parse_type(par)) == NULL) {
 		cel_vardecl_free(var);
-		ERROR(L"expected type name");
+		ERROR("expected type name");
 	}
 
 	return cel_make_vardecl(var);
@@ -223,7 +223,7 @@ cel_type_t	*type;
 /* Optional array specifier */
 	while (ACCEPT(T_LSQ)) {
 		if (!ACCEPT(T_RSQ))
-			ERROR(L"expected ']'");
+			ERROR("expected ']'");
 		array++;
 	}
 
@@ -235,7 +235,7 @@ cel_type_t	*type;
 	else if (ACCEPT(T_BOOL))
 		type = cel_make_type(cel_type_bool);
 	else
-		ERROR(L"expected identifier");
+		ERROR("expected identifier");
 
 	while (array--)
 		type = cel_make_array(type);
@@ -265,21 +265,21 @@ cel_function_t	*func;
 /* Identifier (function name) */
 	if (!ACCEPT(T_ID)) {
 		cel_function_free(func);
-		ERROR(L"expected identifier");
+		ERROR("expected identifier");
 	}
 
-	func->cf_name = wcsdup(par->cp_tok.ct_literal);
+	func->cf_name = strdup(par->cp_tok.ct_literal);
 
 /* Colon */
 	if (!ACCEPT(T_COLON)) {
 		cel_function_free(func);
-		ERROR(L"expected ':'");
+		ERROR("expected ':'");
 	}
 
 /* Opening bracket */
 	if (!ACCEPT(T_LPAR)) {
 		cel_function_free(func);
-		ERROR(L"expected ')'");
+		ERROR("expected ')'");
 	}
 
 /* Argument list */
@@ -287,19 +287,19 @@ cel_function_t	*func;
 	/* Argument name */
 		if (!ACCEPT(T_ID)) {
 			cel_function_free(func);
-			ERROR(L"expected identifier");
+			ERROR("expected identifier");
 		}
 
 	/* Colon */
 		if (!ACCEPT(T_COLON)) {
 			cel_function_free(func);
-			ERROR(L"expected ':'");
+			ERROR("expected ':'");
 		}
 
 	/* Type */
 		if (cel_parse_type(par) == NULL) {
 			cel_function_free(func);
-			ERROR(L"expected type name");
+			ERROR("expected type name");
 		}
 
 	/* ')' or ',' */
@@ -309,25 +309,25 @@ cel_function_t	*func;
 			continue;
 
 		cel_function_free(func);
-		ERROR(L"expected ',' or ')'");
+		ERROR("expected ',' or ')'");
 	}
 
 /* -> */
 	if (!ACCEPT(T_ARROW)) {
 		cel_function_free(func);
-		ERROR(L"expected '->'");
+		ERROR("expected '->'");
 	}
 
 /* Return type */
 	if (cel_parse_type(par) == NULL) {
 		cel_function_free(func);
-		ERROR(L"expected type name");
+		ERROR("expected type name");
 	}
 
 /* Begin */
 	if (!ACCEPT(T_BEGIN)) {
 		cel_function_free(func);
-		ERROR(L"expected 'begin'");
+		ERROR("expected 'begin'");
 	}
 
 /*
@@ -416,18 +416,18 @@ int		 op;
 
 		if ((f = cel_parse_expr_and(par)) == NULL) {
 			cel_expr_free(e);
-			ERROR(L"expected expression");
+			ERROR("expected expression");
 		}
 
 		if ((type = cel_derive_binary_type(cel_op_or, e->ce_type, f->ce_type)) == NULL) {
-		wchar_t	a1[64], a2[64];
-		wchar_t	err[128];
+		char	a1[64], a2[64];
+		char	err[128];
 
-			cel_name_type(e->ce_type, a1, sizeof(a1) / sizeof(wchar_t));
-			cel_name_type(f->ce_type, a2, sizeof(a2) / sizeof(wchar_t));
+			cel_name_type(e->ce_type, a1, sizeof(a1) / sizeof(char));
+			cel_name_type(f->ce_type, a2, sizeof(a2) / sizeof(char));
 
-			swprintf(err, sizeof(err) / sizeof(wchar_t),
-				 L"incompatible types in expression: \"%ls\", \"%ls\"",
+			snprintf(err, sizeof(err) / sizeof(char),
+				 "incompatible types in expression: \"%s\", \"%s\"",
 				 a1, a2);
 
 			cel_expr_free(e);
@@ -463,18 +463,18 @@ int		 op;
 
 		if ((f = cel_parse_expr_xor(par)) == NULL) {
 			cel_expr_free(e);
-			ERROR(L"expected expression");
+			ERROR("expected expression");
 		}
 
 		if ((type = cel_derive_binary_type(cel_op_and, e->ce_type, f->ce_type)) == NULL) {
-		wchar_t	a1[64], a2[64];
-		wchar_t	err[128];
+		char	a1[64], a2[64];
+		char	err[128];
 
-			cel_name_type(e->ce_type, a1, sizeof(a1) / sizeof(wchar_t));
-			cel_name_type(f->ce_type, a2, sizeof(a2) / sizeof(wchar_t));
+			cel_name_type(e->ce_type, a1, sizeof(a1) / sizeof(char));
+			cel_name_type(f->ce_type, a2, sizeof(a2) / sizeof(char));
 
-			swprintf(err, sizeof(err) / sizeof(wchar_t),
-				 L"incompatible types in expression: \"%ls\", \"%ls\"",
+			snprintf(err, sizeof(err) / sizeof(char),
+				 "incompatible types in expression: \"%s\", \"%s\"",
 				 a1, a2);
 
 			cel_expr_free(e);
@@ -510,18 +510,18 @@ int		 op;
 
 		if ((f = cel_parse_expr_eq1(par)) == NULL) {
 			cel_expr_free(e);
-			ERROR(L"expected expression");
+			ERROR("expected expression");
 		}
 
 		if ((type = cel_derive_binary_type(cel_op_xor, e->ce_type, f->ce_type)) == NULL) {
-		wchar_t	a1[64], a2[64];
-		wchar_t	err[128];
+		char	a1[64], a2[64];
+		char	err[128];
 
-			cel_name_type(e->ce_type, a1, sizeof(a1) / sizeof(wchar_t));
-			cel_name_type(f->ce_type, a2, sizeof(a2) / sizeof(wchar_t));
+			cel_name_type(e->ce_type, a1, sizeof(a1) / sizeof(char));
+			cel_name_type(f->ce_type, a2, sizeof(a2) / sizeof(char));
 
-			swprintf(err, sizeof(err) / sizeof(wchar_t),
-				 L"incompatible types in expression: \"%ls\", \"%ls\"",
+			snprintf(err, sizeof(err) / sizeof(char),
+				 "incompatible types in expression: \"%s\", \"%s\"",
 				 a1, a2);
 
 			cel_expr_free(e);
@@ -558,7 +558,7 @@ int		 op;
 
 		if ((f = cel_parse_expr_eq2(par)) == NULL) {
 			cel_expr_free(e);
-			ERROR(L"expected expression");
+			ERROR("expected expression");
 		}
 
 		switch (op) {
@@ -567,14 +567,14 @@ int		 op;
 		}
 
 		if ((type = cel_derive_binary_type(oper, e->ce_type, f->ce_type)) == NULL) {
-		wchar_t	a1[64], a2[64];
-		wchar_t	err[128];
+		char	a1[64], a2[64];
+		char	err[128];
 
-			cel_name_type(e->ce_type, a1, sizeof(a1) / sizeof(wchar_t));
-			cel_name_type(f->ce_type, a2, sizeof(a2) / sizeof(wchar_t));
+			cel_name_type(e->ce_type, a1, sizeof(a1) / sizeof(char));
+			cel_name_type(f->ce_type, a2, sizeof(a2) / sizeof(char));
 
-			swprintf(err, sizeof(err) / sizeof(wchar_t),
-				 L"incompatible types in expression: \"%ls\", \"%ls\"",
+			snprintf(err, sizeof(err) / sizeof(char),
+				 "incompatible types in expression: \"%s\", \"%s\"",
 				 a1, a2);
 
 			cel_expr_free(e);
@@ -612,7 +612,7 @@ int		 op;
 
 		if ((f = cel_parse_expr_plus(par)) == NULL) {
 			cel_expr_free(e);
-			ERROR(L"expected expression");
+			ERROR("expected expression");
 		}
 
 		switch (op) {
@@ -623,14 +623,14 @@ int		 op;
 		}
 
 		if ((type = cel_derive_binary_type(oper, e->ce_type, f->ce_type)) == NULL) {
-		wchar_t	a1[64], a2[64];
-		wchar_t	err[128];
+		char	a1[64], a2[64];
+		char	err[128];
 
-			cel_name_type(e->ce_type, a1, sizeof(a1) / sizeof(wchar_t));
-			cel_name_type(f->ce_type, a2, sizeof(a2) / sizeof(wchar_t));
+			cel_name_type(e->ce_type, a1, sizeof(a1) / sizeof(char));
+			cel_name_type(f->ce_type, a2, sizeof(a2) / sizeof(char));
 
-			swprintf(err, sizeof(err) / sizeof(wchar_t),
-				 L"incompatible types in expression: \"%ls\", \"%ls\"",
+			snprintf(err, sizeof(err) / sizeof(char),
+				 "incompatible types in expression: \"%s\", \"%s\"",
 				 a1, a2);
 
 			cel_expr_free(e);
@@ -667,7 +667,7 @@ int		 op;
 
 		if ((f = cel_parse_expr_mult(par)) == NULL) {
 			cel_expr_free(e);
-			ERROR(L"expected expression");
+			ERROR("expected expression");
 		}
 
 		switch (op) {
@@ -676,14 +676,14 @@ int		 op;
 		}
 
 		if ((type = cel_derive_binary_type(oper, e->ce_type, f->ce_type)) == NULL) {
-		wchar_t	a1[64], a2[64];
-		wchar_t	err[128];
+		char	a1[64], a2[64];
+		char	err[128];
 
-			cel_name_type(e->ce_type, a1, sizeof(a1) / sizeof(wchar_t));
-			cel_name_type(f->ce_type, a2, sizeof(a2) / sizeof(wchar_t));
+			cel_name_type(e->ce_type, a1, sizeof(a1) / sizeof(char));
+			cel_name_type(f->ce_type, a2, sizeof(a2) / sizeof(char));
 
-			swprintf(err, sizeof(err) / sizeof(wchar_t),
-				 L"incompatible types in expression: \"%ls\", \"%ls\"",
+			snprintf(err, sizeof(err) / sizeof(char),
+				 "incompatible types in expression: \"%s\", \"%s\"",
 				 a1, a2);
 
 			cel_expr_free(e);
@@ -722,7 +722,7 @@ int		 op;
 
 		if ((f = cel_parse_expr_unary(par)) == NULL) {
 			cel_expr_free(e);
-			ERROR(L"expected expression");
+			ERROR("expected expression");
 		}
 
 		switch (op) {
@@ -732,14 +732,14 @@ int		 op;
 		}
 
 		if ((type = cel_derive_binary_type(oper, e->ce_type, f->ce_type)) == NULL) {
-		wchar_t	a1[64], a2[64];
-		wchar_t	err[128];
+		char	a1[64], a2[64];
+		char	err[128];
 
-			cel_name_type(e->ce_type, a1, sizeof(a1) / sizeof(wchar_t));
-			cel_name_type(f->ce_type, a2, sizeof(a2) / sizeof(wchar_t));
+			cel_name_type(e->ce_type, a1, sizeof(a1) / sizeof(char));
+			cel_name_type(f->ce_type, a2, sizeof(a2) / sizeof(char));
 
-			swprintf(err, sizeof(err) / sizeof(wchar_t),
-				 L"incompatible types in expression: \"%ls\", \"%ls\"",
+			snprintf(err, sizeof(err) / sizeof(char),
+				 "incompatible types in expression: \"%s\", \"%s\"",
 				 a1, a2);
 
 			cel_expr_free(e);
@@ -774,7 +774,7 @@ cel_expr_t	*e;
 
 		if ((e = cel_parse_expr_post(par)) == NULL) {
 			cel_expr_free(e);
-			ERROR(L"expected expression");
+			ERROR("expected expression");
 		}
 
 		switch (op) {
@@ -783,12 +783,12 @@ cel_expr_t	*e;
 		}
 
 		if ((type = cel_derive_unary_type(oper, e->ce_type)) == NULL) {
-		wchar_t	a1[64], err[128];
+		char	a1[64], err[128];
 
-			cel_name_type(e->ce_type, a1, sizeof(a1) / sizeof(wchar_t));
+			cel_name_type(e->ce_type, a1, sizeof(a1) / sizeof(char));
 
-			swprintf(err, sizeof(err) / sizeof(wchar_t),
-				 L"incompatible type in expression: \"%ls\"", a1);
+			snprintf(err, sizeof(err) / sizeof(char),
+				 "incompatible type in expression: \"%s\"", a1);
 
 			cel_expr_free(e);
 			ERROR_TOK(&op_tok, err);
@@ -824,19 +824,19 @@ int		 op;
 
 			if (!ACCEPT(T_RPAR)) {
 				cel_expr_free(e);
-				ERROR(L"expected ')'");
+				ERROR("expected ')'");
 			}
 			break;
 
 		case T_LSQ:
 			if (cel_parse_expr(par) == NULL) {
 				cel_expr_free(e);
-				ERROR(L"expected expression");
+				ERROR("expected expression");
 			}
 
 			if (!ACCEPT(T_RSQ)) {
 				cel_expr_free(e);
-				ERROR(L"expected ']'");
+				ERROR("expected ']'");
 			}
 			break;
 		}
@@ -857,11 +857,11 @@ cel_expr_t	*e;
 
 	if (ACCEPT(T_LPAR)) {
 		if ((e = cel_parse_expr(par)) == NULL)
-			ERROR(L"expected expression");
+			ERROR("expected expression");
 
 		if (!ACCEPT(T_RPAR)) {
 			cel_expr_free(e);
-			ERROR(L"expected ')'");
+			ERROR("expected ')'");
 		}
 
 		return e;
@@ -894,25 +894,25 @@ cel_expr_t	*ret = NULL;
 	if (EXPECT(T_ID))
 		ret = cel_make_identifier(par->cp_tok.ct_literal);
 	else if (EXPECT(T_LIT_INT8))
-		ret = cel_make_int8(wcstol(par->cp_tok.ct_literal, NULL, 0));
+		ret = cel_make_int8(strtol(par->cp_tok.ct_literal, NULL, 0));
 	else if (EXPECT(T_LIT_UINT8))
-		ret = cel_make_uint8(wcstol(par->cp_tok.ct_literal, NULL, 0));
+		ret = cel_make_uint8(strtol(par->cp_tok.ct_literal, NULL, 0));
 	else if (EXPECT(T_LIT_INT16))
-		ret = cel_make_int16(wcstol(par->cp_tok.ct_literal, NULL, 0));
+		ret = cel_make_int16(strtol(par->cp_tok.ct_literal, NULL, 0));
 	else if (EXPECT(T_LIT_UINT16))
-		ret = cel_make_uint16(wcstol(par->cp_tok.ct_literal, NULL, 0));
+		ret = cel_make_uint16(strtol(par->cp_tok.ct_literal, NULL, 0));
 	else if (EXPECT(T_LIT_INT32))
-		ret = cel_make_int32(wcstol(par->cp_tok.ct_literal, NULL, 0));
+		ret = cel_make_int32(strtol(par->cp_tok.ct_literal, NULL, 0));
 	else if (EXPECT(T_LIT_UINT32))
-		ret = cel_make_uint32(wcstol(par->cp_tok.ct_literal, NULL, 0));
+		ret = cel_make_uint32(strtol(par->cp_tok.ct_literal, NULL, 0));
 	else if (EXPECT(T_LIT_INT64))
-		ret = cel_make_int64(wcstol(par->cp_tok.ct_literal, NULL, 0));
+		ret = cel_make_int64(strtol(par->cp_tok.ct_literal, NULL, 0));
 	else if (EXPECT(T_LIT_UINT64))
-		ret = cel_make_uint64(wcstol(par->cp_tok.ct_literal, NULL, 0));
+		ret = cel_make_uint64(strtol(par->cp_tok.ct_literal, NULL, 0));
 	else if (EXPECT(T_LIT_STR)) {
-	wchar_t	*s;
-		s = wcsdup(par->cp_tok.ct_literal + 1);
-		s[wcslen(s) - 1] = 0;
+	char	*s;
+		s = strdup(par->cp_tok.ct_literal + 1);
+		s[strlen(s) - 1] = 0;
 		ret = cel_make_string(s);
 		free(s);
 	} else if (EXPECT(T_TRUE))
@@ -970,13 +970,13 @@ cel_expr_t	*ret;
 /* Expression */
 	if (cel_parse_expr(par) == NULL) {
 		cel_expr_free(ret);
-		ERROR(L"expected expression");
+		ERROR("expected expression");
 	}
 
 /* 'then' */
 	if (!ACCEPT(T_THEN)) {
 		cel_expr_free(ret);
-		ERROR(L"expected 'then'");
+		ERROR("expected 'then'");
 	}
 
 /* list of statements */
@@ -993,12 +993,12 @@ cel_expr_t	*ret;
 		if (ACCEPT(T_ELIF)) {
 			if (cel_parse_expr(par) == NULL) {
 				cel_expr_free(ret);
-				ERROR(L"expected expression");
+				ERROR("expected expression");
 			}
 
 			if (!ACCEPT(T_THEN)) {
 				cel_expr_free(ret);
-				ERROR(L"expected 'then'");
+				ERROR("expected 'then'");
 			}
 
 			continue;
@@ -1011,6 +1011,6 @@ cel_expr_t	*ret;
 			return ret;
 
 		cel_expr_free(ret);
-		ERROR(L"expected statement, 'end', 'else' or 'elif'");
+		ERROR("expected statement, 'end', 'else' or 'elif'");
 	}
 }

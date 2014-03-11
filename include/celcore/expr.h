@@ -83,8 +83,8 @@ typedef struct cel_expr {
 		uint64_t ce_uint64;
 
 		int	 ce_bool;
-		wchar_t	*ce_string;
-		wchar_t	*ce_identifier;
+		char	*ce_string;
+		char	*ce_identifier;
 
 		struct {
 			cel_bi_oper_t	 oper;
@@ -117,7 +117,7 @@ typedef struct cel_arglist {
 
 cel_expr_t	*cel_expr_copy(cel_expr_t *);
 void		 cel_expr_free(cel_expr_t *);
-void		 cel_expr_print(cel_expr_t *, wchar_t *buf, size_t bufsz);
+void		 cel_expr_print(cel_expr_t *, char *buf, size_t bufsz);
 
 cel_expr_t	*cel_make_int8(int8_t);
 cel_expr_t	*cel_make_uint8(uint8_t);
@@ -128,8 +128,8 @@ cel_expr_t	*cel_make_uint32(uint32_t);
 cel_expr_t	*cel_make_int64(int64_t);
 cel_expr_t	*cel_make_uint64(uint64_t);
 cel_expr_t	*cel_make_bool(int);
-cel_expr_t	*cel_make_string(wchar_t const *);
-cel_expr_t	*cel_make_identifier(wchar_t const *);
+cel_expr_t	*cel_make_string(char const *);
+cel_expr_t	*cel_make_identifier(char const *);
 
 cel_expr_t	*cel_make_unary(cel_uni_oper_t, cel_expr_t *);
 #define	cel_make_negate(e)	cel_make_unary(cel_op_negate, (e))
