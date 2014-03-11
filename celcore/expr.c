@@ -16,16 +16,30 @@
 #include	"celcore/function.h"
 #include	"celcore/type.h"
 
+static cel_expr_list_t free_exprs;
+static cel_expr_t *
+cel_make_expr()
+{
+cel_expr_t	*ret;
+	if (ret = CEL_TAILQ_FIRST(&free_exprs)) {
+		CEL_TAILQ_REMOVE(&free_exprs, ret, ce_entry);
+		return ret;
+	}
+
+	return malloc(sizeof(cel_expr_t));
+}
+
 #define	CEL_MAKE_INT(type)						\
 	cel_expr_t *							\
 	cel_make_##type(type##_t i)					\
 	{								\
 	cel_expr_t	*ret;						\
-		if ((ret = calloc(1, sizeof(*ret))) == NULL)		\
-			return NULL;					\
+		ret = cel_make_expr();					\
 		ret->ce_type = cel_make_type(cel_type_##type);		\
 		ret->ce_tag = cel_exp_##type;				\
 		ret->ce_op.ce_##type = i;				\
+		ret->ce_mutable = 0;					\
+		ret->ce_const = 1;					\
 		return ret;						\
 	}
 
@@ -42,11 +56,12 @@ cel_expr_t *
 cel_make_bool(i)
 {
 cel_expr_t	*ret;
-	if ((ret = calloc(1, sizeof(*ret))) == NULL)
-		return NULL;
+	ret = cel_make_expr();
 	ret->ce_type = cel_make_type(cel_type_bool);
 	ret->ce_tag = cel_exp_bool;
 	ret->ce_op.ce_bool = i;
+	ret->ce_mutable = 0;
+	ret->ce_const = 0;
 	return ret;
 }
 
@@ -55,11 +70,13 @@ cel_make_string(s)
 	char const	*s;
 {
 cel_expr_t	*ret;
-	if ((ret = calloc(1, sizeof(*ret))) == NULL)
+	ret = cel_make_expr();
 		return NULL;
 	ret->ce_type = cel_make_type(cel_type_string);
 	ret->ce_tag = cel_exp_string;
 	ret->ce_op.ce_string = strdup(s);
+	ret->ce_mutable = 0;
+	ret->ce_const = 0;
 	return ret;
 }
 
@@ -69,11 +86,12 @@ cel_make_variable(s, t)
 	cel_type_t	*t;
 {
 cel_expr_t	*ret;
-	if ((ret = calloc(1, sizeof(*ret))) == NULL)
-		return NULL;
+	ret = cel_make_expr();
 	ret->ce_tag = cel_exp_variable;
 	ret->ce_op.ce_variable = strdup(s);
 	ret->ce_type = t;
+	ret->ce_mutable = 0;
+	ret->ce_const = 0;
 	return ret;
 }
 
@@ -84,11 +102,12 @@ cel_make_function(f)
 cel_expr_t	*ret;
 	assert(f);
 
-	if ((ret = calloc(1, sizeof(*ret))) == NULL)
-		return NULL;
+	ret = cel_make_expr();
 	ret->ce_tag = cel_exp_function;
 	ret->ce_op.ce_function = f;
 	ret->ce_type = f->cf_type;
+	ret->ce_mutable = 0;
+	ret->ce_const = 0;
 	return ret;
 }
 
@@ -98,9 +117,11 @@ cel_make_binary(op, e, f)
 	cel_expr_t	*e, *f;
 {
 cel_expr_t	*ret;
-	if ((ret = calloc(1, sizeof(*ret))) == NULL)
-		return NULL;
+	ret = cel_make_expr();
 	ret->ce_tag = cel_exp_binary;
+	ret->ce_mutable = 0;
+	ret->ce_const = 0;
+	ret->ce_type = NULL;
 	ret->ce_op.ce_binary.oper = op;
 	ret->ce_op.ce_binary.left = e;
 	ret->ce_op.ce_binary.right = f;
@@ -113,8 +134,10 @@ cel_make_unary(op, e)
 	cel_expr_t	*e;
 {
 cel_expr_t	*ret;
-	if ((ret = calloc(1, sizeof(*ret))) == NULL)
-		return NULL;
+	ret = cel_make_expr();
+	ret->ce_mutable = 0;
+	ret->ce_const = 0;
+	ret->ce_type = NULL;
 	ret->ce_tag = cel_exp_unary;
 	ret->ce_op.ce_unary.oper = op;
 	ret->ce_op.ce_unary.operand = e;
@@ -127,8 +150,9 @@ cel_make_cast(e, t)
 	cel_type_t	*t;
 {
 cel_expr_t	*ret;
-	if ((ret = calloc(1, sizeof(*ret))) == NULL)
-		return NULL;
+	ret = cel_make_expr();
+	ret->ce_mutable = 0;
+	ret->ce_const = 0;
 	ret->ce_tag = cel_exp_cast;
 	ret->ce_type = t;
 	ret->ce_op.ce_unary.operand = e;
@@ -140,8 +164,9 @@ cel_make_return(e)
 	cel_expr_t	*e;
 {
 cel_expr_t	*ret;
-	if ((ret = calloc(1, sizeof(*ret))) == NULL)
-		return NULL;
+	ret = cel_make_expr();
+	ret->ce_mutable = 0;
+	ret->ce_const = 0;
 	ret->ce_tag = cel_exp_return;
 	ret->ce_type = cel_make_type(cel_type_void);
 	ret->ce_op.ce_unary.operand = e;
@@ -156,9 +181,9 @@ cel_make_call(e, a)
 cel_expr_t	*ret;
 	assert(e);
 
-	if ((ret = calloc(1, sizeof(*ret))) == NULL)
-		return NULL;
-
+	ret = cel_make_expr();
+	ret->ce_mutable = 0;
+	ret->ce_const = 0;
 	ret->ce_tag = cel_exp_call;
 	ret->ce_type = e->ce_type->ct_type.ct_function.ct_return_type;
 	ret->ce_op.ce_call.func = e;
@@ -172,8 +197,6 @@ cel_expr_free(e)
 {
 	if (!e)
 		return;
-
-	return;
 
 	switch (e->ce_tag) {
 	case cel_exp_string:
@@ -212,6 +235,8 @@ cel_expr_free(e)
 	case cel_exp_while:
 		break;
 	}
+
+	CEL_TAILQ_INSERT_HEAD(&free_exprs, e, ce_entry);
 }
 
 cel_expr_t *
@@ -219,9 +244,10 @@ cel_expr_copy(e)
 	cel_expr_t	*e;
 {
 cel_expr_t	*ret;
-	if ((ret = calloc(1, sizeof(*ret))) == NULL)
-		return NULL;
 
+	ret = cel_make_expr();
+	ret->ce_mutable = e->ce_mutable;
+	ret->ce_const = e->ce_const;
 	ret->ce_tag = e->ce_tag;
 	ret->ce_type = e->ce_type;
 
@@ -400,8 +426,9 @@ cel_expr_t *
 cel_make_void()
 {
 cel_expr_t	*ret;
-	if ((ret = calloc(1, sizeof(*ret))) == NULL)
-		return NULL;
+	ret = cel_make_expr();
+	ret->ce_const = 0;
+	ret->ce_mutable = 0;
 	ret->ce_tag = cel_exp_void;
 	ret->ce_type = cel_make_type(cel_type_void);
 	return ret;

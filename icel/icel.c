@@ -57,6 +57,11 @@ main(argc, argv)
 	char	**argv;
 {
 cel_scope_t	*scope;
+char		 type[64], value[128];
+cel_lexer_t	 lex;
+cel_parser_t	*par;
+cel_expr_list_t	*program;
+cel_expr_t	*result;
 	
 #ifdef	HAVE_LIBEDIT
 EditLine	*el;
@@ -74,16 +79,42 @@ HistEvent	 ev;
 	printf("CEL %s [%s] interactive interpreter\n", CEL_VERSION, CEL_HOST);
 	scope = cel_scope_new(NULL);
 
+	if (argv[1]) {
+		if (cel_lexer_init(&lex, argv[1]) != 0) {
+			fprintf(stderr, "%s: cannot init lexer\n", argv[1]);
+			return 1;
+		}
+
+		if ((par = cel_parser_new(&lex, scope)) == NULL) {
+			fprintf(stderr, "%s: cannot init parser\n", argv[1]);
+			return 1;
+		}
+
+		par->cp_error = icel_error;
+		par->cp_warn = icel_warn;
+
+		if ((program = cel_parse(par)) == NULL || par->cp_nerrs) {
+			fprintf(stderr, "(parse error)\n");
+			return 1;
+		}
+
+		if ((result = cel_eval_list(scope, program)) == NULL) {
+			fprintf(stderr, "(eval error)\n");
+			return 1;
+		}
+
+		cel_name_type(result->ce_type, type, sizeof(type) / sizeof(char));
+		cel_expr_print(result, value, sizeof(value) / sizeof(char));
+		printf("<%s> %s\n", type, value);
+
+		return 0;
+	}
+
 	for (;;) {
 #ifndef	HAVE_LIBEDIT
 	char		 line_[1024];
 #endif
 	char const	*line;
-	char		 type[64], value[128];
-	cel_lexer_t	 lex;
-	cel_parser_t	*par;
-	cel_expr_list_t	*program;
-	cel_expr_t	*result;
 #ifdef HAVE_LIBEDIT
 	int		 len;
 
