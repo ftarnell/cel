@@ -160,10 +160,13 @@ cel_expr_t	*ret;
 		return NULL;
 
 	ret->ce_tag = cel_exp_call;
+	ret->ce_type = e->ce_type->ct_type.ct_function.ct_return_type;
+#if 0
 	if (e->ce_tag == cel_exp_variable)
 		ret->ce_type = e->ce_type->ct_type.ct_function.ct_return_type;
 	else
 		ret->ce_type = e->ce_op.ce_function->cf_return_type;
+#endif
 	ret->ce_op.ce_call.func = e;
 	ret->ce_op.ce_call.args = a;
 	return ret;
