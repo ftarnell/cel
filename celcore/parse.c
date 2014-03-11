@@ -51,28 +51,28 @@
 		++par->cp_warns;					\
 	} while (0)
 
-static cel_expr_t	*cel_parse_func(cel_parser_t *, cel_scope_t *);
-static cel_expr_t	*cel_parse_var(cel_parser_t *, cel_scope_t *);
-static cel_typedef_t	*cel_parse_typedef(cel_parser_t *, cel_scope_t *);
-static cel_type_t	*cel_parse_type(cel_parser_t *, cel_scope_t *);
-static cel_expr_t	*cel_parse_stmt(cel_parser_t *, cel_scope_t *);
-static cel_expr_t	*cel_parse_expr(cel_parser_t *, cel_scope_t *);
-static cel_expr_t	*cel_parse_expr_return(cel_parser_t *, cel_scope_t *);
-static cel_expr_t	*cel_parse_expr_assign(cel_parser_t *, cel_scope_t *);
-static cel_expr_t	*cel_parse_expr_or(cel_parser_t *, cel_scope_t *);
-static cel_expr_t	*cel_parse_expr_and(cel_parser_t *, cel_scope_t *);
-static cel_expr_t	*cel_parse_expr_xor(cel_parser_t *, cel_scope_t *);
-static cel_expr_t	*cel_parse_expr_eq1(cel_parser_t *, cel_scope_t *);
-static cel_expr_t	*cel_parse_expr_eq2(cel_parser_t *, cel_scope_t *);
-static cel_expr_t	*cel_parse_expr_plus(cel_parser_t *, cel_scope_t *);
-static cel_expr_t	*cel_parse_expr_mult(cel_parser_t *, cel_scope_t *);
-static cel_expr_t	*cel_parse_expr_unary(cel_parser_t *, cel_scope_t *);
-static cel_expr_t	*cel_parse_expr_post(cel_parser_t *, cel_scope_t *);
-static cel_expr_t	*cel_parse_expr_value(cel_parser_t *, cel_scope_t *);
-static cel_expr_t	*cel_parse_value(cel_parser_t *, cel_scope_t *);
-static cel_arglist_t	*cel_parse_arglist(cel_parser_t *, cel_scope_t *);
-static cel_expr_t	*cel_parse_if(cel_parser_t *, cel_scope_t *);
-static cel_expr_t	*cel_parse_while(cel_parser_t *, cel_scope_t *);
+static cel_expr_t	*cel_parse_func		(cel_parser_t *, cel_scope_t *);
+static cel_expr_t	*cel_parse_var		(cel_parser_t *, cel_scope_t *);
+static cel_typedef_t	*cel_parse_typedef	(cel_parser_t *, cel_scope_t *);
+static cel_type_t	*cel_parse_type		(cel_parser_t *, cel_scope_t *);
+static cel_expr_t	*cel_parse_stmt		(cel_parser_t *, cel_scope_t *);
+static cel_expr_t	*cel_parse_expr		(cel_parser_t *, cel_scope_t *);
+static cel_expr_t	*cel_parse_expr_return	(cel_parser_t *, cel_scope_t *);
+static cel_expr_t	*cel_parse_expr_assign	(cel_parser_t *, cel_scope_t *);
+static cel_expr_t	*cel_parse_expr_or	(cel_parser_t *, cel_scope_t *);
+static cel_expr_t	*cel_parse_expr_and	(cel_parser_t *, cel_scope_t *);
+static cel_expr_t	*cel_parse_expr_xor	(cel_parser_t *, cel_scope_t *);
+static cel_expr_t	*cel_parse_expr_eq1	(cel_parser_t *, cel_scope_t *);
+static cel_expr_t	*cel_parse_expr_eq2	(cel_parser_t *, cel_scope_t *);
+static cel_expr_t	*cel_parse_expr_plus	(cel_parser_t *, cel_scope_t *);
+static cel_expr_t	*cel_parse_expr_mult	(cel_parser_t *, cel_scope_t *);
+static cel_expr_t	*cel_parse_expr_unary	(cel_parser_t *, cel_scope_t *);
+static cel_expr_t	*cel_parse_expr_post	(cel_parser_t *, cel_scope_t *);
+static cel_expr_t	*cel_parse_expr_value	(cel_parser_t *, cel_scope_t *);
+static cel_expr_t	*cel_parse_value	(cel_parser_t *, cel_scope_t *);
+static cel_arglist_t	*cel_parse_arglist	(cel_parser_t *, cel_scope_t *);
+static cel_expr_t	*cel_parse_if		(cel_parser_t *, cel_scope_t *);
+static cel_expr_t	*cel_parse_while	(cel_parser_t *, cel_scope_t *);
 
 cel_parser_t *
 cel_parser_new(lex, scope)
