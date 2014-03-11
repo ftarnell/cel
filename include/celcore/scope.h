@@ -42,6 +42,7 @@ typedef struct cel_scope {
 } cel_scope_t;
 
 cel_scope_t	 *cel_scope_new(cel_scope_t *parent);
+cel_scope_t	 *cel_scope_copy(cel_scope_t *);
 void		  cel_scope_free(cel_scope_t *);
 cel_scope_item_t *cel_scope_find_item(cel_scope_t *, char const *name);
 void		  cel_scope_add_expr(cel_scope_t *, char const *,

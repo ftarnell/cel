@@ -42,26 +42,26 @@
 		return NULL;						\
 	} while (0)
 
-static cel_expr_t	*cel_parse_func(cel_parser_t *);
-static cel_expr_t	*cel_parse_var(cel_parser_t *);
-static cel_typedef_t	*cel_parse_typedef(cel_parser_t *);
-static cel_type_t	*cel_parse_type(cel_parser_t *);
-static cel_expr_t	*cel_parse_stmt(cel_parser_t *);
-static cel_expr_t	*cel_parse_expr(cel_parser_t *);
-static cel_expr_t	*cel_parse_expr_assign(cel_parser_t *);
-static cel_expr_t	*cel_parse_expr_or(cel_parser_t *);
-static cel_expr_t	*cel_parse_expr_and(cel_parser_t *);
-static cel_expr_t	*cel_parse_expr_xor(cel_parser_t *);
-static cel_expr_t	*cel_parse_expr_eq1(cel_parser_t *);
-static cel_expr_t	*cel_parse_expr_eq2(cel_parser_t *);
-static cel_expr_t	*cel_parse_expr_plus(cel_parser_t *);
-static cel_expr_t	*cel_parse_expr_mult(cel_parser_t *);
-static cel_expr_t	*cel_parse_expr_unary(cel_parser_t *);
-static cel_expr_t	*cel_parse_expr_post(cel_parser_t *);
-static cel_expr_t	*cel_parse_expr_value(cel_parser_t *);
-static cel_expr_t	*cel_parse_value(cel_parser_t *);
-static cel_arglist_t	*cel_parse_arglist(cel_parser_t *);
-static cel_expr_t	*cel_parse_if(cel_parser_t *);
+static cel_expr_t	*cel_parse_func(cel_parser_t *, cel_scope_t *);
+static cel_expr_t	*cel_parse_var(cel_parser_t *, cel_scope_t *);
+static cel_typedef_t	*cel_parse_typedef(cel_parser_t *, cel_scope_t *);
+static cel_type_t	*cel_parse_type(cel_parser_t *, cel_scope_t *);
+static cel_expr_t	*cel_parse_stmt(cel_parser_t *, cel_scope_t *);
+static cel_expr_t	*cel_parse_expr(cel_parser_t *, cel_scope_t *);
+static cel_expr_t	*cel_parse_expr_assign(cel_parser_t *, cel_scope_t *);
+static cel_expr_t	*cel_parse_expr_or(cel_parser_t *, cel_scope_t *);
+static cel_expr_t	*cel_parse_expr_and(cel_parser_t *, cel_scope_t *);
+static cel_expr_t	*cel_parse_expr_xor(cel_parser_t *, cel_scope_t *);
+static cel_expr_t	*cel_parse_expr_eq1(cel_parser_t *, cel_scope_t *);
+static cel_expr_t	*cel_parse_expr_eq2(cel_parser_t *, cel_scope_t *);
+static cel_expr_t	*cel_parse_expr_plus(cel_parser_t *, cel_scope_t *);
+static cel_expr_t	*cel_parse_expr_mult(cel_parser_t *, cel_scope_t *);
+static cel_expr_t	*cel_parse_expr_unary(cel_parser_t *, cel_scope_t *);
+static cel_expr_t	*cel_parse_expr_post(cel_parser_t *, cel_scope_t *);
+static cel_expr_t	*cel_parse_expr_value(cel_parser_t *, cel_scope_t *);
+static cel_expr_t	*cel_parse_value(cel_parser_t *, cel_scope_t *);
+static cel_arglist_t	*cel_parse_arglist(cel_parser_t *, cel_scope_t *);
+static cel_expr_t	*cel_parse_if(cel_parser_t *, cel_scope_t *);
 
 cel_parser_t *
 cel_parser_new(lex, scope)
@@ -98,7 +98,7 @@ cel_token_t	 start_tok;
 	for (;;) {
 		start_tok = par->cp_tok;
 
-		if ((e = cel_parse_expr(par)) == NULL)
+		if ((e = cel_parse_expr(par, par->cp_scope)) == NULL)
 			break;
 
 		CEL_TAILQ_INSERT_TAIL(list, e, ce_entry);
@@ -122,7 +122,8 @@ cel_token_t	 start_tok;
 }
 
 cel_typedef_t *
-cel_parse_typedef(par)
+cel_parse_typedef(par, sc)
+	cel_scope_t	*sc;
 	cel_parser_t	*par;
 {
 /*
@@ -155,7 +156,7 @@ char		*name;
 	}
 
 /* Type */
-	if ((type = cel_parse_type(par)) == 0) {
+	if ((type = cel_parse_type(par, sc)) == 0) {
 		free(name);
 		ERROR("expected type name");
 	}
@@ -180,7 +181,8 @@ free_varvec(v, n)
 }
 
 cel_expr_t *
-cel_parse_var(par)
+cel_parse_var(par, sc)
+	cel_scope_t	*sc;
 	cel_parser_t	*par;
 {
 /*
@@ -209,7 +211,7 @@ cel_type_t	*type = NULL;
 			ERROR("expected identifier");
 		}
 
-		if (cel_scope_find_item(par->cp_scope, par->cp_tok.ct_literal)) {
+		if (cel_scope_find_item(sc, par->cp_tok.ct_literal)) {
 		char		err[128];
 		cel_token_t	err_tok = par->cp_tok;
 
@@ -225,7 +227,7 @@ cel_type_t	*type = NULL;
 		if (ACCEPT(T_ASSIGN)) {
 			err_tok = par->cp_tok;
 
-			if ((e = cel_parse_expr(par)) == NULL) {
+			if ((e = cel_parse_expr(par, sc)) == NULL) {
 				free(name);
 				ERROR("expected expression");
 			}
@@ -245,7 +247,7 @@ cel_type_t	*type = NULL;
 
 /* Type */
 	if (ACCEPT(T_COLON)) {
-		if ((type = cel_parse_type(par)) == NULL) {
+		if ((type = cel_parse_type(par, sc)) == NULL) {
 			free_varvec(names, nnames);
 			ERROR("expected type name");
 		}
@@ -286,7 +288,7 @@ cel_type_t	*type = NULL;
 			cel_expr_assign(e, names[i].init);
 		}
 
-		cel_scope_add_expr(par->cp_scope, names[i].name, e);
+		cel_scope_add_expr(sc, names[i].name, e);
 	}
 	free_varvec(names, nnames);
 	
@@ -296,7 +298,8 @@ cel_type_t	*type = NULL;
 }
 
 cel_type_t *
-cel_parse_type(par)
+cel_parse_type(par, sc)
+	cel_scope_t	*sc;
 	cel_parser_t	*par;
 {
 /*
@@ -338,7 +341,8 @@ cel_type_t	*type;
 }
 
 cel_expr_t *
-cel_parse_func(par)
+cel_parse_func(par, sc_)
+	cel_scope_t	*sc_;
 	cel_parser_t	*par;
 {
 /*
@@ -350,7 +354,7 @@ cel_parse_func(par)
  */
 
 cel_function_t	*func;
-cel_expr_t	*e;
+cel_expr_t	*e, *ef;
 cel_type_t	*t;
 cel_scope_t	*sc;
 
@@ -366,7 +370,7 @@ cel_scope_t	*sc;
 		ERROR("expected identifier");
 	}
 
-	if (cel_scope_find_item(par->cp_scope, par->cp_tok.ct_literal)) {
+	if (cel_scope_find_item(sc_, par->cp_tok.ct_literal)) {
 	char		err[128];
 	cel_token_t	err_tok = par->cp_tok;
 
@@ -392,7 +396,7 @@ cel_scope_t	*sc;
 		ERROR("expected ')'");
 	}
 
-	sc = cel_scope_new(par->cp_scope);
+	func->cf_scope = cel_scope_new(sc_);
 
 /* Argument list */
 	while (EXPECT(T_ID)) {
@@ -405,7 +409,7 @@ cel_scope_t	*sc;
 		}
 
 	/* Type */
-		if (cel_parse_type(par) == NULL) {
+		if (cel_parse_type(par, sc_) == NULL) {
 			cel_function_free(func);
 			ERROR("expected type name");
 		}
@@ -427,16 +431,19 @@ cel_scope_t	*sc;
 	}
 
 /* Return type */
-	if ((t = cel_parse_type(par)) == NULL) {
+	if ((t = cel_parse_type(par, sc_)) == NULL) {
 		cel_function_free(func);
 		ERROR("expected type name");
 	}
 	func->cf_return_type = t;
 
+	ef = cel_make_function(func);
+	cel_scope_add_expr(sc_, func->cf_name, ef);
+
 /* Single-statement function */
 	if (ACCEPT(T_EQ)) {
 	cel_expr_t	*f;
-		if ((e = cel_parse_expr(par)) == NULL)
+		if ((e = cel_parse_expr(par, func->cf_scope)) == NULL)
 			ERROR("expected expression");
 		if (e->ce_tag != cel_exp_return) {
 			f = cel_make_return(e);
@@ -455,7 +462,7 @@ cel_scope_t	*sc;
 	/*
 	 * List of statements.
 	 */
-		while (e = cel_parse_expr(par)) {
+		while (e = cel_parse_expr(par, func->cf_scope)) {
 			CEL_TAILQ_INSERT_TAIL(&func->cf_body, e, ce_entry);
 
 			if (ACCEPT(T_SEMI))
@@ -468,13 +475,12 @@ cel_scope_t	*sc;
 		}
 	}
 
-	e = cel_make_function(func);
-	cel_scope_add_expr(par->cp_scope, func->cf_name, e);
-	return e;
+	return ef;
 }
 
 cel_expr_t *
-cel_parse_stmt(par)
+cel_parse_stmt(par, sc)
+	cel_scope_t	*sc;
 	cel_parser_t	*par;
 {
 /*
@@ -486,21 +492,23 @@ cel_parse_stmt(par)
  */
 cel_expr_t	*e;
 
-	if (e = cel_parse_expr(par))
+	if (e = cel_parse_expr(par, sc))
 		return e;
 
 	return NULL;
 }
 
 cel_expr_t *
-cel_parse_expr(par)
+cel_parse_expr(par, sc)
+	cel_scope_t	*sc;
 	cel_parser_t	*par;
 {
-	return cel_parse_expr_assign(par);
+	return cel_parse_expr_assign(par, sc);
 }
 
 cel_expr_t *
-cel_parse_expr_assign(par)
+cel_parse_expr_assign(par, sc)
+	cel_scope_t	*sc;
 	cel_parser_t	*par;
 {
 cel_expr_t	*e, *f;
@@ -509,7 +517,7 @@ int		 op;
 
 	lv_tok = par->cp_tok;
 
-	if ((e = cel_parse_expr_or(par)) == NULL)
+	if ((e = cel_parse_expr_or(par, sc)) == NULL)
 		return NULL;
 
 	for (;;) {
@@ -519,7 +527,7 @@ int		 op;
 		if (!(op = ACCEPT(T_ASSIGN)))
 			break;
 
-		if ((f = cel_parse_expr_assign(par)) == NULL) {
+		if ((f = cel_parse_expr_assign(par, sc)) == NULL) {
 			cel_expr_free(e);
 			ERROR("expected expression");
 		}
@@ -550,14 +558,15 @@ int		 op;
 }
 
 cel_expr_t *
-cel_parse_expr_or(par)
+cel_parse_expr_or(par, sc)
+	cel_scope_t	*sc;
 	cel_parser_t	*par;
 {
 cel_expr_t	*e, *f;
 cel_token_t	 op_tok;
 int		 op;
 
-	if ((e = cel_parse_expr_and(par)) == NULL)
+	if ((e = cel_parse_expr_and(par, sc)) == NULL)
 		return NULL;
 
 	for (;;) {
@@ -568,7 +577,7 @@ int		 op;
 		if (!(op = ACCEPT(T_OR)))
 			break;
 
-		if ((f = cel_parse_expr_and(par)) == NULL) {
+		if ((f = cel_parse_expr_and(par, sc)) == NULL) {
 			cel_expr_free(e);
 			ERROR("expected expression");
 		}
@@ -597,14 +606,15 @@ int		 op;
 }
 
 cel_expr_t *
-cel_parse_expr_and(par)
+cel_parse_expr_and(par, sc)
+	cel_scope_t	*sc;
 	cel_parser_t	*par;
 {
 cel_expr_t	*e, *f;
 cel_token_t	 op_tok;
 int		 op;
 
-	if ((e = cel_parse_expr_xor(par)) == NULL)
+	if ((e = cel_parse_expr_xor(par, sc)) == NULL)
 		return NULL;
 
 	for (;;) {
@@ -615,7 +625,7 @@ int		 op;
 		if (!(op = ACCEPT(T_AND)))
 			break;
 
-		if ((f = cel_parse_expr_xor(par)) == NULL) {
+		if ((f = cel_parse_expr_xor(par, sc)) == NULL) {
 			cel_expr_free(e);
 			ERROR("expected expression");
 		}
@@ -644,14 +654,15 @@ int		 op;
 }
 
 cel_expr_t *
-cel_parse_expr_xor(par)
+cel_parse_expr_xor(par, sc)
+	cel_scope_t	*sc;
 	cel_parser_t	*par;
 {
 cel_expr_t	*e, *f;
 cel_token_t	 op_tok;
 int		 op;
 
-	if ((e = cel_parse_expr_eq1(par)) == NULL)
+	if ((e = cel_parse_expr_eq1(par, sc)) == NULL)
 		return NULL;
 
 	for (;;) {
@@ -662,7 +673,7 @@ int		 op;
 		if (!(op = ACCEPT(T_CARET)))
 			break;
 
-		if ((f = cel_parse_expr_eq1(par)) == NULL) {
+		if ((f = cel_parse_expr_eq1(par, sc)) == NULL) {
 			cel_expr_free(e);
 			ERROR("expected expression");
 		}
@@ -691,14 +702,15 @@ int		 op;
 }
 
 cel_expr_t *
-cel_parse_expr_eq1(par)
+cel_parse_expr_eq1(par, sc)
+	cel_scope_t	*sc;
 	cel_parser_t	*par;
 {
 cel_expr_t	*e, *f;
 cel_token_t	 op_tok;
 int		 op;
 
-	if ((e = cel_parse_expr_eq2(par)) == NULL)
+	if ((e = cel_parse_expr_eq2(par, sc)) == NULL)
 		return NULL;
 
 	for (;;) {
@@ -710,7 +722,7 @@ int		 op;
 		if (!(op = ACCEPT(T_EQ)) && !(op = ACCEPT(T_NEQ)))
 			break;
 
-		if ((f = cel_parse_expr_eq2(par)) == NULL) {
+		if ((f = cel_parse_expr_eq2(par, sc)) == NULL) {
 			cel_expr_free(e);
 			ERROR("expected expression");
 		}
@@ -744,14 +756,15 @@ int		 op;
 }
 
 cel_expr_t *
-cel_parse_expr_eq2(par)
+cel_parse_expr_eq2(par, sc)
+	cel_scope_t	*sc;
 	cel_parser_t	*par;
 {
 cel_expr_t	*e, *f;
 cel_token_t	 op_tok;
 int		 op;
 
-	if ((e = cel_parse_expr_plus(par)) == NULL)
+	if ((e = cel_parse_expr_plus(par, sc)) == NULL)
 		return NULL;
 
 	for (;;) {
@@ -764,7 +777,7 @@ int		 op;
 		    !(op = ACCEPT(T_LT)) && !(op = ACCEPT(T_LE)))
 			break;
 
-		if ((f = cel_parse_expr_plus(par)) == NULL) {
+		if ((f = cel_parse_expr_plus(par, sc)) == NULL) {
 			cel_expr_free(e);
 			ERROR("expected expression");
 		}
@@ -800,14 +813,15 @@ int		 op;
 }
 
 cel_expr_t *
-cel_parse_expr_plus(par)
+cel_parse_expr_plus(par, sc)
 	cel_parser_t	*par;
+	cel_scope_t	*sc;
 {
 cel_expr_t	*e, *f;
 cel_token_t	 op_tok;
 int		 op;
 
-	if ((e = cel_parse_expr_mult(par)) == NULL)
+	if ((e = cel_parse_expr_mult(par, sc)) == NULL)
 		return NULL;
 
 	for (;;) {
@@ -819,7 +833,7 @@ int		 op;
 		if (!(op = ACCEPT(T_PLUS)) && !(op = ACCEPT(T_MINUS)))
 			break;
 
-		if ((f = cel_parse_expr_mult(par)) == NULL) {
+		if ((f = cel_parse_expr_mult(par, sc)) == NULL) {
 			cel_expr_free(e);
 			ERROR("expected expression");
 		}
@@ -853,14 +867,15 @@ int		 op;
 }
 
 cel_expr_t *
-cel_parse_expr_mult(par)
+cel_parse_expr_mult(par, sc)
 	cel_parser_t	*par;
+	cel_scope_t	*sc;
 {
 cel_expr_t	*e, *f;
 cel_token_t	 op_tok;
 int		 op;
 
-	if ((e = cel_parse_expr_unary(par)) == NULL) {
+	if ((e = cel_parse_expr_unary(par, sc)) == NULL) {
 		return NULL;
 	}
 
@@ -874,7 +889,7 @@ int		 op;
 		    !(op = ACCEPT(T_PERCENT)))
 			break;
 
-		if ((f = cel_parse_expr_unary(par)) == NULL) {
+		if ((f = cel_parse_expr_unary(par, sc)) == NULL) {
 			cel_expr_free(e);
 			ERROR("expected expression");
 		}
@@ -909,8 +924,9 @@ int		 op;
 }
 
 cel_expr_t *
-cel_parse_expr_unary(par)
+cel_parse_expr_unary(par, sc)
 	cel_parser_t	*par;
+	cel_scope_t	*sc;
 {
 /* expr_unary  --> expr_post  | "-" expr_unary | "!" expr_unary */
 cel_expr_t	*e = NULL;
@@ -927,14 +943,14 @@ cel_expr_t	*e = NULL;
 		    !(op = ACCEPT(T_RETURN)))
 			break;
 
-		if ((e = cel_parse_expr_unary(par)) == NULL) {
+		if ((e = cel_parse_expr_unary(par, sc)) == NULL) {
 			cel_expr_free(e);
 			ERROR("expected expression");
 		}
 
 		if (op == T_RETURN) {
 			e = cel_make_return(e);
-			continue;
+			return e;
 		}
 
 		switch (op) {
@@ -961,19 +977,20 @@ cel_expr_t	*e = NULL;
 	if (e)
 		return e;
 
-	return cel_parse_expr_post(par);
+	return cel_parse_expr_post(par, sc);
 }
 
 cel_expr_t *
-cel_parse_expr_post(par)
+cel_parse_expr_post(par, sc)
 	cel_parser_t	*par;
+	cel_scope_t	*sc;
 {
 /* expr_post   --> expr_value [ ( "(" arglist ")" | "[" expr "]" ) ] */
 cel_expr_t	*e;
 int		 op;
 cel_token_t	 err_tok;
 
-	if ((e = cel_parse_expr_value(par)) == NULL)
+	if ((e = cel_parse_expr_value(par, sc)) == NULL)
 		return NULL;
 
 /* Function call */
@@ -983,7 +1000,7 @@ cel_token_t	 err_tok;
 
 		switch (op) {
 		case T_LPAR:
-			if (cel_parse_arglist(par) == NULL) {
+			if (cel_parse_arglist(par, sc) == NULL) {
 				cel_expr_free(e);
 				return NULL;
 			}
@@ -997,7 +1014,7 @@ cel_token_t	 err_tok;
 			break;
 
 		case T_LSQ:
-			if (cel_parse_expr(par) == NULL) {
+			if (cel_parse_expr(par, sc) == NULL) {
 				cel_expr_free(e);
 				ERROR("expected expression");
 			}
@@ -1011,7 +1028,7 @@ cel_token_t	 err_tok;
 		case T_AS:
 			err_tok = par->cp_tok;
 
-			if ((t = cel_parse_type(par)) == NULL) {
+			if ((t = cel_parse_type(par, sc)) == NULL) {
 				cel_expr_free(e);
 				ERROR("expected type");
 			}
@@ -1040,17 +1057,18 @@ cel_token_t	 err_tok;
 }
 
 cel_expr_t *
-cel_parse_expr_value(par)
+cel_parse_expr_value(par, sc)
+	cel_scope_t	*sc;
 	cel_parser_t	*par;
 {
 /* expr_value  --> value | "(" expr ")" | ifexpr */
 cel_expr_t	*e;
 
-	if ((e = cel_parse_value(par)) != NULL)
+	if ((e = cel_parse_value(par, sc)) != NULL)
 		return e;
 
 	if (ACCEPT(T_LPAR)) {
-		if ((e = cel_parse_expr(par)) == NULL)
+		if ((e = cel_parse_expr(par, sc)) == NULL)
 			ERROR("expected expression");
 
 		if (!ACCEPT(T_RPAR)) {
@@ -1063,25 +1081,26 @@ cel_expr_t	*e;
 
 /* if expression */
 	if (ACCEPT(T_IF)) {
-		if ((e = cel_parse_if(par)) == NULL)
+		if ((e = cel_parse_if(par, sc)) == NULL)
 			return NULL;
 		return e;
 	}
 
 /* Function definition */
-	if (e = cel_parse_func(par))
+	if (e = cel_parse_func(par, sc))
 		return e;
 
 /* Variable definition */
-	if (e = cel_parse_var(par))
+	if (e = cel_parse_var(par, sc))
 		return e;
 
 	return NULL;
 }
 
 cel_expr_t *
-cel_parse_value(par)
+cel_parse_value(par, sc)
 	cel_parser_t	*par;
+	cel_scope_t	*sc;
 {
 cel_expr_t	*ret = NULL;
 
@@ -1089,8 +1108,7 @@ cel_expr_t	*ret = NULL;
 	cel_scope_item_t	*v;
 	cel_token_t		 err_tok = par->cp_tok;
 
-		v = cel_scope_find_item(par->cp_scope,
-					par->cp_tok.ct_literal);
+		v = cel_scope_find_item(sc, par->cp_tok.ct_literal);
 
 		if (v == NULL) {
 		char	err[128];
@@ -1110,8 +1128,8 @@ cel_expr_t	*ret = NULL;
 			ERROR_TOK(&err_tok, err);
 		}
 
-		CONSUME();
-		return v->si_ob.si_expr;
+		ret = cel_make_variable(v->si_name, v->si_ob.si_expr->ce_type);
+		ret->ce_mutable = v->si_ob.si_expr->ce_mutable;
 	} else if (EXPECT(T_LIT_INT8))
 		ret = cel_make_int8(strtol(par->cp_tok.ct_literal, NULL, 0));
 	else if (EXPECT(T_LIT_UINT8))
@@ -1146,8 +1164,9 @@ cel_expr_t	*ret = NULL;
 }
 
 cel_arglist_t *
-cel_parse_arglist(par)
+cel_parse_arglist(par, sc)
 	cel_parser_t	*par;
+	cel_scope_t	*sc;
 {
 /*
  * An argument list is just a comma-separated list of expressions termined by
@@ -1158,7 +1177,7 @@ cel_expr_t	*e;
 
 	al = calloc(1, sizeof(*al));
 
-	while (e = cel_parse_expr(par)) {
+	while (e = cel_parse_expr(par, sc)) {
 		al->ca_args = realloc(al->ca_args,
 				      sizeof(cel_type_t *) * (al->ca_nargs + 1));
 		al->ca_args[al->ca_nargs] = e;
@@ -1172,8 +1191,9 @@ cel_expr_t	*e;
 }
 
 cel_expr_t *
-cel_parse_if(par)
+cel_parse_if(par, sc)
 	cel_parser_t	*par;
+	cel_scope_t	*sc;
 {
 /*
  * An if expression begins 'if <expr> then', followed by a code block; the code
@@ -1193,7 +1213,7 @@ cel_type_t	*bool_;
 	if_ = calloc(1, sizeof(*if_));
 
 /* Expression */
-	if ((e = cel_parse_expr(par)) == NULL) {
+	if ((e = cel_parse_expr(par, sc)) == NULL) {
 		cel_expr_free(ret);
 		ERROR("expected expression");
 	}
@@ -1221,7 +1241,7 @@ cel_type_t	*bool_;
 /* list of statements */
 	for (;;) {
 	cel_expr_t	*e;
-		while ((e = cel_parse_stmt(par)) != NULL) {
+		while ((e = cel_parse_stmt(par, sc)) != NULL) {
 			CEL_TAILQ_INSERT_TAIL(&if_->ib_exprs, e, ce_entry);
 
 			/*
@@ -1235,7 +1255,7 @@ cel_type_t	*bool_;
 		if (ACCEPT(T_ELIF)) {
 			CEL_TAILQ_INSERT_TAIL(e->ce_op.ce_if, if_, ib_entry);
 
-			if ((e = cel_parse_expr(par)) == NULL) {
+			if ((e = cel_parse_expr(par, sc)) == NULL) {
 				cel_expr_free(ret);
 				ERROR("expected expression");
 			}

@@ -13,9 +13,11 @@
 #include	"celcore/eval.h"
 #include	"celcore/type.h"
 #include	"celcore/function.h"
+#include	"celcore/scope.h"
 
 static cel_expr_t *
-cel_eval_if(e)
+cel_eval_if(s, e)
+	cel_scope_t	*s;
 	cel_expr_t	*e;
 {
 cel_expr_t	*stmt;
@@ -24,7 +26,7 @@ cel_if_branch_t	*if_;
 
 	CEL_TAILQ_FOREACH(if_, e->ce_op.ce_if, ib_entry) {
 	cel_expr_t	*e;
-		e = cel_eval(if_->ib_condition);
+		e = cel_eval(s, if_->ib_condition);
 		if (!e->ce_op.ce_bool) {
 			cel_expr_free(e);
 			continue;
@@ -34,7 +36,7 @@ cel_if_branch_t	*if_;
 
 		CEL_TAILQ_FOREACH(stmt, &if_->ib_exprs, ce_entry) {
 		cel_expr_t	*v, *w;
-			if ((v = cel_eval(stmt)) == NULL)
+			if ((v = cel_eval(s, stmt)) == NULL)
 				return NULL;
 
 			cel_expr_free(v);
@@ -56,38 +58,54 @@ cel_if_branch_t	*if_;
 }
 
 static cel_expr_t *
-cel_call_function(e)
+cel_call_function(s, e)
+	cel_scope_t	*s;
 	cel_expr_t	*e;
 {
 cel_expr_t	*stmt;
 cel_expr_t	*ret;
+cel_expr_t	*fu;
+cel_scope_t	*sc;
 
-	CEL_TAILQ_FOREACH(stmt, &e->ce_op.ce_function->cf_body, ce_entry) {
+	if ((fu = cel_eval(s, e)) == NULL)
+		return NULL;
+
+	sc = cel_scope_copy(fu->ce_op.ce_function->cf_scope);
+
+	CEL_TAILQ_FOREACH(stmt, &fu->ce_op.ce_function->cf_body, ce_entry) {
 	cel_expr_t	*v, *w;
-		if ((v = cel_eval(stmt)) == NULL)
+		if ((v = cel_eval(sc, stmt)) == NULL) {
+			cel_expr_free(fu);
+			cel_scope_free(sc);
 			return NULL;
+		}
 
 		if (v->ce_tag != cel_exp_return)
 			continue;
 
-		w = cel_eval(v->ce_op.ce_unary.operand);
+		w = cel_eval(sc, v->ce_op.ce_unary.operand);
 		cel_expr_free(v);
-		v = cel_expr_convert(w, e->ce_op.ce_function->cf_return_type);
+		v = cel_expr_convert(w, fu->ce_op.ce_function->cf_return_type);
 		cel_expr_free(w);
+		cel_expr_free(fu);
+		cel_scope_free(sc);
 		return v;
 	}
 
+	cel_expr_free(fu);
+	cel_scope_free(sc);
 	return cel_make_void();
 }
 
 static cel_expr_t *
-cel_eval_unary(e)
+cel_eval_unary(s, e)
+	cel_scope_t	*s;
 	cel_expr_t	*e;
 {
 cel_expr_t	*v, *pv, *ret = NULL;
 cel_type_t	*ptype;
 
-	if ((v = cel_eval(e->ce_op.ce_unary.operand)) == NULL)
+	if ((v = cel_eval(s, e->ce_op.ce_unary.operand)) == NULL)
 		return NULL;
 
 	if (e->ce_tag == cel_exp_cast) {
@@ -136,39 +154,46 @@ cel_type_t	*ptype;
 }
 
 static cel_expr_t *
-cel_eval_assign(l, r)
+cel_eval_assign(s, l, r)
+	cel_scope_t	*s;
 	cel_expr_t	*l, *r;
 {
-cel_expr_t	*er, *cr;
+cel_expr_t	*er, *cr, *el;
 
-	if ((er = cel_eval(r)) == NULL)
+	if ((el = cel_eval(s, l)) == NULL)
 		return NULL;
 
-	cr = cel_expr_convert(er, l->ce_type);
-	cel_expr_assign(l, cr);
+	if ((er = cel_eval(s, r)) == NULL) {
+		cel_expr_free(el);
+		return NULL;
+	}
+
+	cr = cel_expr_convert(er, el->ce_type);
+	cel_expr_assign(el, cr);
 	cel_expr_free(cr);
-	return cel_expr_copy(l);
+	return cel_expr_copy(el);
 }
 
 static cel_expr_t *
-cel_eval_binary(e)
+cel_eval_binary(s, e)
+	cel_scope_t	*s;
 	cel_expr_t	*e;
 {
 cel_expr_t	*l, *r, *pl, *pr, *ret = NULL;
 cel_type_t	*rtype;
-char		*s;
+char		*str;
 
 	/* This one is not like the others */
 	if (e->ce_op.ce_binary.oper == cel_op_assign) {
-		ret = cel_eval_assign(e->ce_op.ce_binary.left,
-				      e->ce_op.ce_binary.right);
+		ret = cel_eval_assign(s, e->ce_op.ce_binary.left,
+				         e->ce_op.ce_binary.right);
 		return ret;
 	}
 
-	if ((l = cel_eval(e->ce_op.ce_binary.left)) == NULL)
+	if ((l = cel_eval(s, e->ce_op.ce_binary.left)) == NULL)
 		return NULL;
 
-	if ((r = cel_eval(e->ce_op.ce_binary.right)) == NULL) {
+	if ((r = cel_eval(s, e->ce_op.ce_binary.right)) == NULL) {
 		cel_expr_free(l);
 		return NULL;
 	}
@@ -203,12 +228,12 @@ char		*s;
 	case cel_op_plus:
 		switch (rtype->ct_tag) {
 		case cel_type_string:
-			s = malloc(sizeof(char) * (strlen(pl->ce_op.ce_string) +
-						      strlen(pr->ce_op.ce_string) + 1));
-			strcpy(s, pl->ce_op.ce_string);
-			strcat(s, pr->ce_op.ce_string);
-			ret = cel_make_string(s);
-			free(s);
+			str = malloc(sizeof(char) * (strlen(pl->ce_op.ce_string) +
+						     strlen(pr->ce_op.ce_string) + 1));
+			strcpy(str, pl->ce_op.ce_string);
+			strcat(str, pr->ce_op.ce_string);
+			ret = cel_make_string(str);
+			free(str);
 			break;
 
 		case cel_type_int8:	ret = cel_make_int8(pl->ce_op.ce_int8 + pr->ce_op.ce_int8); break;
@@ -399,9 +424,12 @@ char		*s;
 }
 
 cel_expr_t *
-cel_eval(e)
+cel_eval(s, e)
+	cel_scope_t	*s;
 	cel_expr_t	*e;
 {
+cel_scope_item_t	*sc;
+
 	switch (e->ce_tag) {
 	case cel_exp_int8:
 	case cel_exp_uint8:
@@ -420,18 +448,22 @@ cel_eval(e)
 
 	case cel_exp_unary:
 	case cel_exp_cast:
-		return cel_eval_unary(e);
+		return cel_eval_unary(s, e);
 	
 	case cel_exp_binary:
-		return cel_eval_binary(e);
+		return cel_eval_binary(s, e);
 
 	case cel_exp_call:
-		return cel_call_function(e->ce_op.ce_unary.operand);
+		return cel_call_function(s, e->ce_op.ce_unary.operand);
 
 	case cel_exp_if:
-		return cel_eval_if(e);
+		return cel_eval_if(s, e);
 
-	case cel_exp_identifier:
+	case cel_exp_variable:
+		if ((sc = cel_scope_find_item(s, e->ce_op.ce_variable)) == NULL)
+			return NULL;
+		return sc->si_ob.si_expr;
+
 	case cel_exp_vardecl:
 		return NULL;
 	}
@@ -440,7 +472,8 @@ cel_eval(e)
 }
 
 cel_expr_t *
-cel_eval_list(l)
+cel_eval_list(s, l)
+	cel_scope_t	*s;
 	cel_expr_list_t	*l;
 {
 cel_expr_t	*e = NULL;
@@ -449,7 +482,7 @@ cel_expr_t	*ret = NULL;
 	CEL_TAILQ_FOREACH(e, l, ce_entry) {
 	cel_expr_t	*r;
 
-		if ((r = cel_eval(e)) == NULL) {
+		if ((r = cel_eval(s, e)) == NULL) {
 			cel_expr_free(ret);
 			return NULL;
 		}

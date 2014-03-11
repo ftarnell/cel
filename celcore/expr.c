@@ -64,14 +64,16 @@ cel_expr_t	*ret;
 }
 
 cel_expr_t *
-cel_make_identifier(s)
+cel_make_variable(s, t)
 	char const	*s;
+	cel_type_t	*t;
 {
 cel_expr_t	*ret;
 	if ((ret = calloc(1, sizeof(*ret))) == NULL)
 		return NULL;
-	ret->ce_tag = cel_exp_string;
-	ret->ce_op.ce_identifier = strdup(s);
+	ret->ce_tag = cel_exp_variable;
+	ret->ce_op.ce_variable = strdup(s);
+	ret->ce_type = t;
 	return ret;
 }
 
@@ -171,8 +173,8 @@ cel_expr_free(e)
 		free(e->ce_op.ce_string);
 		break;
 
-	case cel_exp_identifier:
-		free(e->ce_op.ce_identifier);
+	case cel_exp_variable:
+		free(e->ce_op.ce_variable);
 		break;
 
 	case cel_exp_unary:
@@ -251,8 +253,11 @@ cel_expr_t	*ret;
 		ret->ce_op.ce_function = e->ce_op.ce_function;
 		break;
 
+	case cel_exp_variable:
+		ret->ce_op.ce_variable = strdup(e->ce_op.ce_variable);
+		break;
+
 	case cel_exp_vardecl:
-	case cel_exp_identifier:
 	case cel_exp_if:
 	case cel_exp_void:
 		break;
@@ -314,6 +319,12 @@ char	t[64];
 		strlcat(b, ">", bsz);
 		break;
 
+	case cel_exp_variable:
+		strlcpy(b, "<variable ", bsz);
+		strlcat(b, e->ce_op.ce_variable, bsz);
+		strlcat(b, ">", bsz);
+		break;
+
 	case cel_exp_function:
 		strlcpy(b, "<function>", bsz);
 		break;
@@ -322,7 +333,6 @@ char	t[64];
 	case cel_exp_binary:
 	case cel_exp_if:
 	case cel_exp_vardecl:
-	case cel_exp_identifier:
 		break;
 	}
 }

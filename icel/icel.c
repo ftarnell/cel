@@ -125,7 +125,7 @@ HistEvent	 ev;
 			continue;
 		}
 
-		if ((result = cel_eval_list(program)) == NULL) {
+		if ((result = cel_eval_list(scope, program)) == NULL) {
 			fprintf(stderr, "(eval error)\n");
 			continue;
 		}

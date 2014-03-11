@@ -87,3 +87,25 @@ cel_scope_item_free(i)
 	free(i->si_name);
 	free(i);
 }
+
+cel_scope_t *
+cel_scope_copy(s)
+	cel_scope_t	*s;
+{
+cel_scope_t		*n;
+cel_scope_item_t	*i;
+
+	if ((n = cel_scope_new(s->sc_parent)) == NULL)
+		return NULL;
+
+	CEL_TAILQ_FOREACH(i, &s->sc_items, si_entry) {
+	cel_scope_item_t	*j;
+		j = calloc(1, sizeof(*j));
+		j->si_type = i->si_type;
+		j->si_ob.si_expr = cel_expr_copy(i->si_ob.si_expr);
+		j->si_name = strdup(i->si_name);
+		CEL_TAILQ_INSERT_TAIL(&n->sc_items, j, si_entry);
+	}
+
+	return n;
+}

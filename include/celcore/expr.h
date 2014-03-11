@@ -29,7 +29,6 @@ typedef enum cel_expr_tag {
 	cel_exp_int64,
 	cel_exp_uint64,
 	cel_exp_string,
-	cel_exp_identifier,
 	cel_exp_bool,
 	cel_exp_unary,
 	cel_exp_binary,
@@ -38,7 +37,8 @@ typedef enum cel_expr_tag {
 	cel_exp_if,
 	cel_exp_cast,
 	cel_exp_call,
-	cel_exp_return
+	cel_exp_return,
+	cel_exp_variable
 } cel_expr_tag_t;
 
 typedef enum cel_bi_oper {
@@ -87,7 +87,7 @@ typedef struct cel_expr {
 
 		int	 ce_bool;
 		char	*ce_string;
-		char	*ce_identifier;
+		char	*ce_variable;
 
 		struct {
 			cel_bi_oper_t	 oper;
@@ -137,7 +137,7 @@ cel_expr_t	*cel_make_int64(int64_t);
 cel_expr_t	*cel_make_uint64(uint64_t);
 cel_expr_t	*cel_make_bool(int);
 cel_expr_t	*cel_make_string(char const *);
-cel_expr_t	*cel_make_identifier(char const *);
+cel_expr_t	*cel_make_variable(char const *, struct cel_type *);
 cel_expr_t	*cel_make_void(void);
 cel_expr_t	*cel_make_any(struct cel_type *);
 
