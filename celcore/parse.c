@@ -64,6 +64,7 @@ static cel_expr_t	*cel_parse_expr_value(cel_parser_t *, cel_scope_t *);
 static cel_expr_t	*cel_parse_value(cel_parser_t *, cel_scope_t *);
 static cel_arglist_t	*cel_parse_arglist(cel_parser_t *, cel_scope_t *);
 static cel_expr_t	*cel_parse_if(cel_parser_t *, cel_scope_t *);
+static cel_expr_t	*cel_parse_while(cel_parser_t *, cel_scope_t *);
 
 cel_parser_t *
 cel_parser_new(lex, scope)
@@ -264,19 +265,19 @@ cel_type_t	*type = NULL;
 			free_varvec(names, nnames);
 			ERROR_TOK(&err_tok, "variable must have either initialiser or type");
 		}
-			
+
+#if 0
 		if (!atype)
 			atype = names[i].init->ce_type;
 
-		e = cel_make_any(atype);
-		e->ce_mutable = 1;
-
+		e = cel_make_duplicate(atype);
+#endif
 		if (names[i].init) {
-			if (!cel_type_convertable(atype, names[i].init->ce_type)) {
+			if (type && !cel_type_convertable(type, names[i].init->ce_type)) {
 			char	a1[64], a2[64];
 			char	err[128];
 
-				cel_name_type(atype, a1, sizeof(a1));
+				cel_name_type(type, a1, sizeof(a1));
 				cel_name_type(names[i].init->ce_type, a2, sizeof(a2));
 
 				snprintf(err, sizeof(err) / sizeof(char),
@@ -284,11 +285,16 @@ cel_type_t	*type = NULL;
 					 a1, a2);
 
 				free_varvec(names, nnames);
-				cel_expr_free(e);
 				ERROR_TOK(&err_tok, err);
 			}
+#if 0
 			cel_expr_assign(e, cel_eval(sc, names[i].init));
+#endif
+			e = cel_expr_copy(names[i].init);
+		} else {
+			e = cel_make_any(type);
 		}
+		e->ce_mutable = 1;
 
 		cel_scope_add_expr(sc, names[i].name, e);
 	}
@@ -1124,6 +1130,13 @@ cel_expr_t	*e;
 		return e;
 	}
 
+/* while expression */
+	if (ACCEPT(T_WHILE)) {
+		if ((e = cel_parse_while(par, sc)) == NULL)
+			return NULL;
+		return e;
+	}
+
 /* Function definition */
 	if (e = cel_parse_func(par, sc))
 		return e;
@@ -1334,5 +1347,64 @@ cel_type_t	*bool_;
 
 		cel_expr_free(ret);
 		ERROR("expected statement, 'end', 'else' or 'elif'");
+	}
+}
+
+cel_expr_t *
+cel_parse_while(par, sc)
+	cel_parser_t	*par;
+	cel_scope_t	*sc;
+{
+cel_expr_t	*ret, *e;
+cel_type_t	*bool_;
+
+	ret = calloc(1, sizeof(*ret));
+	ret->ce_tag = cel_exp_while;
+	ret->ce_type = cel_make_type(cel_type_void);
+	ret->ce_op.ce_while = calloc(1, sizeof(*ret->ce_op.ce_while));
+
+/* Expression */
+	if ((e = cel_parse_expr(par, sc)) == NULL) {
+		cel_expr_free(ret);
+		ERROR("expected expression");
+	}
+
+	bool_ = cel_make_type(cel_type_bool);
+	if (!cel_type_convertable(bool_, e->ce_type)) {
+		cel_expr_free(e);
+		cel_type_free(bool_);
+		ERROR("type error: expected boolean");
+	}
+
+	ret->ce_op.ce_while->wh_condition = e;
+	cel_type_free(bool_);
+
+/* 'do' */
+	if (!ACCEPT(T_DO)) {
+		cel_expr_free(ret);
+		ERROR("expected 'do'");
+	}
+
+	CEL_TAILQ_INIT(&ret->ce_op.ce_while->wh_exprs);
+
+/* list of statements */
+	for (;;) {
+	cel_expr_t	*e;
+		while ((e = cel_parse_stmt(par, sc)) != NULL) {
+			CEL_TAILQ_INSERT_TAIL(&ret->ce_op.ce_while->wh_exprs, e, ce_entry);
+
+			/*
+			 * Each statement has to be followed by a semicolon,
+			 * except for the last one in the block.
+			 */
+			if (ACCEPT(T_SEMI))
+				continue;
+		}
+			
+		if (ACCEPT(T_END))
+			return ret;
+
+		cel_expr_free(ret);
+		ERROR("expected statement or 'end'");
 	}
 }

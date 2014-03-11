@@ -53,6 +53,37 @@ cel_if_branch_t	*if_;
 }
 
 static cel_expr_t *
+cel_eval_while(s, e)
+	cel_scope_t	*s;
+	cel_expr_t	*e;
+{
+cel_expr_t	*stmt;
+cel_expr_t	*ret;
+
+	for (;;) {
+	cel_expr_t	*c;
+		c = cel_eval(s, e->ce_op.ce_while->wh_condition);
+		if (c->ce_op.ce_bool == 0) {
+			cel_expr_free(c);
+			break;
+		}
+		cel_expr_free(c);
+
+		CEL_TAILQ_FOREACH(stmt, &e->ce_op.ce_while->wh_exprs, ce_entry) {
+		cel_expr_t	*v, *w;
+			if ((v = cel_eval(s, stmt)) == NULL)
+				return NULL;
+
+			if (v->ce_tag == cel_exp_return)
+				return v;
+
+			cel_expr_free(v);
+		}
+	}
+
+	return cel_make_void();
+}
+static cel_expr_t *
 cel_call_function(s, e, a)
 	cel_scope_t	*s;
 	cel_expr_t	*e;
@@ -163,9 +194,17 @@ cel_eval_assign(s, l, r)
 	cel_expr_t	*l, *r;
 {
 cel_expr_t	*er, *cr, *el;
+cel_type_t	*sc;
+cel_scope_item_t	*scope;
 
-	if ((el = cel_eval(s, l)) == NULL)
-		return NULL;
+	if (l->ce_tag == cel_exp_variable) {
+		if ((scope = cel_scope_find_item(s, l->ce_op.ce_variable)) == NULL)
+			return NULL;
+		el = scope->si_ob.si_expr;
+	} else {
+		if ((el = cel_eval(s, l)) == NULL)
+			return NULL;
+	}
 
 	if ((er = cel_eval(s, r)) == NULL) {
 		cel_expr_free(el);
@@ -464,10 +503,14 @@ cel_scope_item_t	*sc;
 	case cel_exp_if:
 		return cel_eval_if(s, e);
 
+	case cel_exp_while:
+		return cel_eval_while(s, e);
+
 	case cel_exp_variable:
 		if ((sc = cel_scope_find_item(s, e->ce_op.ce_variable)) == NULL)
 			return NULL;
 		return cel_eval(s, sc->si_ob.si_expr);
+		//return s, sc->si_ob.si_expr;
 
 	case cel_exp_vardecl:
 		return NULL;

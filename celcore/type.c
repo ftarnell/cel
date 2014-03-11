@@ -75,7 +75,8 @@ char		 buf_[64];
 		strlcat(buf, ", ", bsz);
 	}
 
-	buf[strlen(buf) - 2] = '\0';
+	if (buf[2])
+		buf[strlen(buf) - 2] = '\0';
 	strlcat(buf, ") -> ", bsz);
 	cel_name_type(type->ct_type.ct_function.ct_return_type, buf_, sizeof(buf_));
 	strlcat(buf, buf_, bsz);
@@ -308,6 +309,11 @@ cel_derive_binary_type(op, a, b)
 			return cel_make_type(cel_type_bool);
 		return NULL;
 
+	case cel_type_function:
+		if (cel_type_convertable(a, b))
+			return a;
+		return NULL;
+
 	default:
 		return NULL;
 	}
@@ -407,9 +413,39 @@ cel_derive_binary_promotion(op, a, b)
 			return cel_make_type(cel_type_bool);
 		return NULL;
 
+	case cel_type_function:
+		if (cel_type_convertable(a, b))
+			return a;
+		return NULL;
+
 	default:
 		return NULL;
 	}
+}
+
+int
+cel_func_convertable(lhs, rhs)
+	cel_type_t	*lhs, *rhs;
+{
+cel_type_t	*u, *v;
+
+	for (u = CEL_TAILQ_FIRST(lhs->ct_type.ct_function.ct_args),
+	     v = CEL_TAILQ_FIRST(rhs->ct_type.ct_function.ct_args);
+	     u && v;
+	     u = CEL_TAILQ_NEXT(u, ct_entry),
+	     v = CEL_TAILQ_NEXT(v, ct_entry)) {
+		if (!cel_type_convertable(u, v))
+			return 0;
+	}
+
+	if (!u != !v)
+		return 0;
+
+	if (!cel_type_convertable(lhs->ct_type.ct_function.ct_return_type,
+				  rhs->ct_type.ct_function.ct_return_type))
+		return 0;
+
+	return 1;
 }
 
 int
@@ -446,8 +482,10 @@ cel_type_convertable(lhs, rhs)
 	case cel_type_string:
 		return (rhs->ct_tag == cel_type_string);
 
-	case cel_type_void:
 	case cel_type_function:
+		return cel_func_convertable(lhs, rhs);
+
+	case cel_type_void:
 	case cel_type_array:
 		return 0;
 	}

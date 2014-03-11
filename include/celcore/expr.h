@@ -35,6 +35,7 @@ typedef enum cel_expr_tag {
 	cel_exp_function,
 	cel_exp_vardecl,
 	cel_exp_if,
+	cel_exp_while,
 	cel_exp_cast,
 	cel_exp_call,
 	cel_exp_return,
@@ -69,6 +70,8 @@ struct cel_type;
 
 struct cel_if_list;
 struct cel_arglist;
+
+struct cel_while;
 
 typedef struct cel_expr {
 	cel_expr_tag_t	 ce_tag;
@@ -106,6 +109,7 @@ typedef struct cel_expr {
 		} ce_call;
 
 		struct cel_if_list	*ce_if;
+		struct cel_while	*ce_while;
 
 		struct cel_function	*ce_function;
 		struct cel_vardecl 	*ce_vardecl;
@@ -123,6 +127,11 @@ typedef struct cel_if_branch {
 } cel_if_branch_t;
 
 typedef CEL_TAILQ_HEAD(cel_if_list, cel_if_branch) cel_if_list_t;
+
+typedef struct cel_while {
+	struct cel_expr	*wh_condition;
+	cel_expr_list_t	 wh_exprs;
+} cel_while_t;
 
 typedef struct cel_arglist {
 	int		 ca_nargs;

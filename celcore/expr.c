@@ -209,6 +209,7 @@ cel_expr_free(e)
 	case cel_exp_vardecl:
 	case cel_exp_void:
 	case cel_exp_call:
+	case cel_exp_while:
 		break;
 	}
 }
@@ -271,6 +272,7 @@ cel_expr_t	*ret;
 	case cel_exp_vardecl:
 	case cel_exp_if:
 	case cel_exp_void:
+	case cel_exp_while:
 		break;
 	}
 
@@ -361,6 +363,10 @@ char	t[64];
 		strlcpy(b, "<if expression>", bsz);
 		break;
 
+	case cel_exp_while:
+		strlcpy(b, "<while expression>", bsz);
+		break;
+
 	case cel_exp_vardecl:
 		break;
 	}
@@ -423,6 +429,10 @@ cel_expr_assign(l, r)
 	case cel_type_string:
 		free(l->ce_op.ce_string);
 		l->ce_op.ce_string = strdup(r->ce_op.ce_string);
+		return;
+
+	case cel_type_function:
+		l->ce_op.ce_function = r->ce_op.ce_function;
 		return;
 
 	default:

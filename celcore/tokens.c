@@ -73,7 +73,9 @@ struct {
 	{ "uint64",	T_UINT64	},
 	{ "as",		T_AS		},
 	{ "return",	T_RETURN	},
-	{ "void",	T_VOID		}
+	{ "void",	T_VOID		},
+	{ "while",	T_WHILE		},
+	{ "do",		T_DO		}
 };
 
 /* Skip whitespace */

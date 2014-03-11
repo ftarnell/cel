@@ -77,6 +77,8 @@
 #define	T_AS		63
 #define	T_RETURN	64
 #define	T_VOID		65
+#define	T_WHILE		66
+#define	T_DO		67
 
 /*
  * Lexer state.
