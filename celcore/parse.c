@@ -376,24 +376,21 @@ cel_type_t	*t;
 	CEL_TAILQ_INIT(&func->cf_body);
 
 /* Identifier (function name) */
-	if (!EXPECT(T_ID)) {
-		cel_function_free(func);
-		ERROR("expected identifier");
-	}
+	if (EXPECT(T_ID)) {
+		if (cel_scope_find_item(sc_, par->cp_tok.ct_literal)) {
+		char		err[128];
+		cel_token_t	err_tok = par->cp_tok;
 
-	if (cel_scope_find_item(sc_, par->cp_tok.ct_literal)) {
-	char		err[128];
-	cel_token_t	err_tok = par->cp_tok;
+			snprintf(err, sizeof(err), "symbol \"%s\" already declared",
+				 par->cp_tok.ct_literal);
+			CONSUME();
+			ERROR_TOK(&err_tok, err);
+		}
 
-		snprintf(err, sizeof(err), "symbol \"%s\" already declared",
-			 par->cp_tok.ct_literal);
+		func->cf_name = strdup(par->cp_tok.ct_literal);
+
 		CONSUME();
-		ERROR_TOK(&err_tok, err);
 	}
-
-	func->cf_name = strdup(par->cp_tok.ct_literal);
-
-	CONSUME();
 
 /* Colon */
 	if (!ACCEPT(T_COLON)) {
@@ -409,7 +406,6 @@ cel_type_t	*t;
 
 	func->cf_argscope = cel_scope_new(sc_);
 	func->cf_scope = cel_scope_new(func->cf_argscope);
-
 
 /* Argument list */
 	if (!ACCEPT(T_LPAR)) {
@@ -466,7 +462,8 @@ cel_type_t	*t;
 	func->cf_type->ct_type.ct_function.ct_return_type = t;
 
 	ef = cel_make_function(func);
-	cel_scope_add_expr(sc_, func->cf_name, ef);
+	if (func->cf_name)
+		cel_scope_add_expr(sc_, func->cf_name, ef);
 
 	if (!ACCEPT(T_RPAR)) {
 		cel_function_free(func);
