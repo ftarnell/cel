@@ -116,6 +116,20 @@ cel_expr_t	*ret;
 	return ret;
 }
 
+cel_expr_t *
+cel_make_cast(e, t)
+	cel_expr_t	*e;
+	cel_type_t	*t;
+{
+cel_expr_t	*ret;
+	if ((ret = calloc(1, sizeof(*ret))) == NULL)
+		return NULL;
+	ret->ce_tag = cel_exp_cast;
+	ret->ce_type = t;
+	ret->ce_op.ce_unary.operand = e;
+	return ret;
+}
+
 void
 cel_expr_free(e)
 	cel_expr_t	*e;
@@ -133,6 +147,7 @@ cel_expr_free(e)
 		break;
 
 	case cel_exp_unary:
+	case cel_exp_cast:
 		cel_expr_free(e->ce_op.ce_unary.operand);
 		break;
 
@@ -185,6 +200,7 @@ cel_expr_t	*ret;
 
 	case cel_exp_unary:
 		ret->ce_op.ce_unary.oper = e->ce_op.ce_unary.oper;
+	case cel_exp_cast:
 		ret->ce_op.ce_unary.operand = cel_expr_copy(e->ce_op.ce_unary.operand);
 		break;
 
@@ -215,6 +231,8 @@ cel_expr_print(e, b, bsz)
 	char		*b;
 	size_t		 bsz;
 {
+char	t[64];
+
 	*b = 0;
 	strlcat(b, "<error>", bsz);
 
@@ -238,6 +256,13 @@ cel_expr_print(e, b, bsz)
 
 	case cel_exp_void:
 		strlcpy(b, "<void>", bsz);
+		break;
+
+	case cel_exp_cast:
+		cel_expr_print(e, b, bsz);
+		strlcat(b, " as ", bsz);
+		cel_name_type(e->ce_type, t, sizeof(t));
+		strlcat(b, t, bsz);
 		break;
 
 	case cel_exp_unary:

@@ -930,12 +930,16 @@ cel_parse_expr_post(par)
 /* expr_post   --> expr_value [ ( "(" arglist ")" | "[" expr "]" ) ] */
 cel_expr_t	*e;
 int		 op;
+cel_token_t	 err_tok;
 
 	if ((e = cel_parse_expr_value(par)) == NULL)
 		return NULL;
 
 /* Function call */
-	while ((op = ACCEPT(T_LPAR)) || (op = ACCEPT(T_LSQ))) {
+	while ((op = ACCEPT(T_LPAR)) || (op = ACCEPT(T_LSQ)) ||
+	       (op = ACCEPT(T_AS))) {
+	cel_type_t	*t;
+
 		switch (op) {
 		case T_LPAR:
 			if (cel_parse_arglist(par) == NULL) {
@@ -959,6 +963,32 @@ int		 op;
 				cel_expr_free(e);
 				ERROR("expected ']'");
 			}
+			break;
+
+		case T_AS:
+			err_tok = par->cp_tok;
+
+			if ((t = cel_parse_type(par)) == NULL) {
+				cel_expr_free(e);
+				ERROR("expected type");
+			}
+
+			if (!cel_type_convertable(e->ce_type, t)) {
+			char	a1[64], a2[64];
+			char	err[128];
+
+				cel_name_type(e->ce_type, a1, sizeof(a1));
+				cel_name_type(t, a2, sizeof(a2));
+
+				snprintf(err, sizeof(err) / sizeof(char),
+					 "expression of type \"%s\" cannot be converted to \"%s\"",
+					 a1, a2);
+
+				cel_expr_free(e);
+				ERROR_TOK(&err_tok, err);
+			}
+
+			e = cel_make_cast(e, t);
 			break;
 		}
 	}

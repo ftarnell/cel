@@ -35,7 +35,8 @@ typedef enum cel_expr_tag {
 	cel_exp_binary,
 	cel_exp_function,
 	cel_exp_vardecl,
-	cel_exp_if
+	cel_exp_if,
+	cel_exp_cast
 } cel_expr_tag_t;
 
 typedef enum cel_bi_oper {
@@ -67,7 +68,10 @@ struct cel_type;
 typedef struct cel_if_branch {
 	struct cel_expr	*ib_condition;
 	struct cel_expr	*ib_expr;
+	CEL_TAILQ_ENTRY(cel_if_branch) ib_entry;
 } cel_if_branch_t;
+
+typedef CEL_TAILQ_HEAD(cel_if, cel_if_branch) cel_if_list_t;
 
 typedef struct cel_expr {
 	cel_expr_tag_t	 ce_tag;
@@ -99,13 +103,10 @@ typedef struct cel_expr {
 			struct cel_expr	*operand;
 		} ce_unary;
 
-		struct {
-			cel_if_branch_t	*branches;
-			int		 nbranches;
-		} ce_if;
+		cel_if_list_t	ce_if;
 
-		struct cel_function *ce_function;
-		struct cel_vardecl  *ce_vardecl;
+		struct cel_function	*ce_function;
+		struct cel_vardecl 	*ce_vardecl;
 	} ce_op;
 
 	CEL_TAILQ_ENTRY(cel_expr) ce_entry;
@@ -158,6 +159,7 @@ cel_expr_t	*cel_make_binary(cel_bi_oper_t, cel_expr_t *, cel_expr_t *);
 #define	cel_make_xor(e,f)	cel_make_binary(cel_op_xor, (e), (f))
 
 cel_expr_t	*cel_make_function(struct cel_function *);
+cel_expr_t	*cel_make_cast(cel_expr_t *, struct cel_type *);
 cel_expr_t	*cel_promote_expr(struct cel_type *, cel_expr_t *);
 
 cel_expr_t	*cel_expr_convert(cel_expr_t *v, struct cel_type *type);

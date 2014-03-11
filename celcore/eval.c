@@ -23,6 +23,13 @@ cel_type_t	*ptype;
 	if ((v = cel_eval(e->ce_op.ce_unary.operand)) == NULL)
 		return NULL;
 
+	if (e->ce_tag == cel_exp_cast) {
+	cel_expr_t	*ret;
+		ret = cel_expr_convert(v, e->ce_type);
+		cel_expr_free(v);
+		return ret;
+	}
+
 	if ((ptype = cel_derive_unary_promotion(e->ce_op.ce_unary.oper,
 						v->ce_type)) == NULL) {
 		cel_expr_free(v);
@@ -343,6 +350,7 @@ cel_eval(e)
 		return cel_expr_copy(e);
 
 	case cel_exp_unary:
+	case cel_exp_cast:
 		return cel_eval_unary(e);
 	
 	case cel_exp_binary:

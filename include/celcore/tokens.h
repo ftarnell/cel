@@ -74,6 +74,7 @@
 #define	T_UINT32	60
 #define	T_INT64		61
 #define	T_UINT64	62
+#define	T_AS		63
 
 /*
  * Lexer state.
