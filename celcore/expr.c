@@ -108,7 +108,7 @@ cel_make_unary(op, e)
 cel_expr_t	*ret;
 	if ((ret = calloc(1, sizeof(*ret))) == NULL)
 		return NULL;
-	ret->ce_tag = cel_exp_binary;
+	ret->ce_tag = cel_exp_unary;
 	ret->ce_op.ce_unary.oper = op;
 	ret->ce_op.ce_unary.operand = e;
 	return ret;

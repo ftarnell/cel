@@ -653,9 +653,8 @@ cel_expr_t	*e, *f;
 cel_token_t	 op_tok;
 int		 op;
 
-	if ((e = cel_parse_expr_mult(par)) == NULL) {
+	if ((e = cel_parse_expr_mult(par)) == NULL)
 		return NULL;
-	}
 
 	for (;;) {
 	cel_type_t	*type;
@@ -762,20 +761,42 @@ cel_parse_expr_unary(par)
 /* expr_unary  --> expr_post  | "-" expr_unary | "!" expr_unary */
 cel_expr_t	*e;
 
-	if (ACCEPT(T_MINUS)) {
-		if ((e = cel_parse_expr_unary(par)) == NULL) {
+	for (;;) {
+	cel_type_t	*type;
+	cel_uni_oper_t	 oper;
+	int		 op;
+	cel_token_t	 op_tok;
+
+		op_tok = par->cp_tok;
+
+		if (!(op = ACCEPT(T_MINUS)) && !(op = ACCEPT(T_NEGATE)))
+			break;
+
+		if ((e = cel_parse_expr_post(par)) == NULL) {
 			cel_expr_free(e);
 			ERROR(L"expected expression");
 		}
 
-		return cel_make_uni_minus(e);
-	} else if (ACCEPT(T_NEGATE)) {
-		if ((e = cel_parse_expr_unary(par)) == NULL) {
-			cel_expr_free(e);
-			ERROR(L"expected expression");
+		switch (op) {
+		case T_NEGATE:	oper = cel_op_negate; break;
+		case T_MINUS:	oper = cel_op_uni_minus; break;
 		}
 
-		return cel_make_negate(e);
+		if ((type = cel_derive_unary_type(oper, e->ce_type)) == NULL) {
+		wchar_t	a1[64], err[128];
+
+			cel_name_type(e->ce_type, a1, sizeof(a1) / sizeof(wchar_t));
+
+			swprintf(err, sizeof(err) / sizeof(wchar_t),
+				 L"incompatible type in expression: \"%ls\"", a1);
+
+			cel_expr_free(e);
+			ERROR_TOK(&op_tok, err);
+		}
+
+		e = cel_make_unary(oper, e);
+		e->ce_type = type;
+		return e;
 	}
 
 	return cel_parse_expr_post(par);

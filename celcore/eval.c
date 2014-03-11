@@ -15,7 +15,48 @@ static cel_expr_t *
 cel_eval_unary(e)
 	cel_expr_t	*e;
 {
-	return NULL;
+cel_expr_t	*v, *pv, *ret = NULL;
+cel_type_t	*ptype;
+
+	if ((v = cel_eval(e->ce_op.ce_unary.operand)) == NULL)
+		return NULL;
+
+	if ((ptype = cel_derive_unary_promotion(e->ce_op.ce_unary.oper,
+						v->ce_type)) == NULL) {
+		cel_expr_free(v);
+		return NULL;
+	}
+
+	if ((pv = cel_promote_expr(ptype, v)) == NULL) {
+		cel_expr_free(v);
+		cel_type_free(ptype);
+		return NULL;
+	}
+
+	cel_expr_free(v);
+	v = NULL;
+
+	switch (e->ce_op.ce_unary.oper) {
+	case cel_op_negate:
+		ret = cel_make_bool(!pv->ce_op.ce_bool);
+		break;
+
+	case cel_op_uni_minus:
+		switch (ptype->ct_tag) {
+		case cel_type_int8:	ret = cel_make_int8(-pv->ce_op.ce_int8); break;
+		case cel_type_uint8:	ret = cel_make_uint8(-pv->ce_op.ce_uint8); break;
+		case cel_type_int16:	ret = cel_make_int16(-pv->ce_op.ce_int16); break;
+		case cel_type_uint16:	ret = cel_make_uint16(-pv->ce_op.ce_uint16); break;
+		case cel_type_int32:	ret = cel_make_int32(-pv->ce_op.ce_int32); break;
+		case cel_type_uint32:	ret = cel_make_uint32(-pv->ce_op.ce_uint32); break;
+		case cel_type_int64:	ret = cel_make_int64(-pv->ce_op.ce_int64); break;
+		case cel_type_uint64:	ret = cel_make_uint64(-pv->ce_op.ce_uint64); break;
+		default:
+			break;
+		}
+	}
+
+	return ret;
 }
 
 static cel_expr_t *

@@ -87,6 +87,84 @@ cel_name_type(type, buf, bsz)
 }
 
 cel_type_t *
+cel_derive_unary_type(op, a)
+	cel_uni_oper_t	 op;
+	cel_type_t	*a;
+{
+	switch (op) {
+	case cel_op_uni_minus:
+		switch (a->ct_tag) {
+		case cel_type_int8:
+		case cel_type_int16:
+		case cel_type_int32:
+			return cel_make_type(cel_type_int32);
+
+		case cel_type_uint8:
+		case cel_type_uint16:
+		case cel_type_uint32:
+			return cel_make_type(cel_type_uint32);
+
+		case cel_type_int64:
+			return cel_make_type(cel_type_int64);
+
+		case cel_type_uint64:
+			return cel_make_type(cel_type_uint64);
+
+		default:
+			return NULL;
+		}
+		break;
+
+	case cel_op_negate:
+		if (a->ct_tag != cel_type_bool)
+			return NULL;
+		return cel_make_type(cel_type_bool);
+
+	default:
+		return NULL;
+	}
+}
+
+cel_type_t *
+cel_derive_unary_promotion(op, a)
+	cel_uni_oper_t	 op;
+	cel_type_t	*a;
+{
+	switch (op) {
+	case cel_op_uni_minus:
+		switch (a->ct_tag) {
+		case cel_type_int8:
+		case cel_type_int16:
+		case cel_type_int32:
+			return cel_make_type(cel_type_int32);
+
+		case cel_type_uint8:
+		case cel_type_uint16:
+		case cel_type_uint32:
+			return cel_make_type(cel_type_uint32);
+
+		case cel_type_int64:
+			return cel_make_type(cel_type_int64);
+
+		case cel_type_uint64:
+			return cel_make_type(cel_type_uint64);
+
+		default:
+			return NULL;
+		}
+		break;
+
+	case cel_op_negate:
+		if (a->ct_tag != cel_type_bool)
+			return NULL;
+		return cel_make_type(cel_type_bool);
+
+	default:
+		return NULL;
+	}
+}
+
+cel_type_t *
 cel_derive_binary_type(op, a, b)
 	cel_bi_oper_t	 op;
 	cel_type_t	*a, *b;
