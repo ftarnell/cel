@@ -53,14 +53,18 @@ typedef	uint8_t	cel_vm_instr_t;
  *	Arithmetic
  *	Arguments: none
  */
-#define	CEL_I_ADD4	15	/* add two ints and push	*/
-#define	CEL_I_ADD8	16	/* add two int64s and push	*/
-#define	CEL_I_SUB4	17	/* add two ints and push	*/
-#define	CEL_I_SUB8	18	/* add two int64s and push	*/
-#define	CEL_I_MUL4	19	/* add two ints and push	*/
-#define	CEL_I_MUL8	20	/* add two int64s and push	*/
-#define	CEL_I_DIV4	21	/* add two ints and push	*/
-#define	CEL_I_DIV8	22	/* add two int64s and push	*/
+#define	CEL_I_ADD4	15	/* add two ints and push		*/
+#define	CEL_I_ADD8	16	/* add two int64s and push		*/
+#define	CEL_I_SUB4	17	/* add two ints and push		*/
+#define	CEL_I_SUB8	18	/* add two int64s and push		*/
+#define	CEL_I_MUL4	19	/* add two ints and push		*/
+#define	CEL_I_MUL8	20	/* add two int64s and push		*/
+#define	CEL_I_DIV4	21	/* add two ints and push		*/
+#define	CEL_I_DIV8	22	/* add two int64s and push		*/
+#define	CEL_I_NEG4	23	/* invert sign of int32			*/
+#define	CEL_I_NEG8	24	/* invert sign of int64			*/
+#define	CEL_I_NOT4	25	/* invert boolean sense of int32	*/
+#define	CEL_I_NOT8	26	/* invert boolean sense of int64	*/
 
 /*
  *	Return

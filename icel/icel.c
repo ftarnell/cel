@@ -143,7 +143,9 @@ HistEvent	 ev;
 	argc -= optind;
 	argv += optind;
 
-	printf("CEL %s [%s] interactive interpreter\n", CEL_VERSION, CEL_HOST);
+	printf("CEL %s [%s] interactive interpreter [%s mode]\n",
+	       CEL_VERSION, CEL_HOST,
+	       vm ? "virtual machine" : "interpreter");
 	scope = cel_scope_new(NULL);
 
 	if (argv[0])
