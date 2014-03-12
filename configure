@@ -3495,7 +3495,7 @@ fi
 done
 
 
-ac_config_files="$ac_config_files Makefile include/Makefile include/celcore/Makefile celcore/Makefile test/Makefile icel/Makefile"
+ac_config_files="$ac_config_files Makefile include/Makefile include/celcore/Makefile celcore/Makefile celvm/Makefile test/Makefile icel/Makefile"
 
 ac_config_commands="$ac_config_commands cel"
 
@@ -4204,6 +4204,7 @@ do
     "include/Makefile") CONFIG_FILES="$CONFIG_FILES include/Makefile" ;;
     "include/celcore/Makefile") CONFIG_FILES="$CONFIG_FILES include/celcore/Makefile" ;;
     "celcore/Makefile") CONFIG_FILES="$CONFIG_FILES celcore/Makefile" ;;
+    "celvm/Makefile") CONFIG_FILES="$CONFIG_FILES celvm/Makefile" ;;
     "test/Makefile") CONFIG_FILES="$CONFIG_FILES test/Makefile" ;;
     "icel/Makefile") CONFIG_FILES="$CONFIG_FILES icel/Makefile" ;;
     "cel") CONFIG_COMMANDS="$CONFIG_COMMANDS cel" ;;

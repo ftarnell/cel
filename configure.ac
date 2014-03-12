@@ -30,7 +30,7 @@ AC_CHECK_HEADERS([histedit.h],[
 		 EDIT_LIBS=-ledit
 		 AC_SUBST(EDIT_LIBS)])])
 
-AC_CONFIG_FILES([Makefile include/Makefile include/celcore/Makefile celcore/Makefile test/Makefile icel/Makefile])
+AC_CONFIG_FILES([Makefile include/Makefile include/celcore/Makefile celcore/Makefile celvm/Makefile test/Makefile icel/Makefile])
 AC_CONFIG_COMMANDS([cel], [
 mkdir include 2>/dev/null || true
 mkdir include/celcore 2>/dev/null || true

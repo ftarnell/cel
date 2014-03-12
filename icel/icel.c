@@ -11,6 +11,7 @@
 #include	<stdlib.h>
 #include	<stdio.h>
 #include	<wchar.h>
+#include	<unistd.h>
 
 #include	"celcore/tokens.h"
 #include	"celcore/parse.h"
@@ -18,6 +19,8 @@
 #include	"celcore/eval.h"
 #include	"celcore/scope.h"
 #include	"celcore/cel-config.h"
+
+#include	"celvm/vm.h"
 
 #include	"build.h"
 
@@ -52,16 +55,67 @@ icel_warn(par, tok, s)
 	cel_token_print_context(par->cp_lex, tok, stderr);
 }
 
-int
-main(argc, argv)
-	char	**argv;
+static int
+icel_exec(use_vm, scope, s)
+	cel_scope_t	*scope;
+	char const	*s;
 {
-cel_scope_t	*scope;
 char		 type[64], value[128];
 cel_lexer_t	 lex;
 cel_parser_t	*par;
 cel_expr_list_t	*program;
 cel_expr_t	*result;
+
+	if (cel_lexer_init(&lex, s) != 0) {
+		fprintf(stderr, "icel: cannot init lexer\n");
+		return 1;
+	}
+
+	if ((par = cel_parser_new(&lex, scope)) == NULL) {
+		fprintf(stderr, "icel: cannot init parser\n");
+		return 1;
+	}
+
+	par->cp_error = icel_error;
+	par->cp_warn = icel_warn;
+
+	if ((program = cel_parse(par)) == NULL || par->cp_nerrs) {
+		fprintf(stderr, "(parse error)\n");
+		return 1;
+	}
+
+	if (use_vm) {
+	cel_vm_func_t	*vfunc;
+		if ((vfunc = cel_vm_func_compile(program)) == NULL) {
+			fprintf(stderr, "(compile failure)\n");
+			return 1;
+		}
+
+		if ((result = cel_vm_func_execute(vfunc)) == NULL) {
+			fprintf(stderr, "(exec failure)\n");
+			return 1;
+		}	
+	} else {
+		if ((result = cel_eval_list(scope, program)) == NULL) {
+			fprintf(stderr, "(eval error)\n");
+			return 1;
+		}
+	}
+
+	cel_name_type(result->ce_type, type, sizeof(type) / sizeof(char));
+	cel_expr_print(result, value, sizeof(value) / sizeof(char));
+	printf("<%s> %s\n", type, value);
+
+	cel_expr_free(result);
+	return 0;
+}
+
+int
+main(argc, argv)
+	char	**argv;
+{
+cel_scope_t	*scope;
+int		 i, vm = 0;
 	
 #ifdef	HAVE_LIBEDIT
 EditLine	*el;
@@ -76,39 +130,24 @@ HistEvent	 ev;
 	el_set(el, EL_HIST, history, hist);
 #endif
 
+	while ((i = getopt(argc, argv, "v")) != -1) {
+		switch (i) {
+		case 'v':
+			vm = 1;
+			break;
+
+		default:
+			return 1;
+		}
+	}
+	argc -= optind;
+	argv += optind;
+
 	printf("CEL %s [%s] interactive interpreter\n", CEL_VERSION, CEL_HOST);
 	scope = cel_scope_new(NULL);
 
-	if (argv[1]) {
-		if (cel_lexer_init(&lex, argv[1]) != 0) {
-			fprintf(stderr, "%s: cannot init lexer\n", argv[1]);
-			return 1;
-		}
-
-		if ((par = cel_parser_new(&lex, scope)) == NULL) {
-			fprintf(stderr, "%s: cannot init parser\n", argv[1]);
-			return 1;
-		}
-
-		par->cp_error = icel_error;
-		par->cp_warn = icel_warn;
-
-		if ((program = cel_parse(par)) == NULL || par->cp_nerrs) {
-			fprintf(stderr, "(parse error)\n");
-			return 1;
-		}
-
-		if ((result = cel_eval_list(scope, program)) == NULL) {
-			fprintf(stderr, "(eval error)\n");
-			return 1;
-		}
-
-		cel_name_type(result->ce_type, type, sizeof(type) / sizeof(char));
-		cel_expr_print(result, value, sizeof(value) / sizeof(char));
-		printf("<%s> %s\n", type, value);
-
-		return 0;
-	}
+	if (argv[0])
+		return icel_exec(vm, scope, argv[0]);
 
 	for (;;) {
 #ifndef	HAVE_LIBEDIT
@@ -138,32 +177,7 @@ HistEvent	 ev;
 		line = line_;
 #endif
 
-		if (cel_lexer_init(&lex, line) != 0) {
-			fprintf(stderr, "%s: cannot init lexer\n", argv[1]);
-			return 1;
-		}
-
-		if ((par = cel_parser_new(&lex, scope)) == NULL) {
-			fprintf(stderr, "%s: cannot init parser\n", argv[1]);
-			return 1;
-		}
-
-		par->cp_error = icel_error;
-		par->cp_warn = icel_warn;
-
-		if ((program = cel_parse(par)) == NULL || par->cp_nerrs) {
-			fprintf(stderr, "(parse error)\n");
-			continue;
-		}
-
-		if ((result = cel_eval_list(scope, program)) == NULL) {
-			fprintf(stderr, "(eval error)\n");
-			continue;
-		}
-
-		cel_name_type(result->ce_type, type, sizeof(type) / sizeof(char));
-		cel_expr_print(result, value, sizeof(value) / sizeof(char));
-		printf("<%s> %s\n", type, value);
+		icel_exec(vm, scope, line);
 	}
 
 	return 0;
