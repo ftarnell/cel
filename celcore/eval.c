@@ -544,16 +544,7 @@ cel_eval(s, e)
 cel_scope_item_t	*sc;
 
 	switch (e->ce_tag) {
-	case cel_exp_int8:
-	case cel_exp_uint8:
-	case cel_exp_int16:
-	case cel_exp_uint16:
-	case cel_exp_int32:
-	case cel_exp_uint32:
-	case cel_exp_int64:
-	case cel_exp_uint64:
-	case cel_exp_string:
-	case cel_exp_bool:
+	case cel_exp_literal:
 	case cel_exp_void:
 	case cel_exp_return:
 	case cel_exp_function:

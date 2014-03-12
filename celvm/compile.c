@@ -62,15 +62,7 @@ cel_vm_emit_expr(f, e)
 		cel_vm_emit_unary(f, e);
 		break;
 
-	case cel_exp_int8:
-	case cel_exp_uint8:
-	case cel_exp_int16:
-	case cel_exp_uint16:
-	case cel_exp_int32:
-	case cel_exp_uint32:
-	case cel_exp_int64:
-	case cel_exp_uint64:
-	case cel_exp_bool:
+	case cel_exp_literal:
 		cel_vm_emit_literal(f, e);
 		break;
 
@@ -218,17 +210,17 @@ static uint32_t
 cel_vm_expr_to_u32(e)
 	cel_expr_t	*e;
 {
-	switch (e->ce_tag) {
-	case cel_exp_int8:	return e->ce_op.ce_int8; break;
-	case cel_exp_uint8:	return e->ce_op.ce_uint8; break;
-	case cel_exp_int16:	return e->ce_op.ce_int16; break;
-	case cel_exp_uint16:	return e->ce_op.ce_uint16; break;
-	case cel_exp_int32:	return e->ce_op.ce_int32; break;
-	case cel_exp_uint32:	return e->ce_op.ce_uint32; break;
+	switch (e->ce_type->ct_tag) {
+	case cel_type_int8:	return e->ce_op.ce_int8; break;
+	case cel_type_uint8:	return e->ce_op.ce_uint8; break;
+	case cel_type_int16:	return e->ce_op.ce_int16; break;
+	case cel_type_uint16:	return e->ce_op.ce_uint16; break;
+	case cel_type_int32:	return e->ce_op.ce_int32; break;
+	case cel_type_uint32:	return e->ce_op.ce_uint32; break;
 		break;
 
 	default:
-		printf("can't convert tag %d to u32\n", e->ce_tag);
+		printf("can't convert tag %d to u32\n", e->ce_type->ct_tag);
 		abort();
 	}
 }
@@ -237,11 +229,11 @@ static uint64_t
 cel_vm_expr_to_u64(e)
 	cel_expr_t	*e;
 {
-	switch (e->ce_tag) {
-	case cel_exp_int64:	return e->ce_op.ce_int64;
-	case cel_exp_uint64:	return e->ce_op.ce_uint64;
+	switch (e->ce_type->ct_tag) {
+	case cel_type_int64:	return e->ce_op.ce_int64;
+	case cel_type_uint64:	return e->ce_op.ce_uint64;
 	default:
-		printf("can't convert tag %d to u64\n", e->ce_tag);
+		printf("can't convert tag %d to u64\n", e->ce_type->ct_tag);
 		abort();
 	}
 }
@@ -251,16 +243,16 @@ cel_vm_emit_literal(f, e)
 	cel_vm_func_t	*f;
 	cel_expr_t	*e;
 {
-	switch (e->ce_tag) {
-	case cel_exp_int8:	cel_vm_emit_loadi32(f, e->ce_op.ce_int8); break;
-	case cel_exp_uint8:	cel_vm_emit_loadi32(f, e->ce_op.ce_uint8); break;
-	case cel_exp_int16:	cel_vm_emit_loadi32(f, e->ce_op.ce_int16); break;
-	case cel_exp_uint16:	cel_vm_emit_loadi32(f, e->ce_op.ce_uint16); break;
-	case cel_exp_int32:	cel_vm_emit_loadi32(f, e->ce_op.ce_int32); break;
-	case cel_exp_uint32:	cel_vm_emit_loadi32(f, e->ce_op.ce_uint32); break;
-	case cel_exp_int64:	cel_vm_emit_loadi64(f, e->ce_op.ce_int64); break;
-	case cel_exp_uint64:	cel_vm_emit_loadi64(f, e->ce_op.ce_uint64); break;
-	case cel_exp_bool:	cel_vm_emit_loadi32(f, e->ce_op.ce_bool); break;
+	switch (e->ce_type->ct_tag) {
+	case cel_type_int8:	cel_vm_emit_loadi32(f, e->ce_op.ce_int8); break;
+	case cel_type_uint8:	cel_vm_emit_loadi32(f, e->ce_op.ce_uint8); break;
+	case cel_type_int16:	cel_vm_emit_loadi32(f, e->ce_op.ce_int16); break;
+	case cel_type_uint16:	cel_vm_emit_loadi32(f, e->ce_op.ce_uint16); break;
+	case cel_type_int32:	cel_vm_emit_loadi32(f, e->ce_op.ce_int32); break;
+	case cel_type_uint32:	cel_vm_emit_loadi32(f, e->ce_op.ce_uint32); break;
+	case cel_type_int64:	cel_vm_emit_loadi64(f, e->ce_op.ce_int64); break;
+	case cel_type_uint64:	cel_vm_emit_loadi64(f, e->ce_op.ce_uint64); break;
+	case cel_type_bool:	cel_vm_emit_loadi32(f, e->ce_op.ce_bool); break;
 	default:
 		printf("can't emit literal for tag %d\n", e->ce_tag);
 		abort();

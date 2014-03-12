@@ -37,7 +37,7 @@ cel_expr_t	*ret;
 	cel_expr_t	*ret;						\
 		ret = cel_make_expr();					\
 		ret->ce_type = cel_make_type(cel_type_##type);		\
-		ret->ce_tag = cel_exp_##type;				\
+		ret->ce_tag = cel_exp_literal;				\
 		ret->ce_op.ce_##type = i;				\
 		ret->ce_mutable = 0;					\
 		ret->ce_const = 0;					\
@@ -59,7 +59,7 @@ cel_make_a_bool(i)
 cel_expr_t	*ret;
 	ret = cel_make_expr();
 	ret->ce_type = cel_make_type(cel_type_bool);
-	ret->ce_tag = cel_exp_bool;
+	ret->ce_tag = cel_exp_literal;
 	ret->ce_op.ce_bool = i;
 	ret->ce_mutable = 0;
 	ret->ce_const = 1;
@@ -91,7 +91,7 @@ cel_expr_t	*ret;
 	ret = cel_make_expr();
 		return NULL;
 	ret->ce_type = cel_make_type(cel_type_string);
-	ret->ce_tag = cel_exp_string;
+	ret->ce_tag = cel_exp_literal;
 	ret->ce_op.ce_string = strdup(s);
 	ret->ce_mutable = 0;
 	ret->ce_const = 0;
@@ -220,8 +220,14 @@ cel_expr_free(e)
 		return;
 
 	switch (e->ce_tag) {
-	case cel_exp_string:
-		free(e->ce_op.ce_string);
+	case cel_exp_literal:
+		switch (e->ce_type->ct_tag) {
+		case cel_type_string:
+			free(e->ce_op.ce_string);
+			break;
+		default:
+			break;
+		}
 		break;
 
 	case cel_exp_variable:
@@ -239,15 +245,6 @@ cel_expr_free(e)
 		cel_expr_free(e->ce_op.ce_binary.right);
 		break;
 
-	case cel_exp_int8:
-	case cel_exp_uint8:
-	case cel_exp_int16:
-	case cel_exp_uint16:
-	case cel_exp_int32:
-	case cel_exp_uint32:
-	case cel_exp_int64:
-	case cel_exp_uint64:
-	case cel_exp_bool:
 	case cel_exp_if:
 	case cel_exp_function:
 	case cel_exp_vardecl:
@@ -276,17 +273,20 @@ cel_expr_t	*ret;
 	ret->ce_type = e->ce_type;
 
 	switch (ret->ce_tag) {
-	case cel_exp_int8:	ret->ce_op.ce_int8 = e->ce_op.ce_int8; break;
-	case cel_exp_uint8:	ret->ce_op.ce_uint8 = e->ce_op.ce_uint8; break;
-	case cel_exp_int16:	ret->ce_op.ce_int16 = e->ce_op.ce_int16; break;
-	case cel_exp_uint16:	ret->ce_op.ce_uint16 = e->ce_op.ce_uint16; break;
-	case cel_exp_int32:	ret->ce_op.ce_int32 = e->ce_op.ce_int32; break;
-	case cel_exp_uint32:	ret->ce_op.ce_uint32 = e->ce_op.ce_uint32; break;
-	case cel_exp_int64:	ret->ce_op.ce_int64 = e->ce_op.ce_int64; break;
-	case cel_exp_uint64:	ret->ce_op.ce_uint64 = e->ce_op.ce_uint64; break;
-
-	case cel_exp_bool:
-		ret->ce_op.ce_bool = e->ce_op.ce_bool;
+	case cel_exp_literal:
+		switch (ret->ce_type->ct_tag) {
+		case cel_type_bool:	ret->ce_op.ce_bool = e->ce_op.ce_bool; break;
+		case cel_type_string:	ret->ce_op.ce_string = strdup(e->ce_op.ce_string); break;
+		case cel_type_int8:	ret->ce_op.ce_int8 = e->ce_op.ce_int8; break;
+		case cel_type_uint8:	ret->ce_op.ce_uint8 = e->ce_op.ce_uint8; break;
+		case cel_type_int16:	ret->ce_op.ce_int16 = e->ce_op.ce_int16; break;
+		case cel_type_uint16:	ret->ce_op.ce_uint16 = e->ce_op.ce_uint16; break;
+		case cel_type_int32:	ret->ce_op.ce_int32 = e->ce_op.ce_int32; break;
+		case cel_type_uint32:	ret->ce_op.ce_uint32 = e->ce_op.ce_uint32; break;
+		case cel_type_int64:	ret->ce_op.ce_int64 = e->ce_op.ce_int64; break;
+		case cel_type_uint64:	ret->ce_op.ce_uint64 = e->ce_op.ce_uint64; break;
+		default:		return NULL;
+		}
 		break;
 
 	case cel_exp_unary:
@@ -305,10 +305,6 @@ cel_expr_t	*ret;
 		ret->ce_op.ce_binary.oper = e->ce_op.ce_binary.oper;
 		ret->ce_op.ce_binary.left = cel_expr_copy(e->ce_op.ce_binary.left);
 		ret->ce_op.ce_binary.right = cel_expr_copy(e->ce_op.ce_binary.right);
-		break;
-
-	case cel_exp_string:
-		ret->ce_op.ce_string = strdup(e->ce_op.ce_string);
 		break;
 
 	case cel_exp_function:
@@ -340,21 +336,20 @@ char	t[64];
 	strlcpy(b, "<error>", bsz);
 
 	switch (e->ce_tag) {
-	case cel_exp_int8:	snprintf(b, bsz, "%"PRId8, e->ce_op.ce_int8); break;
-	case cel_exp_uint8:	snprintf(b, bsz, "%"PRIu8, e->ce_op.ce_uint8); break;
-	case cel_exp_int16:	snprintf(b, bsz, "%"PRId16, e->ce_op.ce_int16); break;
-	case cel_exp_uint16:	snprintf(b, bsz, "%"PRIu16, e->ce_op.ce_uint16); break;
-	case cel_exp_int32:	snprintf(b, bsz, "%"PRId32, e->ce_op.ce_int32); break;
-	case cel_exp_uint32:	snprintf(b, bsz, "%"PRIu32, e->ce_op.ce_uint32); break;
-	case cel_exp_int64:	snprintf(b, bsz, "%"PRId64, e->ce_op.ce_int64); break;
-	case cel_exp_uint64:	snprintf(b, bsz, "%"PRIu64, e->ce_op.ce_uint64); break;
-
-	case cel_exp_string:
-		snprintf(b, bsz, "\"%s\"", e->ce_op.ce_string);
-		break;
-
-	case cel_exp_bool:
-		strlcpy(b, e->ce_op.ce_bool ? "true" : "false", bsz);
+	case cel_exp_literal:
+		switch (e->ce_type->ct_tag) {
+		case cel_type_bool:	strlcpy(b, e->ce_op.ce_bool ? "true" : "false", bsz); break;
+		case cel_type_string:	snprintf(b, bsz, "\"%s\"", e->ce_op.ce_string); break;
+		case cel_type_int8:	snprintf(b, bsz, "%"PRId8, e->ce_op.ce_int8); break;
+		case cel_type_uint8:	snprintf(b, bsz, "%"PRIu8, e->ce_op.ce_uint8); break;
+		case cel_type_int16:	snprintf(b, bsz, "%"PRId16, e->ce_op.ce_int16); break;
+		case cel_type_uint16:	snprintf(b, bsz, "%"PRIu16, e->ce_op.ce_uint16); break;
+		case cel_type_int32:	snprintf(b, bsz, "%"PRId32, e->ce_op.ce_int32); break;
+		case cel_type_uint32:	snprintf(b, bsz, "%"PRIu32, e->ce_op.ce_uint32); break;
+		case cel_type_int64:	snprintf(b, bsz, "%"PRId64, e->ce_op.ce_int64); break;
+		case cel_type_uint64:	snprintf(b, bsz, "%"PRIu64, e->ce_op.ce_uint64); break;
+		default:		return;
+		}
 		break;
 
 	case cel_exp_void:

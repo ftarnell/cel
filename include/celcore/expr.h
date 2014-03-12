@@ -20,16 +20,7 @@ struct cel_function;
 
 typedef enum cel_expr_tag {
 	cel_exp_void, 
-	cel_exp_int8,
-	cel_exp_uint8,
-	cel_exp_int16,
-	cel_exp_uint16,
-	cel_exp_int32,
-	cel_exp_uint32,
-	cel_exp_int64,
-	cel_exp_uint64,
-	cel_exp_string,
-	cel_exp_bool,
+	cel_exp_literal,
 	cel_exp_unary,
 	cel_exp_binary,
 	cel_exp_function,
