@@ -56,7 +56,7 @@ icel_warn(par, tok, s)
 }
 
 static int
-icel_exec(use_vm, scope, s)
+icel_exec(scope, s)
 	cel_scope_t	*scope;
 	char const	*s;
 {
@@ -104,7 +104,7 @@ main(argc, argv)
 	char	**argv;
 {
 cel_scope_t	*scope;
-int		 i, vm = 0;
+int		 i;
 	
 #ifdef	HAVE_LIBEDIT
 EditLine	*el;
@@ -119,12 +119,8 @@ HistEvent	 ev;
 	el_set(el, EL_HIST, history, hist);
 #endif
 
-	while ((i = getopt(argc, argv, "v")) != -1) {
+	while ((i = getopt(argc, argv, "")) != -1) {
 		switch (i) {
-		case 'v':
-			vm = 1;
-			break;
-
 		default:
 			return 1;
 		}
@@ -132,13 +128,12 @@ HistEvent	 ev;
 	argc -= optind;
 	argv += optind;
 
-	printf("CEL %s [%s] interactive interpreter [%s mode]\n",
-	       CEL_VERSION, CEL_HOST,
-	       vm ? "virtual machine" : "interpreter");
+	printf("CEL %s [%s] interactive interpreter\n",
+	       CEL_VERSION, CEL_HOST);
 	scope = cel_scope_new(NULL);
 
 	if (argv[0])
-		return icel_exec(vm, scope, argv[0]);
+		return icel_exec(scope, argv[0]);
 
 	for (;;) {
 #ifndef	HAVE_LIBEDIT
@@ -168,7 +163,7 @@ HistEvent	 ev;
 		line = line_;
 #endif
 
-		icel_exec(vm, scope, line);
+		icel_exec(scope, line);
 	}
 
 	return 0;
