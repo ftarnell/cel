@@ -102,9 +102,11 @@ cel_expr_t	*result;
 		}
 	}
 
-	cel_name_type(result->ce_type, type, sizeof(type) / sizeof(char));
-	cel_expr_print(result, value, sizeof(value) / sizeof(char));
-	printf("<%s> %s\n", type, value);
+	if (result->ce_type->ct_tag != cel_type_void) {
+		cel_name_type(result->ce_type, type, sizeof(type) / sizeof(char));
+		cel_expr_print(result, value, sizeof(value) / sizeof(char));
+		printf("<%s> %s\n", type, value);
+	}
 
 	cel_expr_free(result);
 	return 0;
