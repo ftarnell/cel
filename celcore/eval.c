@@ -143,12 +143,12 @@ size_t		i;
 		switch (fu->ce_op.ce_function->cf_return_type->ct_tag) {
 		case cel_type_int8:	rete = cel_make_int8(*(int8_t *) ret); break;
 		case cel_type_uint8:	rete = cel_make_uint8(*(int8_t *) ret); break;
-		case cel_type_int16:	rete = cel_make_int8(*(int16_t *) ret); break;
-		case cel_type_uint16:	rete = cel_make_uint8(*(int16_t *) ret); break;
-		case cel_type_int32:	rete = cel_make_int8(*(int32_t *) ret); break;
-		case cel_type_uint32:	rete = cel_make_uint8(*(int32_t *) ret); break;
-		case cel_type_int64:	rete = cel_make_int8(*(int64_t *) ret); break;
-		case cel_type_uint64:	rete = cel_make_uint8(*(int64_t *) ret); break;
+		case cel_type_int16:	rete = cel_make_int16(*(int16_t *) ret); break;
+		case cel_type_uint16:	rete = cel_make_uint16(*(int16_t *) ret); break;
+		case cel_type_int32:	rete = cel_make_int32(*(int32_t *) ret); break;
+		case cel_type_uint32:	rete = cel_make_uint32(*(int32_t *) ret); break;
+		case cel_type_int64:	rete = cel_make_int64(*(int64_t *) ret); break;
+		case cel_type_uint64:	rete = cel_make_uint64(*(int64_t *) ret); break;
 		case cel_type_string:	rete = cel_make_string((char *) ret); break;
 		default:		return NULL;
 		}
