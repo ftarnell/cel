@@ -113,6 +113,7 @@ size_t		i;
 	void		**args;
 	int		i;
 	cel_type_t	*ty;
+	cel_expr_t	*rete;
 
 		args = malloc(sizeof(void *) * fu->ce_op.ce_function->cf_nargs);
 		i = 0;
@@ -139,7 +140,20 @@ size_t		i;
 			 fu->ce_op.ce_function->cf_ptr,
 			 ret, args);
 
-		return NULL;
+		switch (fu->ce_op.ce_function->cf_return_type->ct_tag) {
+		case cel_type_int8:	rete = cel_make_int8(*(int8_t *) ret); break;
+		case cel_type_uint8:	rete = cel_make_uint8(*(int8_t *) ret); break;
+		case cel_type_int16:	rete = cel_make_int8(*(int16_t *) ret); break;
+		case cel_type_uint16:	rete = cel_make_uint8(*(int16_t *) ret); break;
+		case cel_type_int32:	rete = cel_make_int8(*(int32_t *) ret); break;
+		case cel_type_uint32:	rete = cel_make_uint8(*(int32_t *) ret); break;
+		case cel_type_int64:	rete = cel_make_int8(*(int64_t *) ret); break;
+		case cel_type_uint64:	rete = cel_make_uint8(*(int64_t *) ret); break;
+		case cel_type_string:	rete = cel_make_string((char *) ret); break;
+		default:		return NULL;
+		}
+
+		return rete;
 	}
 
 	args = cel_scope_copy(fu->ce_op.ce_function->cf_argscope);
