@@ -32,7 +32,7 @@
 			 (uint64_t) (p)[6] <<  8 |	\
 			 (uint64_t) (p)[7])
 
-#define	GET_II16(v)	do { (v) = GET_UINT16(ip); ip += 4; } while (0)
+#define	GET_II16(v)	do { (v) = GET_UINT16(ip); ip += 2; } while (0)
 #define	GET_IU16(v)	do { (v) = GET_UINT16(ip); ip += 2; } while (0)
 #define	GET_IU32(v)	do { (v) = GET_UINT32(ip); ip += 4; } while (0)
 #define	GET_IU64(v)	do { (v) = GET_UINT64(ip); ip += 8; } while (0)
@@ -56,7 +56,7 @@ cel_vm_func_execute(f)
 {
 any_t		 stack[STACKSZ];
 int		 sp;
-uint8_t		*ip;
+uint8_t	const	*ip, *oip;
 
 	ip = f->vf_bytecode;
 	sp = 0;
@@ -65,6 +65,7 @@ uint8_t		*ip;
 	int64_t		s16a;
 	uint32_t	u32a, u32b;
 	uint64_t	u64a, u64b, i64a;
+	int16_t		i16;
 	uint8_t		inst;
 
 		if (ip > (f->vf_bytecode + f->vf_bytecodesz)) {
@@ -72,6 +73,7 @@ uint8_t		*ip;
 			return NULL;
 		}
 
+		oip = ip;
 		inst = *ip++;
 		switch (inst) {
 		case CEL_I_RET4:
@@ -185,8 +187,27 @@ uint8_t		*ip;
 		CMP(CEL_I_TGT8, 64, >)
 		CMP(CEL_I_TGE8, 64, >=)
 
+		case CEL_I_BR:
+			GET_II16(i16);
+			ip = oip + i16;
+			break;
+
+		case CEL_I_BRT:
+			GET_II16(i16);
+			GET_SU32(u32a);
+			if (u32a)
+				ip = oip + i16;
+			break;
+
+		case CEL_I_BRF:
+			GET_II16(i16);
+			GET_SU32(u32a);
+			if (!u32a)
+				ip = oip + i16;
+			break;
+
 		default:
-			printf("can't decode %d\n", *ip);
+			printf("can't decode %d\n", inst);
 			return NULL;
 		}
 	}

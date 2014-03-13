@@ -93,4 +93,12 @@ typedef	uint8_t	cel_vm_instr_t;
 #define	CEL_I_TGT4	40	/* test int4 greater or equal		*/
 #define	CEL_I_TGT8	41	/* test int8 greater or equal		*/
 
+/*
+ * 	Branches
+ * 	Arguments: immediate signed 16-bit offset
+ */
+#define	CEL_I_BRT	42	/* branch if true			*/
+#define	CEL_I_BRF	43	/* branch if false			*/
+#define	CEL_I_BR	44	/* unconditional branch			*/
+
 #endif	/* !CEL_VM_INSTR_H */
