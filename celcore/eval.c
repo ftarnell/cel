@@ -149,7 +149,7 @@ size_t		i;
 		case cel_type_uint32:	rete = cel_make_uint32(*(int32_t *) ret); break;
 		case cel_type_int64:	rete = cel_make_int64(*(int64_t *) ret); break;
 		case cel_type_uint64:	rete = cel_make_uint64(*(int64_t *) ret); break;
-		case cel_type_string:	rete = cel_make_string((char *) ret); break;
+		case cel_type_string:	rete = cel_make_string(*(char **) ret); break;
 		default:		return NULL;
 		}
 
