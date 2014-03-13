@@ -105,6 +105,7 @@ cel_vm_emit_binary(f, e)
 	cel_expr_t	*e;
 {
 int	is64 = 0;
+int	op;
 
 	if (e->ce_op.ce_binary.left->ce_type->ct_tag == cel_type_int64 ||
 	    e->ce_op.ce_binary.left->ce_type->ct_tag == cel_type_uint64)
@@ -114,26 +115,23 @@ int	is64 = 0;
 	cel_vm_emit_expr(f, e->ce_op.ce_binary.right);
 
 	switch (e->ce_op.ce_binary.oper) {
-	case cel_op_plus:
-		cel_vm_emit_instr(f, is64 ? CEL_I_ADD8 : CEL_I_ADD4);
-		break;
-
-	case cel_op_minus:
-		cel_vm_emit_instr(f, is64 ? CEL_I_SUB8 : CEL_I_SUB4);
-		break;
-
-	case cel_op_mult:
-		cel_vm_emit_instr(f, is64 ? CEL_I_MUL8 : CEL_I_MUL4);
-		break;
-
-	case cel_op_div:
-		cel_vm_emit_instr(f, is64 ? CEL_I_DIV8 : CEL_I_DIV4);
-		break;
+	case cel_op_plus:	op = is64? CEL_I_ADD8 : CEL_I_ADD4; break;
+	case cel_op_minus:	op = is64? CEL_I_SUB8 : CEL_I_SUB4; break;
+	case cel_op_mult:	op = is64? CEL_I_MUL8 : CEL_I_MUL4; break;
+	case cel_op_div:	op = is64? CEL_I_DIV8 : CEL_I_DIV4; break;
+	case cel_op_le:		op = is64? CEL_I_TLE8 : CEL_I_TLE4; break;
+	case cel_op_lt:		op = is64? CEL_I_TLT8 : CEL_I_TLT4; break;
+	case cel_op_ge:		op = is64? CEL_I_TGE8 : CEL_I_TGE4; break;
+	case cel_op_gt:		op = is64? CEL_I_TGT8 : CEL_I_TGT4; break;
+	case cel_op_eq:		op = is64? CEL_I_TEQ8 : CEL_I_TEQ4; break;
+	case cel_op_neq:	op = is64? CEL_I_TNE8 : CEL_I_TNE4; break;
 
 	default:
 		printf("can't emit binary type %d\n", e->ce_op.ce_binary.oper);
 		abort();
 	}
+
+	cel_vm_emit_instr(f, op);
 }
 
 static void

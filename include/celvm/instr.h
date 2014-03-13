@@ -15,6 +15,9 @@
 
 typedef	uint8_t	cel_vm_instr_t;
 
+/*	NOP */
+#define	CEL_I_NOP	0
+
 /*
  *	Load zero
  *	Arguments: none
@@ -72,5 +75,22 @@ typedef	uint8_t	cel_vm_instr_t;
  */
 #define	CEL_I_RET4	28	/* return int32			*/
 #define	CEL_I_RET8	29	/* return int64			*/
+
+/*
+ * 	Conditional tests
+ * 	Arguments: none
+ */
+#define	CEL_I_TEQ4	30	/* test int4 equal			*/
+#define	CEL_I_TEQ8	31	/* test int8 equal			*/
+#define	CEL_I_TNE4	32	/* test int4 not equal			*/
+#define	CEL_I_TNE8	33	/* test int8 not equal			*/
+#define	CEL_I_TLE4	34	/* test int4 less or equal		*/
+#define	CEL_I_TLE8	35	/* test int8 less or equal		*/
+#define	CEL_I_TLT4	36	/* test int4 less then			*/
+#define	CEL_I_TLT8	37	/* test int8 less then			*/
+#define	CEL_I_TGE4	38	/* test int4 greater than		*/
+#define	CEL_I_TGE8	39	/* test int8 greater than		*/
+#define	CEL_I_TGT4	40	/* test int4 greater or equal		*/
+#define	CEL_I_TGT8	41	/* test int8 greater or equal		*/
 
 #endif	/* !CEL_VM_INSTR_H */
