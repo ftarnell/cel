@@ -77,6 +77,9 @@ uint8_t	const	*ip, *oip;
 		oip = ip;
 		inst = *ip++;
 		switch (inst) {
+		case CEL_I_RET:
+			return cel_make_void();
+
 		case CEL_I_RET4:
 			if (sp == 0)
 				return NULL;

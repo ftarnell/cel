@@ -17,6 +17,7 @@
 
 struct cel_type;
 struct cel_scope;
+struct cel_vm_func;
 
 typedef struct cel_function {
 	char			 *cf_name;
@@ -29,6 +30,7 @@ typedef struct cel_function {
 	void			 *cf_ffi;
 	void			 *cf_ptr;
 #endif
+	struct cel_vm_func	 *cf_bytecode;
 	cel_expr_list_t		  cf_body;
 	struct cel_scope	 *cf_scope;
 	struct cel_scope	 *cf_argscope;

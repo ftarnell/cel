@@ -32,6 +32,8 @@
 #include	"celcore/scope.h"
 #include	"celcore/eval.h"
 
+#include	"celvm/vm.h"
+
 #define	EXPECT(t)	(par->cp_tok.ct_token == (t))
 #define	CONSUME()	cel_next_token(par->cp_lex, &par->cp_tok)
 #define	ACCEPT(t)	(EXPECT((t)) ? (CONSUME(), t) : 0)
@@ -654,6 +656,9 @@ char		*extern_ = NULL;
 
 	if (auto_type && func->cf_name)
 		cel_scope_add_expr(sc_, func->cf_name, ef);
+
+	if (!extern_)
+		func->cf_bytecode = cel_vm_func_compile(sc_, &func->cf_body);
 
 	return ef;
 }

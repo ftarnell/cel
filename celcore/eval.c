@@ -26,6 +26,8 @@
 #include	"celcore/function.h"
 #include	"celcore/scope.h"
 
+#include	"celvm/vm.h"
+
 static cel_expr_t *
 cel_eval_if(s, e)
 	cel_scope_t	*s;
@@ -107,6 +109,9 @@ size_t		i;
 
 	if ((fu = cel_eval(s, e)) == NULL)
 		return NULL;
+
+	if (fu->ce_op.ce_function->cf_bytecode)
+		return cel_vm_func_execute(s, fu->ce_op.ce_function->cf_bytecode);
 
 	if (fu->ce_op.ce_function->cf_extern) {
 	uint8_t		ret[16];

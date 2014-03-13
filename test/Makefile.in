@@ -14,7 +14,7 @@ CC		= @CC@
 MAKEDEPEND	= @CC@ -M
 CPPFLAGS	= @CPPFLAGS@ -D_XOPEN_SOURCE_EXTENDED
 CFLAGS		= @CFLAGS@ -I@top_srcdir@/include -I@top_builddir@
-LDFLAGS		= @LDFLAGS@ -L@top_builddir@/celcore
+LDFLAGS		= @LDFLAGS@ -L@top_builddir@/celcore -L@top_builddir@/celvm
 LIBS		= @LIBS@ @FFI_LIB@
 INSTALL		= @INSTALL@
 
@@ -24,14 +24,15 @@ bindir		= @bindir@
 libdir		= @libdir@
 
 CELCORE		= @top_builddir@/celcore/libcelcore.a
+CELVM		= @top_builddir@/celvm/libcelvm.a
 
 all: celtokenise celparse
 
-celtokenise: celtokenise.o ${CELCORE}
-	${CC} ${CFLAGS} ${LDFLAGS} celtokenise.o -o celtokenise ${LIBS} -lcelcore
+celtokenise: celtokenise.o ${CELCORE} ${CELVM}
+	${CC} ${CFLAGS} ${LDFLAGS} celtokenise.o -o celtokenise ${LIBS} -lcelcore -lcelvm
 
-celparse: celparse.o ${CELCORE}
-	${CC} ${CFLAGS} ${LDFLAGS} celparse.o -o celparse ${LIBS} -lcelcore
+celparse: celparse.o ${CELCORE} ${CELVM}
+	${CC} ${CFLAGS} ${LDFLAGS} celparse.o -o celparse ${LIBS} -lcelcore -lcelvm
 
 install:
 	${INSTALL} -d -m 0755 ${bindir}

@@ -27,6 +27,7 @@ static int32_t	cel_vm_emit_literal(cel_scope_t *, cel_vm_func_t *, cel_expr_t *)
 static int32_t	cel_vm_emit_return(cel_scope_t *, cel_vm_func_t *, cel_expr_t *);
 static int32_t	cel_vm_emit_variable(cel_scope_t *, cel_vm_func_t *, cel_expr_t *);
 static int32_t	cel_vm_emit_assign(cel_scope_t *, cel_vm_func_t *, cel_expr_t *);
+static int32_t	cel_vm_emit_call(cel_scope_t *, cel_vm_func_t *, cel_expr_t *);
 static int32_t	cel_vm_emit_incr(cel_scope_t *, cel_vm_func_t *, cel_expr_t *);
 static int32_t	cel_vm_emit_immed16(cel_vm_func_t *, uint32_t);
 static int32_t	cel_vm_emit_immed32(cel_vm_func_t *, uint32_t);
@@ -52,6 +53,7 @@ cel_vm_func_t	*ret;
 		if (cel_vm_emit_expr(s, ret, e) == -1)
 			return NULL;
 
+	cel_vm_emit_instr(ret, CEL_I_RET);
 	return ret;
 }
 
@@ -68,6 +70,9 @@ cel_vm_emit_expr(s, f, e)
 	case cel_exp_literal:	return cel_vm_emit_literal(s, f, e);
 	case cel_exp_while:	return cel_vm_emit_while(s, f, e);
 	case cel_exp_variable:	return cel_vm_emit_variable(s, f, e);
+#if 0
+	case cel_exp_call:	return cel_vm_emit_call(s, f, e);
+#endif
 
 	default:
 		printf("can't compile expr type %d\n", e->ce_tag);
@@ -506,6 +511,10 @@ int32_t	sz = 0;
 		sz += cel_vm_emit_instr(f, CEL_I_RET8);
 		break;
 
+	case cel_type_void:
+		sz += cel_vm_emit_instr(f, CEL_I_RET);
+		break;
+
 	default:
 		printf("can't emit return for tag %d\n", e->ce_op.ce_unary.operand->ce_type->ct_tag);
 		return -1;
@@ -588,6 +597,15 @@ int32_t		 sz = 0;
 	sz += cel_vm_emit_instr(f, CEL_I_LOADV4);
 	sz += cel_vm_emit_immed16(f, varn);
 	return sz;
+}
+
+static int32_t
+cel_vm_emit_call(s, f, e)
+	cel_scope_t	*s;
+	cel_vm_func_t	*f;
+	cel_expr_t	*e;
+{
+	return -1;
 }
 
 static int32_t

@@ -84,25 +84,9 @@ cel_expr_t	*result;
 		return 1;
 	}
 
-	if (use_vm) {
-	cel_vm_func_t	*vfunc;
-		if ((vfunc = cel_vm_func_compile(scope, program)) != NULL) {
-			if ((result = cel_vm_func_execute(scope, vfunc)) == NULL) {
-				fprintf(stderr, "(exec failure)\n");
-				return 1;
-			}	
-		} else {
-			fprintf(stderr, "icel: can't vm\n");
-			if ((result = cel_eval_list(scope, program)) == NULL) {
-				fprintf(stderr, "(eval error)\n");
-				return 1;
-			}
-		}
-	} else {
-		if ((result = cel_eval_list(scope, program)) == NULL) {
-			fprintf(stderr, "(eval error)\n");
-			return 1;
-		}
+	if ((result = cel_eval_list(scope, program)) == NULL) {
+		fprintf(stderr, "(eval error)\n");
+		return 1;
 	}
 
 	if (result->ce_type->ct_tag != cel_type_void) {
