@@ -129,6 +129,7 @@ struct {
 	TK('/', "/", T_SLASH);
 	TK('^', "^", T_CARET);
 	TK('%', "%", T_PERCENT);
+	TK('&', "&", T_ADDR);
 
 	case ':':
 		if (lex->cl_bufp[1] == '+' && lex->cl_bufp[2] == '=')

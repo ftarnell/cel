@@ -27,6 +27,7 @@ typedef enum cel_type_tag {
 	cel_type_bool,
 	cel_type_string,
 	cel_type_array,
+	cel_type_ptr,
 	cel_type_function,
 	cel_last_type
 } cel_type_tag_t;
@@ -39,6 +40,7 @@ typedef struct cel_type {
 
 	union {
 		struct cel_type	*ct_array_type;
+		struct cel_type	*ct_ptr_type;
 
 		struct {
 			struct cel_type		*ct_return_type;
@@ -56,6 +58,7 @@ void		 cel_type_free(cel_type_t *);
 
 cel_type_t	*cel_make_type(cel_type_tag_t);
 cel_type_t	*cel_make_array(cel_type_t *);
+cel_type_t	*cel_make_ptr(cel_type_t *);
 
 typedef struct cel_typedef {
 	cel_type_t	*ct_type;

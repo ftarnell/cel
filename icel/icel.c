@@ -60,7 +60,7 @@ icel_exec(scope, s)
 	cel_scope_t	*scope;
 	char const	*s;
 {
-char		 type[64], value[128];
+char		 type[64] = {}, value[128];
 cel_lexer_t	 lex;
 cel_parser_t	*par;
 cel_expr_list_t	*program;

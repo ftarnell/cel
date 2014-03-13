@@ -228,9 +228,19 @@ cel_type_t	*ptype;
 	v = NULL;
 
 	switch (e->ce_op.ce_unary.oper) {
+	case cel_op_addr:
+		ret = calloc(1, sizeof(cel_expr_t));
+		ret->ce_tag = cel_exp_literal;
+		ret->ce_type = cel_make_ptr(pv->ce_type);
+		ret->ce_op.ce_ptr = pv;
+		return ret;
+
 	case cel_op_negate:
 		ret = cel_make_bool(!pv->ce_op.ce_bool);
 		break;
+
+	case cel_op_deref:
+		return pv->ce_op.ce_ptr;
 
 	case cel_op_uni_minus:
 		switch (ptype->ct_tag) {
@@ -316,10 +326,6 @@ int			 free_el = 0;
 		if ((scope = cel_scope_find_item(s, l->ce_op.ce_variable)) == NULL)
 			return NULL;
 		el = scope->si_ob.si_expr;
-	} else {
-		if ((el = cel_eval(s, l)) == NULL)
-			return NULL;
-		free_el = 1;
 	}
 
 	if ((er = cel_eval(s, r)) == NULL) {
@@ -607,7 +613,7 @@ cel_scope_item_t	*sc;
 	case cel_exp_void:
 	case cel_exp_return:
 	case cel_exp_function:
-		return cel_expr_copy(e);
+		return e;
 
 	case cel_exp_unary:
 	case cel_exp_cast:
@@ -630,7 +636,6 @@ cel_scope_item_t	*sc;
 		if ((sc = cel_scope_find_item(s, e->ce_op.ce_variable)) == NULL)
 			return NULL;
 		return cel_eval(s, sc->si_ob.si_expr);
-		//return s, sc->si_ob.si_expr;
 
 	case cel_exp_vardecl:
 		return NULL;
@@ -668,9 +673,12 @@ cel_promote_expr(t, e)
 	cel_expr_t	*e;
 {
 	if (t->ct_tag == e->ce_type->ct_tag)
-		return cel_expr_copy(e);
+		return e;
 
 	switch (t->ct_tag) {
+	case cel_type_ptr:
+		return e;
+
 	case cel_type_int8:
 		return NULL;
 

@@ -193,6 +193,39 @@ cel_expr_t	*ret;
 }
 
 cel_expr_t *
+cel_make_deref(e)
+	cel_expr_t	*e;
+{
+cel_expr_t	*ret;
+	assert(e);
+
+	ret = cel_make_expr();
+	ret->ce_mutable = 0;
+	ret->ce_const = 0;
+	ret->ce_tag = cel_exp_unary;
+	ret->ce_type = e->ce_type->ct_type.ct_ptr_type;
+	ret->ce_op.ce_unary.operand = e;
+	ret->ce_op.ce_unary.oper = cel_op_deref;
+	return ret;
+}
+
+cel_expr_t *
+cel_make_addr(e)
+	cel_expr_t	*e;
+{
+cel_expr_t	*ret;
+	assert(e);
+
+	ret = cel_make_expr();
+	ret->ce_mutable = 0;
+	ret->ce_const = 0;
+	ret->ce_tag = cel_exp_literal;
+	ret->ce_type = cel_make_ptr(e->ce_type);
+	ret->ce_op.ce_ptr = 0;
+	return ret;
+}
+
+cel_expr_t *
 cel_make_call(e, a)
 	cel_expr_t	*e;
 	cel_arglist_t	*a;
@@ -219,6 +252,8 @@ cel_expr_free(e)
 
 	if (e->ce_const)
 		return;
+
+	return;
 
 	switch (e->ce_tag) {
 	case cel_exp_literal:
@@ -289,6 +324,7 @@ cel_expr_t	*ret;
 		case cel_type_uint32:	*ret->ce_op.ce_uint32 = *e->ce_op.ce_uint32; break;
 		case cel_type_int64:	*ret->ce_op.ce_int64 = *e->ce_op.ce_int64; break;
 		case cel_type_uint64:	*ret->ce_op.ce_uint64 = *e->ce_op.ce_uint64; break;
+		case cel_type_ptr:	ret->ce_op.ce_ptr = e->ce_op.ce_ptr; break;
 		default:		return NULL;
 		}
 		break;
@@ -352,6 +388,7 @@ char	t[64];
 		case cel_type_uint32:	snprintf(b, bsz, "%"PRIu32, *e->ce_op.ce_uint32); break;
 		case cel_type_int64:	snprintf(b, bsz, "%"PRId64, *e->ce_op.ce_int64); break;
 		case cel_type_uint64:	snprintf(b, bsz, "%"PRIu64, *e->ce_op.ce_uint64); break;
+		case cel_type_ptr:	snprintf(b, bsz, "<ptr @ %p>", e->ce_op.ce_ptr); break;
 		default:		return;
 		}
 		break;
@@ -425,6 +462,18 @@ cel_expr_t *
 cel_make_any(t)
 	cel_type_t	*t;
 {
+	if (t->ct_tag == cel_type_ptr) {
+	cel_expr_t	*ret;
+		ret = malloc(sizeof(*ret));
+		ret->ce_const = 0;
+		ret->ce_mutable = 0;
+		ret->ce_type = cel_make_ptr(t->ct_type.ct_ptr_type);
+		ret->ce_tag = cel_exp_literal;
+		ret->ce_op.ce_ptr = malloc(sizeof(void **));
+		*(int *)ret->ce_op.ce_ptr = 0;
+		return ret;
+	}
+
 	switch (t->ct_tag) {
 	case cel_type_int8:	return cel_make_int8(0);
 	case cel_type_uint8:	return cel_make_uint8(0);
@@ -486,9 +535,12 @@ cel_expr_assign(l, r)
 		l->ce_op.ce_function = r->ce_op.ce_function;
 		return;
 
+	case cel_type_ptr:
+		l->ce_op.ce_ptr = r->ce_op.ce_ptr;
+		return;
+
 	default:
 		abort();
-		;
 	}
 }
 

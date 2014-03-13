@@ -74,7 +74,6 @@ static cel_expr_t	*cel_parse_expr_return	(cel_parser_t *, cel_scope_t *);
 static cel_expr_t	*cel_parse_expr_assign	(cel_parser_t *, cel_scope_t *);
 static cel_expr_t	*cel_parse_expr_or	(cel_parser_t *, cel_scope_t *);
 static cel_expr_t	*cel_parse_expr_and	(cel_parser_t *, cel_scope_t *);
-static cel_expr_t	*cel_parse_expr_xor	(cel_parser_t *, cel_scope_t *);
 static cel_expr_t	*cel_parse_expr_eq1	(cel_parser_t *, cel_scope_t *);
 static cel_expr_t	*cel_parse_expr_eq2	(cel_parser_t *, cel_scope_t *);
 static cel_expr_t	*cel_parse_expr_plus	(cel_parser_t *, cel_scope_t *);
@@ -304,6 +303,7 @@ int		 const_ = 0;
 		if ((type = cel_parse_type(par, sc)) == NULL) {
 			free_varvec(names, nnames);
 			FATAL("expected type name");
+			return NULL;
 		}
 	}
 
@@ -318,7 +318,7 @@ int		 const_ = 0;
 
 		if (names[i].init) {
 			if (type && !cel_type_convertable(type, names[i].init->ce_type)) {
-			char	a1[64], a2[64];
+			char	a1[64] = {}, a2[64] = {};
 			char	err[128];
 
 				cel_name_type(type, a1, sizeof(a1));
@@ -368,14 +368,17 @@ cel_parse_type(par, sc)
  * the type name is valid;
  */
 
-int		 array = 0;
+int		 ptr = 0;
 cel_type_t	*type;
+int		 op;
 
 /* Optional array specifier */
-	while (ACCEPT(T_LSQ)) {
+	while (op = ACCEPT(T_CARET)) {
+#if 0
 		if (!ACCEPT(T_RSQ))
 			FATAL("expected ']'");
-		array++;
+#endif
+		ptr++;
 	}
 
 /* Identifier */
@@ -394,8 +397,8 @@ cel_type_t	*type;
 	else
 		return NULL;
 
-	while (array--)
-		type = cel_make_array(type);
+	while (ptr--)
+		type = cel_make_ptr(type);
 	
 	return type;
 }
@@ -755,7 +758,7 @@ cel_token_t	 lv_tok, op_tok;
 		}
 
 		if (!cel_type_convertable(e->ce_type, f->ce_type)) {
-		char	a1[64], a2[64];
+		char	a1[64] = {}, a2[64] = {};
 		char	err[128];
 
 			cel_name_type(e->ce_type, a1, sizeof(a1) / sizeof(char));
@@ -833,7 +836,7 @@ int		 op;
 		}
 
 		if ((type = cel_derive_binary_type(cel_op_or, e->ce_type, f->ce_type)) == NULL) {
-		char	a1[64], a2[64];
+		char	a1[64] = {}, a2[64] = {};
 		char	err[128];
 
 			cel_name_type(e->ce_type, a1, sizeof(a1) / sizeof(char));
@@ -864,7 +867,7 @@ cel_expr_t	*e, *f;
 cel_token_t	 op_tok;
 int		 op;
 
-	if ((e = cel_parse_expr_xor(par, sc)) == NULL)
+	if ((e = cel_parse_expr_eq1(par, sc)) == NULL)
 		return NULL;
 
 	for (;;) {
@@ -875,13 +878,13 @@ int		 op;
 		if (!(op = ACCEPT(T_AND)))
 			break;
 
-		if ((f = cel_parse_expr_xor(par, sc)) == NULL) {
+		if ((f = cel_parse_expr_eq1(par, sc)) == NULL) {
 			cel_expr_free(e);
 			FATAL("expected expression");
 		}
 
 		if ((type = cel_derive_binary_type(cel_op_and, e->ce_type, f->ce_type)) == NULL) {
-		char	a1[64], a2[64];
+		char	a1[64] = {}, a2[64] = {};
 		char	err[128];
 
 			cel_name_type(e->ce_type, a1, sizeof(a1) / sizeof(char));
@@ -897,54 +900,6 @@ int		 op;
 		}
 
 		e = cel_make_and(e, f);
-		e->ce_type = type;
-	}
-
-	return e;
-}
-
-cel_expr_t *
-cel_parse_expr_xor(par, sc)
-	cel_scope_t	*sc;
-	cel_parser_t	*par;
-{
-cel_expr_t	*e, *f;
-cel_token_t	 op_tok;
-int		 op;
-
-	if ((e = cel_parse_expr_eq1(par, sc)) == NULL)
-		return NULL;
-
-	for (;;) {
-	cel_type_t	*type;
-
-		op_tok = par->cp_tok;
-
-		if (!(op = ACCEPT(T_CARET)))
-			break;
-
-		if ((f = cel_parse_expr_eq1(par, sc)) == NULL) {
-			cel_expr_free(e);
-			FATAL("expected expression");
-		}
-
-		if ((type = cel_derive_binary_type(cel_op_xor, e->ce_type, f->ce_type)) == NULL) {
-		char	a1[64], a2[64];
-		char	err[128];
-
-			cel_name_type(e->ce_type, a1, sizeof(a1) / sizeof(char));
-			cel_name_type(f->ce_type, a2, sizeof(a2) / sizeof(char));
-
-			snprintf(err, sizeof(err) / sizeof(char),
-				 "incompatible types in expression: \"%s\", \"%s\"",
-				 a1, a2);
-
-			cel_expr_free(e);
-			cel_expr_free(f);
-			ERROR_TOK(&op_tok, err);
-		}
-
-		e = cel_make_xor(e, f);
 		e->ce_type = type;
 	}
 
@@ -983,7 +938,7 @@ int		 op;
 		}
 
 		if ((type = cel_derive_binary_type(oper, e->ce_type, f->ce_type)) == NULL) {
-		char	a1[64], a2[64];
+		char	a1[64] = {}, a2[64] = {};
 		char	err[128];
 
 			cel_name_type(e->ce_type, a1, sizeof(a1) / sizeof(char));
@@ -1040,7 +995,7 @@ int		 op;
 		}
 
 		if ((type = cel_derive_binary_type(oper, e->ce_type, f->ce_type)) == NULL) {
-		char	a1[64], a2[64];
+		char	a1[64] = {}, a2[64] = {};
 		char	err[128];
 
 			cel_name_type(e->ce_type, a1, sizeof(a1) / sizeof(char));
@@ -1094,7 +1049,7 @@ int		 op;
 		}
 
 		if ((type = cel_derive_binary_type(oper, e->ce_type, f->ce_type)) == NULL) {
-		char	a1[64], a2[64];
+		char	a1[64] = {}, a2[64] = {};
 		char	err[128];
 
 			cel_name_type(e->ce_type, a1, sizeof(a1) / sizeof(char));
@@ -1125,9 +1080,8 @@ cel_expr_t	*e, *f;
 cel_token_t	 op_tok;
 int		 op;
 
-	if ((e = cel_parse_expr_unary(par, sc)) == NULL) {
+	if ((e = cel_parse_expr_unary(par, sc)) == NULL)
 		return NULL;
-	}
 
 	for (;;) {
 	cel_type_t	*type;
@@ -1151,7 +1105,7 @@ int		 op;
 		}
 
 		if ((type = cel_derive_binary_type(oper, e->ce_type, f->ce_type)) == NULL) {
-		char	a1[64], a2[64];
+		char	a1[64] = {}, a2[64] = {};
 		char	err[128];
 
 			cel_name_type(e->ce_type, a1, sizeof(a1) / sizeof(char));
@@ -1203,7 +1157,7 @@ cel_expr_t	*e = NULL;
 		}
 
 		if ((type = cel_derive_unary_type(oper, e->ce_type)) == NULL) {
-		char	a1[64], err[128];
+		char	a1[64] = {}, err[128] = {};
 
 			cel_name_type(e->ce_type, a1, sizeof(a1) / sizeof(char));
 
@@ -1239,11 +1193,22 @@ cel_token_t	 err_tok;
 
 /* Function call */
 	while ((op = ACCEPT(T_LPAR)) || (op = ACCEPT(T_LSQ)) ||
-	       (op = ACCEPT(T_AS))) {
+	       (op = ACCEPT(T_AS)) || (op = ACCEPT(T_ADDR)) ||
+	       (op = ACCEPT(T_CARET))) {
 	cel_type_t	*t;
 	cel_arglist_t	*args;
 
 		switch (op) {
+		case T_CARET:
+			e = cel_make_deref(e);
+			break;
+
+		case T_ADDR:
+			t = cel_make_ptr(e->ce_type);
+			e = cel_make_unary(cel_op_addr, e);
+			e->ce_type = t;
+			break;
+
 		case T_LPAR:
 			if ((args = cel_parse_arglist(par, sc)) == NULL) {
 				cel_expr_free(e);

@@ -85,6 +85,7 @@
 #define	T_DIVN		71 /* :/= */
 #define	T_EXTERN	72
 #define	T_CONST		73
+#define	T_ADDR		74
 
 /*
  * Lexer state.

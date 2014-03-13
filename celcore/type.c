@@ -19,8 +19,10 @@ cel_type_t *
 cel_make_type(t)
 	cel_type_tag_t	t;
 {
+#if 0
 	if (types[t])
 		return types[t];
+#endif
 	types[t] = malloc(sizeof(cel_type_t));
 	types[t]->ct_const = 1;
 	types[t]->ct_tag = t;
@@ -37,6 +39,18 @@ cel_type_t	*ret;
 	ret->ct_const = 0;
 	ret->ct_tag = cel_type_array;
 	ret->ct_type.ct_array_type = t;
+	return ret;
+}
+
+cel_type_t *
+cel_make_ptr(t)
+	cel_type_t	*t;
+{
+cel_type_t	*ret;
+	if ((ret = calloc(1, sizeof(*ret))) == NULL)
+		return NULL;
+	ret->ct_tag = cel_type_ptr;
+	ret->ct_type.ct_ptr_type = t;
 	return ret;
 }
 
@@ -96,8 +110,6 @@ cel_name_type(type, buf, bsz)
 	char		*buf;
 	size_t		 bsz;
 {
-	*buf = 0;
-
 	while (type->ct_tag == cel_type_array) {
 		strlcat(buf, "[]", bsz);
 		type = type->ct_type.ct_array_type;
@@ -116,6 +128,9 @@ cel_name_type(type, buf, bsz)
 	case cel_type_string:	strlcat(buf, "string", bsz); break;
 	case cel_type_function:	return cel_name_function(type, buf, bsz);
 	case cel_type_void:	strlcat(buf, "void", bsz); break;
+	case cel_type_ptr:	strlcat(buf, "^", bsz);
+				cel_name_type(type->ct_type.ct_ptr_type, buf, bsz);
+				break;
 	default:		strlcat(buf, "<unknown>", bsz); break;
 	}
 }
@@ -126,6 +141,12 @@ cel_derive_unary_type(op, a)
 	cel_type_t	*a;
 {
 	switch (op) {
+	case cel_op_addr:
+		return a;
+
+	case cel_op_deref:
+		return a;
+
 	case cel_op_uni_minus:
 		switch (a->ct_tag) {
 		case cel_type_int8:
@@ -165,6 +186,12 @@ cel_derive_unary_promotion(op, a)
 	cel_type_t	*a;
 {
 	switch (op) {
+	case cel_op_addr:
+		return a;
+
+	case cel_op_deref:
+		return a;
+
 	case cel_op_uni_minus:
 		switch (a->ct_tag) {
 		case cel_type_int8:
@@ -491,6 +518,12 @@ cel_type_convertable(lhs, rhs)
 
 	case cel_type_function:
 		return cel_func_convertable(lhs, rhs);
+
+	case cel_type_ptr:
+		if (rhs->ct_tag != cel_type_ptr)
+			return 0;
+		return cel_type_convertable(lhs->ct_type.ct_ptr_type,
+					    rhs->ct_type.ct_ptr_type);
 
 	case cel_type_void:
 	case cel_type_array:

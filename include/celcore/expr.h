@@ -58,7 +58,9 @@ typedef enum cel_bi_oper {
 
 typedef enum cel_uni_oper {
 	cel_op_negate,
-	cel_op_uni_minus
+	cel_op_uni_minus,
+	cel_op_addr,
+	cel_op_deref
 } cel_uni_oper_t;
 
 struct cel_expr;
@@ -77,14 +79,15 @@ typedef struct cel_expr {
 	uint8_t		 ce_storage[sizeof(uint64_t)];
 
 	union {
-		int8_t	 *ce_int8;
-		uint8_t	 *ce_uint8;
-		int16_t	 *ce_int16;
-		uint16_t *ce_uint16;
-		int32_t	 *ce_int32;
-		uint32_t *ce_uint32;
-		int64_t	 *ce_int64;
-		uint64_t *ce_uint64;
+		int8_t			*ce_int8;
+		uint8_t			*ce_uint8;
+		int16_t			*ce_int16;
+		uint16_t		*ce_uint16;
+		int32_t			*ce_int32;
+		uint32_t		*ce_uint32;
+		int64_t			*ce_int64;
+		uint64_t		*ce_uint64;
+		struct cel_expr		*ce_ptr;
 
 		int	 *ce_bool;
 		char	 *ce_string;
@@ -184,6 +187,8 @@ cel_expr_t	*cel_make_function(struct cel_function *);
 cel_expr_t	*cel_make_cast(cel_expr_t *, struct cel_type *);
 cel_expr_t	*cel_make_return(cel_expr_t *);
 cel_expr_t	*cel_make_call(cel_expr_t *, cel_arglist_t *);
+cel_expr_t	*cel_make_addr(cel_expr_t *);
+cel_expr_t	*cel_make_deref(cel_expr_t *);
 cel_expr_t	*cel_promote_expr(struct cel_type *, cel_expr_t *);
 
 cel_expr_t	*cel_expr_convert(cel_expr_t *v, struct cel_type *type);
