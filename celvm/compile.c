@@ -20,6 +20,7 @@
 static int32_t	cel_vm_add_bytecode(cel_vm_func_t *, uint8_t *, size_t);
 static int32_t	cel_vm_emit_expr(cel_vm_func_t *, cel_expr_t *);
 static int32_t	cel_vm_emit_instr(cel_vm_func_t *, int);
+static int32_t	cel_vm_emit_while(cel_vm_func_t *, cel_expr_t *);
 static int32_t	cel_vm_emit_binary(cel_vm_func_t *, cel_expr_t *);
 static int32_t	cel_vm_emit_unary(cel_vm_func_t *, cel_expr_t *);
 static int32_t	cel_vm_emit_literal(cel_vm_func_t *, cel_expr_t *);
@@ -43,9 +44,8 @@ cel_vm_func_t	*ret;
 	if ((ret = calloc(1, sizeof(*ret))) == NULL)
 		return NULL;
 
-	CEL_TAILQ_FOREACH(e, el, ce_entry) {
+	CEL_TAILQ_FOREACH(e, el, ce_entry)
 		cel_vm_emit_expr(ret, e);
-	}
 
 	return ret;
 }
@@ -60,6 +60,7 @@ cel_vm_emit_expr(f, e)
 	case cel_exp_binary:	return cel_vm_emit_binary(f, e);
 	case cel_exp_unary:	return cel_vm_emit_unary(f, e);
 	case cel_exp_literal:	return cel_vm_emit_literal(f, e);
+	case cel_exp_while:	return cel_vm_emit_while(f, e);
 
 	default:
 		printf("can't compile expr type %d\n", e->ce_tag);
@@ -93,6 +94,55 @@ int32_t	sz;
 		printf("can't emit unary for oper %d\n", e->ce_op.ce_unary.oper);
 		abort();
 	}
+
+	return sz;
+}
+
+static int32_t
+cel_vm_emit_while(f, e)
+	cel_vm_func_t	*f;
+	cel_expr_t	*e;
+{
+int32_t	sz = 0;
+
+/*
+ * start:
+ *     <cond>
+ *     brf end
+ *     <body>
+ *     br start
+ * end:
+ */
+uint32_t	 patch_end;
+uint16_t	 off_end, off_start;
+int16_t		 i;
+cel_expr_t	*s;
+
+/* start: */
+	off_start = f->vf_bytecodesz;
+
+/* <cond> */
+	sz += cel_vm_emit_expr(f, e->ce_op.ce_while->wh_condition);
+
+/* brf end */
+	off_end = sz;
+	sz += cel_vm_emit_instr(f, CEL_I_BRF);
+	patch_end = f->vf_bytecodesz;
+	sz += cel_vm_emit_immed16(f, 0);
+
+/* <body> */
+	CEL_TAILQ_FOREACH(s, &e->ce_op.ce_while->wh_exprs, ce_entry)
+		sz += cel_vm_emit_expr(f, s);
+
+/* br start */
+	i = (f->vf_bytecodesz - off_start);
+	sz += cel_vm_emit_instr(f, CEL_I_BR);
+	sz += cel_vm_emit_immed16(f, i);
+
+/* end: */
+	i = (sz - off_end);
+	f->vf_bytecode[patch_end + 0] = (i >> 8);
+	f->vf_bytecode[patch_end + 1] = (i & 0xFF);
 
 	return sz;
 }
