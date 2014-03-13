@@ -74,20 +74,21 @@ typedef struct cel_expr {
 	int		 ce_mutable;
 	int		 ce_const;	/* true if known at compile time */
 	struct cel_type	*ce_type;
+	uint8_t		 ce_storage[sizeof(uint64_t)];
 
 	union {
-		int8_t	 ce_int8;
-		uint8_t	 ce_uint8;
-		int16_t	 ce_int16;
-		uint16_t ce_uint16;
-		int32_t	 ce_int32;
-		uint32_t ce_uint32;
-		int64_t	 ce_int64;
-		uint64_t ce_uint64;
+		int8_t	 *ce_int8;
+		uint8_t	 *ce_uint8;
+		int16_t	 *ce_int16;
+		uint16_t *ce_uint16;
+		int32_t	 *ce_int32;
+		uint32_t *ce_uint32;
+		int64_t	 *ce_int64;
+		uint64_t *ce_uint64;
 
-		int	 ce_bool;
-		char	*ce_string;
-		char	*ce_variable;
+		int	 *ce_bool;
+		char	 *ce_string;
+		char	 *ce_variable;
 
 		struct {
 			cel_bi_oper_t	 oper;

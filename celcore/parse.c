@@ -279,7 +279,6 @@ cel_type_t	*type = NULL;
 
 	for (i = 0; i < nnames; i++) {
 	cel_expr_t	*e;
-	cel_type_t	*atype = type;
 	cel_token_t	 err_tok = names[i].err_tok;
 
 		if (!type && !names[i].init) {
@@ -377,6 +376,7 @@ cel_expr_t	*e, *ef;
 cel_type_t	*t;
 int		 auto_type = 0;
 int		 single_stmt = 0;
+char		*extern_ = NULL;
 
 	if (!ACCEPT(T_FUNC))
 		return NULL;
@@ -387,6 +387,27 @@ int		 single_stmt = 0;
 	func->cf_type->ct_type.ct_function.ct_args = calloc(1, sizeof(cel_type_list_t));
 	CEL_TAILQ_INIT(func->cf_type->ct_type.ct_function.ct_args);
 	CEL_TAILQ_INIT(&func->cf_body);
+
+/* Attributes */
+	if (ACCEPT(T_LPAR)) {
+		for (;;) {
+			if (ACCEPT(T_RPAR))
+				break;
+
+			if (ACCEPT(T_EXTERN)) {
+				if (EXPECT(T_LIT_STR)) {
+					extern_ = strdup(par->cp_tok.ct_literal);
+					CONSUME();
+					continue;
+				} else {
+					ERROR("expected string");
+					continue;
+				}
+			} 
+
+			ERROR("expected 'extern' or ')'");
+		}
+	}
 
 /* Identifier (function name) */
 	if (EXPECT(T_ID)) {
@@ -532,8 +553,9 @@ int		 single_stmt = 0;
 				cel_function_free(func);
 				return NULL;
 			}
-		} else {
+		} else if (extern_) {
 			/* Prototype or external function */
+			
 #ifdef CEL_HAVE_FFI
 		ffi_cif		*cif = calloc(1, sizeof(ffi_cif));
 		ffi_type	*rtype;
@@ -542,9 +564,8 @@ int		 single_stmt = 0;
 		cel_type_t	*ty;
 
 			func->cf_extern = 1;
-
-			func->cf_ptr = dlsym(RTLD_SELF, func->cf_name);
-
+			func->cf_ptr = dlsym(RTLD_SELF, extern_);
+printf("extern %s\n", extern_);
 			switch (func->cf_return_type->ct_tag) {
 			case cel_type_int8:	rtype = &ffi_type_sint8; break;
 			case cel_type_uint8:	rtype = &ffi_type_uint8; break;
@@ -1330,11 +1351,7 @@ cel_expr_t	*ret = NULL;
 	else if (EXPECT(T_LIT_UINT64))
 		ret = cel_make_uint64(strtol(par->cp_tok.ct_literal, NULL, 0));
 	else if (EXPECT(T_LIT_STR)) {
-	char	*s;
-		s = strdup(par->cp_tok.ct_literal + 1);
-		s[strlen(s) - 1] = 0;
-		ret = cel_make_string(s);
-		free(s);
+		ret = cel_make_string(par->cp_tok.ct_literal);
 	} else if (EXPECT(T_TRUE))
 		ret = cel_make_bool(1);
 	else if (EXPECT(T_FALSE))

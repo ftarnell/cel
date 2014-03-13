@@ -19,7 +19,6 @@ cel_type_t *
 cel_make_type(t)
 	cel_type_tag_t	t;
 {
-cel_type_t	*ret;
 	if (types[t])
 		return types[t];
 	types[t] = malloc(sizeof(cel_type_t));

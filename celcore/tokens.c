@@ -75,7 +75,8 @@ struct {
 	{ "return",	T_RETURN	},
 	{ "void",	T_VOID		},
 	{ "while",	T_WHILE		},
-	{ "do",		T_DO		}
+	{ "do",		T_DO		},
+	{ "extern",	T_EXTERN	}
 };
 
 /* Skip whitespace */
@@ -252,9 +253,10 @@ struct {
 			}
 
 			if (!bsl && lex->cl_bufp[span] == '"') {
-				ret->ct_literal = calloc(sizeof(char), span + 2);
+				ret->ct_literal = calloc(sizeof(char), span);
 				ret->ct_token = T_LIT_STR;
-				memcpy(ret->ct_literal, lex->cl_bufp, span + 1);
+				memcpy(ret->ct_literal, lex->cl_bufp + 1, span);
+				ret->ct_literal[span - 1] = '\0';
 				lex->cl_bufp += span + 1;
 				lex->cl_col += span + 1;
 				return 0;

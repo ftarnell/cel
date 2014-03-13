@@ -83,6 +83,7 @@
 #define	T_DECRN		69 /* :-= */
 #define	T_MULTN		70 /* :*= */
 #define	T_DIVN		71 /* :/= */
+#define	T_EXTERN	72
 
 /*
  * Lexer state.

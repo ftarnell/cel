@@ -38,7 +38,8 @@ cel_expr_t	*ret;
 		ret = cel_make_expr();					\
 		ret->ce_type = cel_make_type(cel_type_##type);		\
 		ret->ce_tag = cel_exp_literal;				\
-		ret->ce_op.ce_##type = i;				\
+		ret->ce_op.ce_##type = (type##_t *)ret->ce_storage;	\
+		*ret->ce_op.ce_##type = i;				\
 		ret->ce_mutable = 0;					\
 		ret->ce_const = 0;					\
 		return ret;						\
@@ -60,7 +61,7 @@ cel_expr_t	*ret;
 	ret = cel_make_expr();
 	ret->ce_type = cel_make_type(cel_type_bool);
 	ret->ce_tag = cel_exp_literal;
-	ret->ce_op.ce_bool = i;
+	ret->ce_op.ce_bool = (int *) ret->ce_storage;
 	ret->ce_mutable = 0;
 	ret->ce_const = 1;
 	return ret;
@@ -273,17 +274,20 @@ cel_expr_t	*ret;
 
 	switch (ret->ce_tag) {
 	case cel_exp_literal:
+		/* hmm */
+		ret->ce_op.ce_int8 = (int8_t *) ret->ce_storage;
+
 		switch (ret->ce_type->ct_tag) {
-		case cel_type_bool:	ret->ce_op.ce_bool = e->ce_op.ce_bool; break;
+		case cel_type_bool:	*ret->ce_op.ce_bool = *e->ce_op.ce_bool; break;
 		case cel_type_string:	ret->ce_op.ce_string = strdup(e->ce_op.ce_string); break;
-		case cel_type_int8:	ret->ce_op.ce_int8 = e->ce_op.ce_int8; break;
-		case cel_type_uint8:	ret->ce_op.ce_uint8 = e->ce_op.ce_uint8; break;
-		case cel_type_int16:	ret->ce_op.ce_int16 = e->ce_op.ce_int16; break;
-		case cel_type_uint16:	ret->ce_op.ce_uint16 = e->ce_op.ce_uint16; break;
-		case cel_type_int32:	ret->ce_op.ce_int32 = e->ce_op.ce_int32; break;
-		case cel_type_uint32:	ret->ce_op.ce_uint32 = e->ce_op.ce_uint32; break;
-		case cel_type_int64:	ret->ce_op.ce_int64 = e->ce_op.ce_int64; break;
-		case cel_type_uint64:	ret->ce_op.ce_uint64 = e->ce_op.ce_uint64; break;
+		case cel_type_int8:	*ret->ce_op.ce_int8 = *e->ce_op.ce_int8; break;
+		case cel_type_uint8:	*ret->ce_op.ce_uint8 = *e->ce_op.ce_uint8; break;
+		case cel_type_int16:	*ret->ce_op.ce_int16 = *e->ce_op.ce_int16; break;
+		case cel_type_uint16:	*ret->ce_op.ce_uint16 = *e->ce_op.ce_uint16; break;
+		case cel_type_int32:	*ret->ce_op.ce_int32 = *e->ce_op.ce_int32; break;
+		case cel_type_uint32:	*ret->ce_op.ce_uint32 = *e->ce_op.ce_uint32; break;
+		case cel_type_int64:	*ret->ce_op.ce_int64 = *e->ce_op.ce_int64; break;
+		case cel_type_uint64:	*ret->ce_op.ce_uint64 = *e->ce_op.ce_uint64; break;
 		default:		return NULL;
 		}
 		break;
@@ -339,14 +343,14 @@ char	t[64];
 		switch (e->ce_type->ct_tag) {
 		case cel_type_bool:	strlcpy(b, e->ce_op.ce_bool ? "true" : "false", bsz); break;
 		case cel_type_string:	snprintf(b, bsz, "\"%s\"", e->ce_op.ce_string); break;
-		case cel_type_int8:	snprintf(b, bsz, "%"PRId8, e->ce_op.ce_int8); break;
-		case cel_type_uint8:	snprintf(b, bsz, "%"PRIu8, e->ce_op.ce_uint8); break;
-		case cel_type_int16:	snprintf(b, bsz, "%"PRId16, e->ce_op.ce_int16); break;
-		case cel_type_uint16:	snprintf(b, bsz, "%"PRIu16, e->ce_op.ce_uint16); break;
-		case cel_type_int32:	snprintf(b, bsz, "%"PRId32, e->ce_op.ce_int32); break;
-		case cel_type_uint32:	snprintf(b, bsz, "%"PRIu32, e->ce_op.ce_uint32); break;
-		case cel_type_int64:	snprintf(b, bsz, "%"PRId64, e->ce_op.ce_int64); break;
-		case cel_type_uint64:	snprintf(b, bsz, "%"PRIu64, e->ce_op.ce_uint64); break;
+		case cel_type_int8:	snprintf(b, bsz, "%"PRId8,  *e->ce_op.ce_int8); break;
+		case cel_type_uint8:	snprintf(b, bsz, "%"PRIu8,  *e->ce_op.ce_uint8); break;
+		case cel_type_int16:	snprintf(b, bsz, "%"PRId16, *e->ce_op.ce_int16); break;
+		case cel_type_uint16:	snprintf(b, bsz, "%"PRIu16, *e->ce_op.ce_uint16); break;
+		case cel_type_int32:	snprintf(b, bsz, "%"PRId32, *e->ce_op.ce_int32); break;
+		case cel_type_uint32:	snprintf(b, bsz, "%"PRIu32, *e->ce_op.ce_uint32); break;
+		case cel_type_int64:	snprintf(b, bsz, "%"PRId64, *e->ce_op.ce_int64); break;
+		case cel_type_uint64:	snprintf(b, bsz, "%"PRIu64, *e->ce_op.ce_uint64); break;
 		default:		return;
 		}
 		break;
@@ -434,6 +438,7 @@ cel_make_any(t)
 	case cel_type_void:	return cel_make_void();
 	case cel_type_array:
 	case cel_type_function:
+	case cel_last_type:
 		return NULL;
 	}
 
@@ -497,105 +502,105 @@ cel_expr_convert(v, t)
 	switch (t->ct_tag) {
 	case cel_type_int8:
 		switch (v->ce_type->ct_tag) {
-		case cel_type_int8:	return cel_make_int8(v->ce_op.ce_int8);
-		case cel_type_uint8:	return cel_make_int8(v->ce_op.ce_int8);
-		case cel_type_int16:	return cel_make_int8(v->ce_op.ce_int16);
-		case cel_type_uint16:	return cel_make_int8(v->ce_op.ce_int16);
-		case cel_type_int32:	return cel_make_int8(v->ce_op.ce_int32);
-		case cel_type_uint32:	return cel_make_int8(v->ce_op.ce_int32);
-		case cel_type_int64:	return cel_make_int8(v->ce_op.ce_int64);
-		case cel_type_uint64:	return cel_make_int8(v->ce_op.ce_int64);
+		case cel_type_int8:	return cel_make_int8(*v->ce_op.ce_int8);
+		case cel_type_uint8:	return cel_make_int8(*v->ce_op.ce_int8);
+		case cel_type_int16:	return cel_make_int8(*v->ce_op.ce_int16);
+		case cel_type_uint16:	return cel_make_int8(*v->ce_op.ce_int16);
+		case cel_type_int32:	return cel_make_int8(*v->ce_op.ce_int32);
+		case cel_type_uint32:	return cel_make_int8(*v->ce_op.ce_int32);
+		case cel_type_int64:	return cel_make_int8(*v->ce_op.ce_int64);
+		case cel_type_uint64:	return cel_make_int8(*v->ce_op.ce_int64);
 		default:		return NULL;
 		}
 
 	case cel_type_uint8:
 		switch (v->ce_type->ct_tag) {
-		case cel_type_int8:	return cel_make_uint8(v->ce_op.ce_int8);
-		case cel_type_uint8:	return cel_make_uint8(v->ce_op.ce_int8);
-		case cel_type_int16:	return cel_make_uint8(v->ce_op.ce_int16);
-		case cel_type_uint16:	return cel_make_uint8(v->ce_op.ce_int16);
-		case cel_type_int32:	return cel_make_uint8(v->ce_op.ce_int32);
-		case cel_type_uint32:	return cel_make_uint8(v->ce_op.ce_int32);
-		case cel_type_int64:	return cel_make_uint8(v->ce_op.ce_int64);
-		case cel_type_uint64:	return cel_make_uint8(v->ce_op.ce_int64);
+		case cel_type_int8:	return cel_make_uint8(*v->ce_op.ce_int8);
+		case cel_type_uint8:	return cel_make_uint8(*v->ce_op.ce_int8);
+		case cel_type_int16:	return cel_make_uint8(*v->ce_op.ce_int16);
+		case cel_type_uint16:	return cel_make_uint8(*v->ce_op.ce_int16);
+		case cel_type_int32:	return cel_make_uint8(*v->ce_op.ce_int32);
+		case cel_type_uint32:	return cel_make_uint8(*v->ce_op.ce_int32);
+		case cel_type_int64:	return cel_make_uint8(*v->ce_op.ce_int64);
+		case cel_type_uint64:	return cel_make_uint8(*v->ce_op.ce_int64);
 		default:		return NULL;
 		}
 
 	case cel_type_int16:
 		switch (v->ce_type->ct_tag) {
-		case cel_type_int8:	return cel_make_int16(v->ce_op.ce_int8);
-		case cel_type_uint8:	return cel_make_int16(v->ce_op.ce_int8);
-		case cel_type_int16:	return cel_make_int16(v->ce_op.ce_int16);
-		case cel_type_uint16:	return cel_make_int16(v->ce_op.ce_int16);
-		case cel_type_int32:	return cel_make_int16(v->ce_op.ce_int32);
-		case cel_type_uint32:	return cel_make_int16(v->ce_op.ce_int32);
-		case cel_type_int64:	return cel_make_int16(v->ce_op.ce_int64);
-		case cel_type_uint64:	return cel_make_int16(v->ce_op.ce_int64);
+		case cel_type_int8:	return cel_make_int16(*v->ce_op.ce_int8);
+		case cel_type_uint8:	return cel_make_int16(*v->ce_op.ce_int8);
+		case cel_type_int16:	return cel_make_int16(*v->ce_op.ce_int16);
+		case cel_type_uint16:	return cel_make_int16(*v->ce_op.ce_int16);
+		case cel_type_int32:	return cel_make_int16(*v->ce_op.ce_int32);
+		case cel_type_uint32:	return cel_make_int16(*v->ce_op.ce_int32);
+		case cel_type_int64:	return cel_make_int16(*v->ce_op.ce_int64);
+		case cel_type_uint64:	return cel_make_int16(*v->ce_op.ce_int64);
 		default:		return NULL;
 		}
 
 	case cel_type_uint16:
 		switch (v->ce_type->ct_tag) {
-		case cel_type_int8:	return cel_make_uint16(v->ce_op.ce_int8);
-		case cel_type_uint8:	return cel_make_uint16(v->ce_op.ce_int8);
-		case cel_type_int16:	return cel_make_uint16(v->ce_op.ce_int16);
-		case cel_type_uint16:	return cel_make_uint16(v->ce_op.ce_int16);
-		case cel_type_int32:	return cel_make_uint16(v->ce_op.ce_int32);
-		case cel_type_uint32:	return cel_make_uint16(v->ce_op.ce_int32);
-		case cel_type_int64:	return cel_make_uint16(v->ce_op.ce_int64);
-		case cel_type_uint64:	return cel_make_uint16(v->ce_op.ce_int64);
+		case cel_type_int8:	return cel_make_uint16(*v->ce_op.ce_int8);
+		case cel_type_uint8:	return cel_make_uint16(*v->ce_op.ce_int8);
+		case cel_type_int16:	return cel_make_uint16(*v->ce_op.ce_int16);
+		case cel_type_uint16:	return cel_make_uint16(*v->ce_op.ce_int16);
+		case cel_type_int32:	return cel_make_uint16(*v->ce_op.ce_int32);
+		case cel_type_uint32:	return cel_make_uint16(*v->ce_op.ce_int32);
+		case cel_type_int64:	return cel_make_uint16(*v->ce_op.ce_int64);
+		case cel_type_uint64:	return cel_make_uint16(*v->ce_op.ce_int64);
 		default:		return NULL;
 		}
 
 	case cel_type_int32:
 		switch (v->ce_type->ct_tag) {
-		case cel_type_int8:	return cel_make_int32(v->ce_op.ce_int8);
-		case cel_type_uint8:	return cel_make_int32(v->ce_op.ce_int8);
-		case cel_type_int16:	return cel_make_int32(v->ce_op.ce_int16);
-		case cel_type_uint16:	return cel_make_int32(v->ce_op.ce_int16);
-		case cel_type_int32:	return cel_make_int32(v->ce_op.ce_int32);
-		case cel_type_uint32:	return cel_make_int32(v->ce_op.ce_int32);
-		case cel_type_int64:	return cel_make_int32(v->ce_op.ce_int64);
-		case cel_type_uint64:	return cel_make_int32(v->ce_op.ce_int64);
+		case cel_type_int8:	return cel_make_int32(*v->ce_op.ce_int8);
+		case cel_type_uint8:	return cel_make_int32(*v->ce_op.ce_int8);
+		case cel_type_int16:	return cel_make_int32(*v->ce_op.ce_int16);
+		case cel_type_uint16:	return cel_make_int32(*v->ce_op.ce_int16);
+		case cel_type_int32:	return cel_make_int32(*v->ce_op.ce_int32);
+		case cel_type_uint32:	return cel_make_int32(*v->ce_op.ce_int32);
+		case cel_type_int64:	return cel_make_int32(*v->ce_op.ce_int64);
+		case cel_type_uint64:	return cel_make_int32(*v->ce_op.ce_int64);
 		default:		return NULL;
 		}
 
 	case cel_type_uint32:
 		switch (v->ce_type->ct_tag) {
-		case cel_type_int8:	return cel_make_uint32(v->ce_op.ce_int8);
-		case cel_type_uint8:	return cel_make_uint32(v->ce_op.ce_int8);
-		case cel_type_int16:	return cel_make_uint32(v->ce_op.ce_int16);
-		case cel_type_uint16:	return cel_make_uint32(v->ce_op.ce_int16);
-		case cel_type_int32:	return cel_make_uint32(v->ce_op.ce_int32);
-		case cel_type_uint32:	return cel_make_uint32(v->ce_op.ce_int32);
-		case cel_type_int64:	return cel_make_uint32(v->ce_op.ce_int64);
-		case cel_type_uint64:	return cel_make_uint32(v->ce_op.ce_int64);
+		case cel_type_int8:	return cel_make_uint32(*v->ce_op.ce_int8);
+		case cel_type_uint8:	return cel_make_uint32(*v->ce_op.ce_int8);
+		case cel_type_int16:	return cel_make_uint32(*v->ce_op.ce_int16);
+		case cel_type_uint16:	return cel_make_uint32(*v->ce_op.ce_int16);
+		case cel_type_int32:	return cel_make_uint32(*v->ce_op.ce_int32);
+		case cel_type_uint32:	return cel_make_uint32(*v->ce_op.ce_int32);
+		case cel_type_int64:	return cel_make_uint32(*v->ce_op.ce_int64);
+		case cel_type_uint64:	return cel_make_uint32(*v->ce_op.ce_int64);
 		default:		return NULL;
 		}
 
 	case cel_type_int64:
 		switch (v->ce_type->ct_tag) {
-		case cel_type_int8:	return cel_make_int64(v->ce_op.ce_int8);
-		case cel_type_uint8:	return cel_make_int64(v->ce_op.ce_int8);
-		case cel_type_int16:	return cel_make_int64(v->ce_op.ce_int16);
-		case cel_type_uint16:	return cel_make_int64(v->ce_op.ce_int16);
-		case cel_type_int32:	return cel_make_int64(v->ce_op.ce_int32);
-		case cel_type_uint32:	return cel_make_int64(v->ce_op.ce_int32);
-		case cel_type_int64:	return cel_make_int64(v->ce_op.ce_int64);
-		case cel_type_uint64:	return cel_make_int64(v->ce_op.ce_int64);
+		case cel_type_int8:	return cel_make_int64(*v->ce_op.ce_int8);
+		case cel_type_uint8:	return cel_make_int64(*v->ce_op.ce_int8);
+		case cel_type_int16:	return cel_make_int64(*v->ce_op.ce_int16);
+		case cel_type_uint16:	return cel_make_int64(*v->ce_op.ce_int16);
+		case cel_type_int32:	return cel_make_int64(*v->ce_op.ce_int32);
+		case cel_type_uint32:	return cel_make_int64(*v->ce_op.ce_int32);
+		case cel_type_int64:	return cel_make_int64(*v->ce_op.ce_int64);
+		case cel_type_uint64:	return cel_make_int64(*v->ce_op.ce_int64);
 		default:		return NULL;
 		}
 
 	case cel_type_uint64:
 		switch (v->ce_type->ct_tag) {
-		case cel_type_int8:	return cel_make_uint64(v->ce_op.ce_int8);
-		case cel_type_uint8:	return cel_make_uint64(v->ce_op.ce_int8);
-		case cel_type_int16:	return cel_make_uint64(v->ce_op.ce_int16);
-		case cel_type_uint16:	return cel_make_uint64(v->ce_op.ce_int16);
-		case cel_type_int32:	return cel_make_uint64(v->ce_op.ce_int32);
-		case cel_type_uint32:	return cel_make_uint64(v->ce_op.ce_int32);
-		case cel_type_int64:	return cel_make_uint64(v->ce_op.ce_int64);
-		case cel_type_uint64:	return cel_make_uint64(v->ce_op.ce_int64);
+		case cel_type_int8:	return cel_make_uint64(*v->ce_op.ce_int8);
+		case cel_type_uint8:	return cel_make_uint64(*v->ce_op.ce_int8);
+		case cel_type_int16:	return cel_make_uint64(*v->ce_op.ce_int16);
+		case cel_type_uint16:	return cel_make_uint64(*v->ce_op.ce_int16);
+		case cel_type_int32:	return cel_make_uint64(*v->ce_op.ce_int32);
+		case cel_type_uint32:	return cel_make_uint64(*v->ce_op.ce_int32);
+		case cel_type_int64:	return cel_make_uint64(*v->ce_op.ce_int64);
+		case cel_type_uint64:	return cel_make_uint64(*v->ce_op.ce_int64);
 		default:		return NULL;
 		}
 
