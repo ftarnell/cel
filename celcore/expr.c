@@ -62,6 +62,7 @@ cel_expr_t	*ret;
 	ret->ce_type = cel_make_type(cel_type_bool);
 	ret->ce_tag = cel_exp_literal;
 	ret->ce_op.ce_bool = (int *) ret->ce_storage;
+	*ret->ce_op.ce_bool = i;
 	ret->ce_mutable = 0;
 	ret->ce_const = 1;
 	return ret;

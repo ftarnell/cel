@@ -101,4 +101,10 @@ typedef	uint8_t	cel_vm_instr_t;
 #define	CEL_I_BRF	43	/* branch if false			*/
 #define	CEL_I_BR	44	/* unconditional branch			*/
 
+/*
+ *	Inc / dec
+ */
+#define	CEL_I_INCV4	45
+#define	CEL_I_DECV4	46
+
 #endif	/* !CEL_VM_INSTR_H */

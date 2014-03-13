@@ -764,18 +764,16 @@ cel_token_t	 lv_tok, op_tok;
 		}
 
 		if (f->ce_tag == cel_exp_binary) {
-		cel_expr_t	*n = e;
+		cel_expr_t	*n = e, *v = NULL;
 		cel_expr_t	*left = f->ce_op.ce_binary.left;
 
-			if (left->ce_tag == cel_exp_variable) {
+			if (left->ce_tag == cel_exp_variable)
 				left = cel_scope_find_item(sc, left->ce_op.ce_variable)->si_ob.si_expr;
-			}
 
-			if (n->ce_tag == cel_exp_variable) {
-				n = cel_scope_find_item(sc, e->ce_op.ce_variable)->si_ob.si_expr;
-			}
+			if (n->ce_tag == cel_exp_variable)
+				v = cel_scope_find_item(sc, e->ce_op.ce_variable)->si_ob.si_expr;
 				
-			if (left == n) {
+			if (left == v) {
 			cel_bi_oper_t	oper_;
 				switch (f->ce_op.ce_binary.oper) {
 				case cel_op_plus:	oper_ = cel_op_incr; break;

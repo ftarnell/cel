@@ -91,9 +91,12 @@ cel_expr_t	*result;
 				fprintf(stderr, "(exec failure)\n");
 				return 1;
 			}	
-		} else if ((result = cel_eval_list(scope, program)) == NULL) {
-			fprintf(stderr, "(eval error)\n");
-			return 1;
+		} else {
+			fprintf(stderr, "icel: can't vm\n");
+			if ((result = cel_eval_list(scope, program)) == NULL) {
+				fprintf(stderr, "(eval error)\n");
+				return 1;
+			}
 		}
 	} else {
 		if ((result = cel_eval_list(scope, program)) == NULL) {

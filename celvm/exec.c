@@ -176,8 +176,8 @@ uint8_t	const	*ip, *oip;
 
 		CMP(CEL_I_TEQ4, 32, ==)
 		CMP(CEL_I_TNE4, 32, !=)
-		CMP(CEL_I_TLT4, 32, <=)
-		CMP(CEL_I_TLE4, 32, <)
+		CMP(CEL_I_TLE4, 32, <=)
+		CMP(CEL_I_TLT4, 32, <)
 		CMP(CEL_I_TGT4, 32, >)
 		CMP(CEL_I_TGE4, 32, >=)
 
@@ -207,9 +207,27 @@ uint8_t	const	*ip, *oip;
 				ip = oip + i16;
 			break;
 
+		case CEL_I_INCV4:
+			GET_II16(i16);
+			GET_SU32(u32a);
+			*f->vf_vars[i16]->ce_op.ce_uint32 += u32a;
+			break;
+
+		case CEL_I_DECV4:
+			GET_II16(i16);
+			GET_SU32(u32a);
+			*f->vf_vars[i16]->ce_op.ce_uint32 -= u32a;
+			break;
+
 		case CEL_I_LOADV4:
 			GET_II16(i16);
 			PUT_SU32(*f->vf_vars[i16]->ce_op.ce_uint32);
+			break;
+
+		case CEL_I_STOV4:
+			GET_II16(i16);
+			GET_SU32(u32a);
+			*f->vf_vars[i16]->ce_op.ce_uint32 = u32a;
 			break;
 
 		default:

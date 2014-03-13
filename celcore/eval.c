@@ -38,7 +38,7 @@ cel_if_branch_t	*if_;
 	cel_expr_t	*f;
 		if (if_->ib_condition) {
 			f = cel_eval(s, if_->ib_condition);
-			if (!f->ce_op.ce_bool) {
+			if (!*f->ce_op.ce_bool) {
 				cel_expr_free(f);
 				continue;
 			}
@@ -72,7 +72,7 @@ cel_expr_t	*stmt;
 	for (;;) {
 	cel_expr_t	*c;
 		c = cel_eval(s, e->ce_op.ce_while->wh_condition);
-		if (c->ce_op.ce_bool == 0) {
+		if (*c->ce_op.ce_bool == 0) {
 			cel_expr_free(c);
 			break;
 		}
