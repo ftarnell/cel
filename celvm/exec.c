@@ -207,6 +207,11 @@ uint8_t	const	*ip, *oip;
 				ip = oip + i16;
 			break;
 
+		case CEL_I_LOADV4:
+			GET_II16(i16);
+			PUT_SU32(*f->vf_vars[i16]->ce_op.ce_uint32);
+			break;
+
 		default:
 			printf("can't decode %d\n", inst);
 			return NULL;

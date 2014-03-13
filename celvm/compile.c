@@ -25,6 +25,7 @@ static int32_t	cel_vm_emit_binary(cel_scope_t *, cel_vm_func_t *, cel_expr_t *);
 static int32_t	cel_vm_emit_unary(cel_scope_t *, cel_vm_func_t *, cel_expr_t *);
 static int32_t	cel_vm_emit_literal(cel_scope_t *, cel_vm_func_t *, cel_expr_t *);
 static int32_t	cel_vm_emit_return(cel_scope_t *, cel_vm_func_t *, cel_expr_t *);
+static int32_t	cel_vm_emit_variable(cel_scope_t *, cel_vm_func_t *, cel_expr_t *);
 static int32_t	cel_vm_emit_immed16(cel_vm_func_t *, uint32_t);
 static int32_t	cel_vm_emit_immed32(cel_vm_func_t *, uint32_t);
 static int32_t	cel_vm_emit_immed64(cel_vm_func_t *, uint64_t);
@@ -46,7 +47,8 @@ cel_vm_func_t	*ret;
 		return NULL;
 
 	CEL_TAILQ_FOREACH(e, el, ce_entry)
-		cel_vm_emit_expr(s, ret, e);
+		if (cel_vm_emit_expr(s, ret, e) == -1)
+			return NULL;
 
 	return ret;
 }
@@ -63,10 +65,11 @@ cel_vm_emit_expr(s, f, e)
 	case cel_exp_unary:	return cel_vm_emit_unary(s, f, e);
 	case cel_exp_literal:	return cel_vm_emit_literal(s, f, e);
 	case cel_exp_while:	return cel_vm_emit_while(s, f, e);
+	case cel_exp_variable:	return cel_vm_emit_variable(s, f, e);
 
 	default:
 		printf("can't compile expr type %d\n", e->ce_tag);
-		abort();
+		return -1;
 	}
 }
 
@@ -95,7 +98,7 @@ int32_t	sz;
 
 	default:
 		printf("can't emit unary for oper %d\n", e->ce_op.ce_unary.oper);
-		abort();
+		return -1;
 	}
 
 	return sz;
@@ -317,7 +320,7 @@ int32_t	sz = 0;
 
 	default:
 		printf("can't emit binary type %d\n", e->ce_op.ce_binary.oper);
-		abort();
+		return -1;
 	}
 
 	sz += cel_vm_emit_instr(f, op);
@@ -426,7 +429,7 @@ cel_vm_expr_to_u32(e)
 
 	default:
 		printf("can't convert tag %d to u32\n", e->ce_type->ct_tag);
-		abort();
+		return -1;
 	}
 }
 
@@ -439,7 +442,7 @@ cel_vm_expr_to_u64(e)
 	case cel_type_uint64:	return *e->ce_op.ce_uint64;
 	default:
 		printf("can't convert tag %d to u64\n", e->ce_type->ct_tag);
-		abort();
+		return -1;
 	}
 }
 
@@ -461,7 +464,7 @@ cel_vm_emit_literal(s, f, e)
 	case cel_type_bool:	return cel_vm_emit_loadi32(f, *e->ce_op.ce_bool);
 	default:
 		printf("can't emit literal for tag %d\n", e->ce_tag);
-		abort();
+		return -1;
 	}
 }
 
@@ -493,8 +496,44 @@ int32_t	sz = 0;
 
 	default:
 		printf("can't emit return for tag %d\n", e->ce_op.ce_unary.operand->ce_type->ct_tag);
-		abort();
+		return -1;
 	}
 
+	return sz;
+}
+
+static int32_t
+cel_vm_emit_variable(s, f, e)
+	cel_scope_t	*s;
+	cel_vm_func_t	*f;
+	cel_expr_t	*e;
+{
+ssize_t		 i;
+int16_t		 varn = -1;
+int32_t		 sz = 0;
+
+/* Is this variable already in the var table? */
+	for (i = 0; i < f->vf_nvars; i++) {
+		if (strcmp(e->ce_op.ce_variable, f->vf_vars[i]->ce_op.ce_variable) == 0) {
+			varn = i;
+			break;
+		}
+	}
+
+	if (varn == -1) {
+	/* No; add a new var ref */
+	cel_scope_item_t	*it;
+
+		if ((it = cel_scope_find_item(s, e->ce_op.ce_variable)) == NULL)
+			return -1;
+
+		varn = f->vf_nvars;
+		f->vf_vars = realloc(f->vf_vars, sizeof(cel_expr_t **) * (f->vf_nvars + 1));
+		f->vf_vars[varn] = it->si_ob.si_expr;
+		f->vf_nvars++;
+	}
+
+	sz += cel_vm_emit_instr(f, CEL_I_LOADV4);
+	sz += cel_vm_emit_immed16(f, i);
 	return sz;
 }

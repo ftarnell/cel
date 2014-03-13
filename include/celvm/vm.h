@@ -17,11 +17,11 @@
 #include	"celcore/scope.h"
 
 typedef struct cel_vm_func {
-	uint8_t	*vf_bytecode;
-	size_t	 vf_bytecodesz;
+	uint8_t		*vf_bytecode;
+	size_t		 vf_bytecodesz;
 
-	/* Private use */
-	size_t	 vf_bcallocsz;
+	cel_expr_t	**vf_vars;
+	size_t		  vf_nvars;
 } cel_vm_func_t;
 
 cel_vm_func_t	*cel_vm_func_compile(cel_scope_t *, cel_expr_list_t *);
