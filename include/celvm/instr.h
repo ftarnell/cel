@@ -106,5 +106,7 @@ typedef	uint8_t	cel_vm_instr_t;
  */
 #define	CEL_I_INCV4	45
 #define	CEL_I_DECV4	46
+#define	CEL_I_MULV4	47
+#define	CEL_I_DIVV4	48
 
 #endif	/* !CEL_VM_INSTR_H */

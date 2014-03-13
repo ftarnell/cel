@@ -28,7 +28,6 @@ static int32_t	cel_vm_emit_return(cel_scope_t *, cel_vm_func_t *, cel_expr_t *);
 static int32_t	cel_vm_emit_variable(cel_scope_t *, cel_vm_func_t *, cel_expr_t *);
 static int32_t	cel_vm_emit_assign(cel_scope_t *, cel_vm_func_t *, cel_expr_t *);
 static int32_t	cel_vm_emit_incr(cel_scope_t *, cel_vm_func_t *, cel_expr_t *);
-static int32_t	cel_vm_emit_decr(cel_scope_t *, cel_vm_func_t *, cel_expr_t *);
 static int32_t	cel_vm_emit_immed16(cel_vm_func_t *, uint32_t);
 static int32_t	cel_vm_emit_immed32(cel_vm_func_t *, uint32_t);
 static int32_t	cel_vm_emit_immed64(cel_vm_func_t *, uint64_t);
@@ -299,8 +298,11 @@ int32_t	sz = 0;
 
 	switch (e->ce_op.ce_binary.oper) {
 	case cel_op_assign:	return cel_vm_emit_assign(s, f, e);
-	case cel_op_incr:	return cel_vm_emit_incr(s, f, e);
-	case cel_op_decr:	return cel_vm_emit_decr(s, f, e);
+	case cel_op_incr:
+	case cel_op_decr:
+	case cel_op_multn:
+	case cel_op_divn:
+				return cel_vm_emit_incr(s, f, e);
 	default:		break;
 	}
 
@@ -597,6 +599,7 @@ cel_vm_emit_incr(s, f, e)
 ssize_t		 i;
 int16_t		 varn = -1;
 int32_t		 sz = 0;
+int		 inst;
 
 /* Is this variable already in the var table? */
 	for (i = 0; i < f->vf_nvars; i++) {
@@ -620,49 +623,15 @@ int32_t		 sz = 0;
 		f->vf_nvars++;
 	}
 
-	sz += cel_vm_emit_expr(s, f, e->ce_op.ce_binary.right);
-	sz += cel_vm_emit_instr(f, CEL_I_INCV4);
-	sz += cel_vm_emit_immed16(f, varn);
-	return sz;
-}
-
-static int32_t
-cel_vm_emit_decr(s, f, e)
-	cel_scope_t	*s;
-	cel_vm_func_t	*f;
-	cel_expr_t	*e;
-{
-ssize_t		 i;
-int16_t		 varn = -1;
-int32_t		 sz = 0;
-
-/* Is this variable already in the var table? */
-	for (i = 0; i < f->vf_nvars; i++) {
-		if (strcmp(e->ce_op.ce_binary.left->ce_op.ce_variable,
-			   f->vf_vars[i]->ce_op.ce_variable) == 0) {
-			varn = i;
-			break;
-		}
+	switch (e->ce_op.ce_binary.oper) {
+	case cel_op_incr:	inst = CEL_I_INCV4; break;
+	case cel_op_decr:	inst = CEL_I_DECV4; break;
+	case cel_op_multn:	inst = CEL_I_MULV4; break;
+	case cel_op_divn:	inst = CEL_I_DIVV4; break;
 	}
 
-	if (varn == -1) {
-	/* No; add a new var ref */
-	cel_scope_item_t	*it;
-
-		if ((it = cel_scope_find_item(s, e->ce_op.ce_binary.left->ce_op.ce_variable)) == NULL)
-			return -1;
-
-		varn = f->vf_nvars;
-		f->vf_vars = realloc(f->vf_vars, sizeof(cel_expr_t **) * (f->vf_nvars + 1));
-		f->vf_vars[varn] = it->si_ob.si_expr;
-		f->vf_nvars++;
-	}
-
-	sz += cel_vm_emit_instr(f, CEL_I_LOADV4);
-	sz += cel_vm_emit_immed16(f, varn);
 	sz += cel_vm_emit_expr(s, f, e->ce_op.ce_binary.right);
-	sz += cel_vm_emit_instr(f, CEL_I_DECV4);
-	sz += cel_vm_emit_instr(f, CEL_I_STOV4);
+	sz += cel_vm_emit_instr(f, inst);
 	sz += cel_vm_emit_immed16(f, varn);
 	return sz;
 }

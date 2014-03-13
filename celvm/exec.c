@@ -219,6 +219,18 @@ uint8_t	const	*ip, *oip;
 			*f->vf_vars[i16]->ce_op.ce_uint32 -= u32a;
 			break;
 
+		case CEL_I_MULV4:
+			GET_II16(i16);
+			GET_SU32(u32a);
+			*f->vf_vars[i16]->ce_op.ce_uint32 *= u32a;
+			break;
+
+		case CEL_I_DIVV4:
+			GET_II16(i16);
+			GET_SU32(u32a);
+			*f->vf_vars[i16]->ce_op.ce_uint32 /= u32a;
+			break;
+
 		case CEL_I_LOADV4:
 			GET_II16(i16);
 			PUT_SU32(*f->vf_vars[i16]->ce_op.ce_uint32);
