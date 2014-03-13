@@ -89,7 +89,6 @@ cel_make_string(s)
 {
 cel_expr_t	*ret;
 	ret = cel_make_expr();
-		return NULL;
 	ret->ce_type = cel_make_type(cel_type_string);
 	ret->ce_tag = cel_exp_literal;
 	ret->ce_op.ce_string = strdup(s);

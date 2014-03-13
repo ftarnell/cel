@@ -624,6 +624,7 @@ ac_includes_default="\
 
 ac_subst_vars='LTLIBOBJS
 LIBOBJS
+FFI_LIB
 EDIT_LIBS
 EGREP
 GREP
@@ -3495,6 +3496,77 @@ fi
 done
 
 
+for ac_header in ffi.h
+do :
+  ac_fn_c_check_header_mongrel "$LINENO" "ffi.h" "ac_cv_header_ffi_h" "$ac_includes_default"
+if test "x$ac_cv_header_ffi_h" = xyes; then :
+  cat >>confdefs.h <<_ACEOF
+#define HAVE_FFI_H 1
+_ACEOF
+ FFI_H=yes
+else
+  for ac_header in ffi/ffi.h
+do :
+  ac_fn_c_check_header_mongrel "$LINENO" "ffi/ffi.h" "ac_cv_header_ffi_ffi_h" "$ac_includes_default"
+if test "x$ac_cv_header_ffi_ffi_h" = xyes; then :
+  cat >>confdefs.h <<_ACEOF
+#define HAVE_FFI_FFI_H 1
+_ACEOF
+ FFI_FFI_H=yes
+fi
+
+done
+
+fi
+
+done
+
+
+if test "$FFI_H" = yes -o "$FFI_FFI_H" = yes; then
+	{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for ffi_call in -lffi" >&5
+$as_echo_n "checking for ffi_call in -lffi... " >&6; }
+if ${ac_cv_lib_ffi_ffi_call+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+  ac_check_lib_save_LIBS=$LIBS
+LIBS="-lffi  $LIBS"
+cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+/* Override any GCC internal prototype to avoid an error.
+   Use char because int might match the return type of a GCC
+   builtin and then its argument prototype would still apply.  */
+#ifdef __cplusplus
+extern "C"
+#endif
+char ffi_call ();
+int
+main ()
+{
+return ffi_call ();
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_link "$LINENO"; then :
+  ac_cv_lib_ffi_ffi_call=yes
+else
+  ac_cv_lib_ffi_ffi_call=no
+fi
+rm -f core conftest.err conftest.$ac_objext \
+    conftest$ac_exeext conftest.$ac_ext
+LIBS=$ac_check_lib_save_LIBS
+fi
+{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_lib_ffi_ffi_call" >&5
+$as_echo "$ac_cv_lib_ffi_ffi_call" >&6; }
+if test "x$ac_cv_lib_ffi_ffi_call" = xyes; then :
+  FFI=yes
+			FFI_LIB=-lffi
+
+fi
+
+fi
+
 ac_config_files="$ac_config_files Makefile include/Makefile include/celcore/Makefile celcore/Makefile celvm/Makefile test/Makefile icel/Makefile"
 
 ac_config_commands="$ac_config_commands cel"
@@ -4189,7 +4261,12 @@ cat >>$CONFIG_STATUS <<_ACEOF || ac_write_fail=1
 #
 # INIT-COMMANDS
 #
-host="$host"; PACKAGE_VERSION="$PACKAGE_VERSION"
+	host="$host"
+	PACKAGE_VERSION="$PACKAGE_VERSION"
+	FFI="$FFI"
+	FFI_H="$FFI_H"
+	FFI_FFI_H="$FFI_FFI_H"
+
 
 _ACEOF
 
@@ -4773,8 +4850,12 @@ cat >include/celcore/cel-config.h.tmp <<EOF
 #define	CEL_VERSION "$PACKAGE_VERSION"
 #define	CEL_HOST "$host"
 
-#endif	/* !CEL_CONFIG_H */
 EOF
+test "$FFI" = yes && echo '#define CEL_HAVE_FFI 1' >> include/celcore/cel-config.h.tmp
+test "$FFI_H" = yes && echo '#define CEL_HAVE_FFI_H 1' >> include/celcore/cel-config.h.tmp
+test "$FFI_FFI_H" = yes && echo '#define CEL_HAVE_FFI_FFI_H 1' >> include/celcore/cel-config.h.tmp
+
+echo '#endif	/* !CEL_CONFIG_H */' >> include/celcore/cel-config.h.tmp
 
 if ! cmp include/celcore/cel-config.h.tmp include/celcore/cel-config.h >/dev/null 2>&1; then
 	mv include/celcore/cel-config.h.tmp include/celcore/cel-config.h

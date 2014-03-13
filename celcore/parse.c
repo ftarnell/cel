@@ -11,6 +11,17 @@
 #include	<stdlib.h>
 #include	<string.h>
 
+#include	"celcore/cel-config.h"
+
+#ifdef	CEL_HAVE_FFI
+# ifdef CEL_HAVE_FFI_FFI_H
+#  include	<ffi/ffi.h>
+# else
+#  include	<ffi.h>
+# endif
+# include	<dlfcn.h>
+#endif
+
 #include	"celcore/parse.h"
 #include	"celcore/tokens.h"
 #include	"celcore/expr.h"
@@ -441,6 +452,7 @@ int		 single_stmt = 0;
 					      a, ct_entry);
 			cel_scope_add_expr(func->cf_argscope, nm, cel_make_any(a));
 			free(nm);
+			func->cf_nargs++;
 
 		/* ')' or ',' */
 			if (ACCEPT(T_COMMA))
@@ -503,24 +515,74 @@ int		 single_stmt = 0;
 		}
 
 	/* Begin */
-		if (!ACCEPT(T_BEGIN)) {
-			cel_function_free(func);
-			FATAL("expected 'begin'");
-		}
+		if (ACCEPT(T_BEGIN)) {
+		/*
+		 * List of statements.
+		 */
 
-	/*
-	 * List of statements.
-	 */
-		while (e = cel_parse_expr(par, func->cf_scope)) {
-			CEL_TAILQ_INSERT_TAIL(&func->cf_body, e, ce_entry);
+			while (e = cel_parse_expr(par, func->cf_scope)) {
+				CEL_TAILQ_INSERT_TAIL(&func->cf_body, e, ce_entry);
 
-			if (ACCEPT(T_SEMI))
-				continue;
-		}
+				if (ACCEPT(T_SEMI))
+					continue;
+			}
 
-		if (!ACCEPT(T_END)) {
-			cel_function_free(func);
-			return NULL;
+
+			if (!ACCEPT(T_END)) {
+				cel_function_free(func);
+				return NULL;
+			}
+		} else {
+			/* Prototype or external function */
+#ifdef CEL_HAVE_FFI
+		ffi_cif		*cif = calloc(1, sizeof(ffi_cif));
+		ffi_type	*rtype;
+		ffi_type	**argtypes;
+		int		 i;
+		cel_type_t	*ty;
+
+			func->cf_extern = 1;
+
+			func->cf_ptr = dlsym(RTLD_SELF, func->cf_name);
+
+			switch (func->cf_return_type->ct_tag) {
+			case cel_type_int8:	rtype = &ffi_type_sint8; break;
+			case cel_type_uint8:	rtype = &ffi_type_uint8; break;
+			case cel_type_int16:	rtype = &ffi_type_sint16; break;
+			case cel_type_uint16:	rtype = &ffi_type_uint16; break;
+			case cel_type_int32:	rtype = &ffi_type_sint32; break;
+			case cel_type_uint32:	rtype = &ffi_type_uint32; break;
+			case cel_type_int64:	rtype = &ffi_type_sint64; break;
+			case cel_type_uint64:	rtype = &ffi_type_uint64; break;
+			case cel_type_string:	rtype = &ffi_type_pointer; break;
+			default:
+				ERROR("unsupported FFI return type");
+				return ef;
+			}
+
+			argtypes = calloc(func->cf_nargs, sizeof(*argtypes));
+			i = 0;
+			CEL_TAILQ_FOREACH(ty, func->cf_type->ct_type.ct_function.ct_args, ct_entry) {
+				switch (ty->ct_tag) {
+				case cel_type_int8:	argtypes[i] = &ffi_type_sint8; break;
+				case cel_type_uint8:	argtypes[i] = &ffi_type_uint8; break;
+				case cel_type_int16:	argtypes[i] = &ffi_type_sint16; break;
+				case cel_type_uint16:	argtypes[i] = &ffi_type_uint16; break;
+				case cel_type_int32:	argtypes[i] = &ffi_type_sint32; break;
+				case cel_type_uint32:	argtypes[i] = &ffi_type_uint32; break;
+				case cel_type_int64:	argtypes[i] = &ffi_type_sint64; break;
+				case cel_type_uint64:	argtypes[i] = &ffi_type_uint64; break;
+				case cel_type_string:	argtypes[i] = &ffi_type_pointer; break;
+				default:
+					ERROR("unsupported FFI return type");
+					return ef;
+				}
+				i++;
+			}
+
+			ffi_prep_cif(cif, FFI_DEFAULT_ABI, func->cf_nargs, rtype, argtypes);
+			func->cf_ffi = cif;
+#endif
 		}
 	}
 

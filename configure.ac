@@ -30,6 +30,15 @@ AC_CHECK_HEADERS([histedit.h],[
 		 EDIT_LIBS=-ledit
 		 AC_SUBST(EDIT_LIBS)])])
 
+AC_CHECK_HEADERS([ffi.h], [FFI_H=yes], [AC_CHECK_HEADERS([ffi/ffi.h], [FFI_FFI_H=yes])])
+
+if test "$FFI_H" = yes -o "$FFI_FFI_H" = yes; then
+	AC_CHECK_LIB([ffi], [ffi_call],
+			[FFI=yes
+			FFI_LIB=-lffi
+			AC_SUBST(FFI_LIB)])
+fi
+
 AC_CONFIG_FILES([Makefile include/Makefile include/celcore/Makefile celcore/Makefile celvm/Makefile test/Makefile icel/Makefile])
 AC_CONFIG_COMMANDS([cel], [
 mkdir include 2>/dev/null || true
@@ -41,8 +50,12 @@ cat >include/celcore/cel-config.h.tmp <<EOF
 #define	CEL_VERSION "$PACKAGE_VERSION"
 #define	CEL_HOST "$host"
 
-#endif	/* !CEL_CONFIG_H */
 EOF
+test "$FFI" = yes && echo '#define CEL_HAVE_FFI 1' >> include/celcore/cel-config.h.tmp
+test "$FFI_H" = yes && echo '#define CEL_HAVE_FFI_H 1' >> include/celcore/cel-config.h.tmp
+test "$FFI_FFI_H" = yes && echo '#define CEL_HAVE_FFI_FFI_H 1' >> include/celcore/cel-config.h.tmp
+
+echo '#endif	/* !CEL_CONFIG_H */' >> include/celcore/cel-config.h.tmp
 
 if ! cmp include/celcore/cel-config.h.tmp include/celcore/cel-config.h >/dev/null 2>&1; then
 	mv include/celcore/cel-config.h.tmp include/celcore/cel-config.h
@@ -52,6 +65,11 @@ else
 fi
 
 ],
-[host="$host"; PACKAGE_VERSION="$PACKAGE_VERSION"])
+[	host="$host"
+	PACKAGE_VERSION="$PACKAGE_VERSION"
+	FFI="$FFI"
+	FFI_H="$FFI_H"
+	FFI_FFI_H="$FFI_FFI_H"
+])
 
 AC_OUTPUT

@@ -11,6 +11,16 @@
 #include	<string.h>
 #include	<assert.h>
 
+#include	"celcore/cel-config.h"
+
+#ifdef	CEL_HAVE_FFI
+# ifdef CEL_HAVE_FFI_FFI_H
+#  include	<ffi/ffi.h>
+# else
+#  include	<ffi.h>
+# endif
+#endif
+
 #include	"celcore/eval.h"
 #include	"celcore/type.h"
 #include	"celcore/function.h"
@@ -99,6 +109,40 @@ size_t		i;
 
 	if ((fu = cel_eval(s, e)) == NULL)
 		return NULL;
+
+	if (fu->ce_op.ce_function->cf_extern) {
+	uint8_t		ret[16];
+	void		**args;
+	int		i;
+	cel_type_t	*ty;
+
+		args = malloc(sizeof(void *) * fu->ce_op.ce_function->cf_nargs);
+		i = 0;
+		CEL_TAILQ_FOREACH(ty, fu->ce_op.ce_function->cf_type->ct_type.ct_function.ct_args, ct_entry) {
+		cel_expr_t	*arg;
+			arg = cel_eval(s, a->ca_args[i]);
+
+			switch (arg->ce_type->ct_tag) {
+			case cel_type_int8:	args[i] = &arg->ce_op.ce_int8; break;
+			case cel_type_uint8:	args[i] = &arg->ce_op.ce_int8; break;
+			case cel_type_int16:	args[i] = &arg->ce_op.ce_int16; break;
+			case cel_type_uint16:	args[i] = &arg->ce_op.ce_int16; break;
+			case cel_type_int32:	args[i] = &arg->ce_op.ce_int32; break;
+			case cel_type_uint32:	args[i] = &arg->ce_op.ce_int32; break;
+			case cel_type_int64:	args[i] = &arg->ce_op.ce_int64; break;
+			case cel_type_uint64:	args[i] = &arg->ce_op.ce_int64; break;
+			case cel_type_string:	args[i] = &arg->ce_op.ce_string; break;
+			default:		return NULL;
+			}
+			i++;
+		}
+
+		ffi_call(fu->ce_op.ce_function->cf_ffi,
+			 fu->ce_op.ce_function->cf_ptr,
+			 ret, args);
+
+		return NULL;
+	}
 
 	args = cel_scope_copy(fu->ce_op.ce_function->cf_argscope);
 	sc = cel_scope_copy(fu->ce_op.ce_function->cf_scope);

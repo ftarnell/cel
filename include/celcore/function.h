@@ -13,6 +13,7 @@
 
 #include	"celcore/expr.h"
 #include	"celcore/type.h"
+#include	"celcore/cel-config.h"
 
 struct cel_type;
 struct cel_scope;
@@ -22,8 +23,13 @@ typedef struct cel_function {
 	struct cel_type		 *cf_type;
 	struct cel_type		**cf_args;
 	int			  cf_nargs;
-	cel_expr_list_t		  cf_body;
 	cel_type_t		 *cf_return_type;
+	int			  cf_extern;
+#ifdef	CEL_HAVE_FFI
+	void			 *cf_ffi;
+	void			 *cf_ptr;
+#endif
+	cel_expr_list_t		  cf_body;
 	struct cel_scope	 *cf_scope;
 	struct cel_scope	 *cf_argscope;
 } cel_function_t;

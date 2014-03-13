@@ -251,7 +251,7 @@ struct {
 				continue;
 			}
 
-			if (lex->cl_bufp[span] == '"') {
+			if (!bsl && lex->cl_bufp[span] == '"') {
 				ret->ct_literal = calloc(sizeof(char), span + 2);
 				ret->ct_token = T_LIT_STR;
 				memcpy(ret->ct_literal, lex->cl_bufp, span + 1);
