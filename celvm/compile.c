@@ -18,13 +18,13 @@
 #include	"celvm/instr.h"
 
 static int32_t	cel_vm_add_bytecode(cel_vm_func_t *, uint8_t *, size_t);
-static int32_t	cel_vm_emit_expr(cel_vm_func_t *, cel_expr_t *);
+static int32_t	cel_vm_emit_expr(cel_scope_t *, cel_vm_func_t *, cel_expr_t *);
 static int32_t	cel_vm_emit_instr(cel_vm_func_t *, int);
-static int32_t	cel_vm_emit_while(cel_vm_func_t *, cel_expr_t *);
-static int32_t	cel_vm_emit_binary(cel_vm_func_t *, cel_expr_t *);
-static int32_t	cel_vm_emit_unary(cel_vm_func_t *, cel_expr_t *);
-static int32_t	cel_vm_emit_literal(cel_vm_func_t *, cel_expr_t *);
-static int32_t	cel_vm_emit_return(cel_vm_func_t *, cel_expr_t *);
+static int32_t	cel_vm_emit_while(cel_scope_t *, cel_vm_func_t *, cel_expr_t *);
+static int32_t	cel_vm_emit_binary(cel_scope_t *, cel_vm_func_t *, cel_expr_t *);
+static int32_t	cel_vm_emit_unary(cel_scope_t *, cel_vm_func_t *, cel_expr_t *);
+static int32_t	cel_vm_emit_literal(cel_scope_t *, cel_vm_func_t *, cel_expr_t *);
+static int32_t	cel_vm_emit_return(cel_scope_t *, cel_vm_func_t *, cel_expr_t *);
 static int32_t	cel_vm_emit_immed16(cel_vm_func_t *, uint32_t);
 static int32_t	cel_vm_emit_immed32(cel_vm_func_t *, uint32_t);
 static int32_t	cel_vm_emit_immed64(cel_vm_func_t *, uint64_t);
@@ -35,7 +35,8 @@ static uint32_t	cel_vm_expr_to_u32(cel_expr_t *e);
 static uint64_t cel_vm_expr_to_u64(cel_expr_t *e);
 
 cel_vm_func_t *
-cel_vm_func_compile(el)
+cel_vm_func_compile(s, el)
+	cel_scope_t	*s;
 	cel_expr_list_t	*el;
 {
 cel_expr_t	*e;
@@ -45,22 +46,23 @@ cel_vm_func_t	*ret;
 		return NULL;
 
 	CEL_TAILQ_FOREACH(e, el, ce_entry)
-		cel_vm_emit_expr(ret, e);
+		cel_vm_emit_expr(s, ret, e);
 
 	return ret;
 }
 
 static int32_t
-cel_vm_emit_expr(f, e)
+cel_vm_emit_expr(s, f, e)
+	cel_scope_t	*s;
 	cel_vm_func_t	*f;
 	cel_expr_t	*e;
 {
 	switch (e->ce_tag) {
-	case cel_exp_return:	return cel_vm_emit_return(f, e);
-	case cel_exp_binary:	return cel_vm_emit_binary(f, e);
-	case cel_exp_unary:	return cel_vm_emit_unary(f, e);
-	case cel_exp_literal:	return cel_vm_emit_literal(f, e);
-	case cel_exp_while:	return cel_vm_emit_while(f, e);
+	case cel_exp_return:	return cel_vm_emit_return(s, f, e);
+	case cel_exp_binary:	return cel_vm_emit_binary(s, f, e);
+	case cel_exp_unary:	return cel_vm_emit_unary(s, f, e);
+	case cel_exp_literal:	return cel_vm_emit_literal(s, f, e);
+	case cel_exp_while:	return cel_vm_emit_while(s, f, e);
 
 	default:
 		printf("can't compile expr type %d\n", e->ce_tag);
@@ -69,7 +71,8 @@ cel_vm_emit_expr(f, e)
 }
 
 static int32_t
-cel_vm_emit_unary(f, e)
+cel_vm_emit_unary(s, f, e)
+	cel_scope_t	*s;
 	cel_vm_func_t	*f;
 	cel_expr_t	*e;
 {
@@ -79,7 +82,7 @@ int32_t	sz;
 	if (e->ce_op.ce_unary.operand->ce_type->ct_tag == cel_type_int64)
 		is64 = 1;
 
-	sz = cel_vm_emit_expr(f, e->ce_op.ce_unary.operand);
+	sz = cel_vm_emit_expr(s, f, e->ce_op.ce_unary.operand);
 
 	switch (e->ce_op.ce_unary.oper) {
 	case cel_op_uni_minus:
@@ -99,7 +102,8 @@ int32_t	sz;
 }
 
 static int32_t
-cel_vm_emit_while(f, e)
+cel_vm_emit_while(s, f, e)
+	cel_scope_t	*s;
 	cel_vm_func_t	*f;
 	cel_expr_t	*e;
 {
@@ -116,13 +120,13 @@ int32_t	sz = 0;
 uint32_t	 patch_end;
 uint16_t	 off_end, off_start;
 int16_t		 i;
-cel_expr_t	*s;
+cel_expr_t	*stmt;
 
 /* start: */
 	off_start = f->vf_bytecodesz;
 
 /* <cond> */
-	sz += cel_vm_emit_expr(f, e->ce_op.ce_while->wh_condition);
+	sz += cel_vm_emit_expr(s, f, e->ce_op.ce_while->wh_condition);
 
 /* brf end */
 	off_end = sz;
@@ -131,8 +135,8 @@ cel_expr_t	*s;
 	sz += cel_vm_emit_immed16(f, 0);
 
 /* <body> */
-	CEL_TAILQ_FOREACH(s, &e->ce_op.ce_while->wh_exprs, ce_entry)
-		sz += cel_vm_emit_expr(f, s);
+	CEL_TAILQ_FOREACH(stmt, &e->ce_op.ce_while->wh_exprs, ce_entry)
+		sz += cel_vm_emit_expr(s, f, stmt);
 
 /* br start */
 	i = (f->vf_bytecodesz - off_start);
@@ -148,7 +152,8 @@ cel_expr_t	*s;
 }
 
 static int32_t
-cel_vm_emit_and(f, e)
+cel_vm_emit_and(s, f, e)
+	cel_scope_t	*s;
 	cel_vm_func_t	*f;
 	cel_expr_t	*e;
 {
@@ -174,14 +179,14 @@ uint8_t	 off_false_1,
 uint16_t	i;
 
 /* <left> */
-	sz += cel_vm_emit_expr(f, e->ce_op.ce_binary.left);
+	sz += cel_vm_emit_expr(s, f, e->ce_op.ce_binary.left);
 /* brf false */
 	off_false_1 = sz;
 	sz += cel_vm_emit_instr(f, CEL_I_BRF);
 	patch_false_1 = f->vf_bytecodesz;
 	sz += cel_vm_emit_immed16(f, 0);
 /* <right> */
-	sz += cel_vm_emit_expr(f, e->ce_op.ce_binary.right);
+	sz += cel_vm_emit_expr(s, f, e->ce_op.ce_binary.right);
 /* brf false */
 	off_false_2 = sz;
 	sz += cel_vm_emit_instr(f, CEL_I_BRF);
@@ -212,7 +217,8 @@ uint16_t	i;
 }
 
 static int32_t
-cel_vm_emit_or(f, e)
+cel_vm_emit_or(s, f, e)
+	cel_scope_t	*s;
 	cel_vm_func_t	*f;
 	cel_expr_t	*e;
 {
@@ -238,14 +244,14 @@ uint8_t	 off_true_1,
 uint16_t	i;
 
 /* <left> */
-	sz += cel_vm_emit_expr(f, e->ce_op.ce_binary.left);
+	sz += cel_vm_emit_expr(s, f, e->ce_op.ce_binary.left);
 /* brt true */
 	off_true_1 = sz;
 	sz += cel_vm_emit_instr(f, CEL_I_BRT);
 	patch_true_1 = f->vf_bytecodesz;
 	sz += cel_vm_emit_immed16(f, 0);
 /* <right> */
-	sz += cel_vm_emit_expr(f, e->ce_op.ce_binary.right);
+	sz += cel_vm_emit_expr(s, f, e->ce_op.ce_binary.right);
 /* brt true */
 	off_true_2 = sz;
 	sz += cel_vm_emit_instr(f, CEL_I_BRT);
@@ -276,7 +282,8 @@ uint16_t	i;
 }
 
 static int32_t
-cel_vm_emit_binary(f, e)
+cel_vm_emit_binary(s, f, e)
+	cel_scope_t	*s;
 	cel_vm_func_t	*f;
 	cel_expr_t	*e;
 {
@@ -289,12 +296,12 @@ int32_t	sz = 0;
 		is64 = 1;
 
 	if (e->ce_op.ce_binary.oper == cel_op_or)
-		return cel_vm_emit_or(f, e);
+		return cel_vm_emit_or(s, f, e);
 	if (e->ce_op.ce_binary.oper == cel_op_and)
-		return cel_vm_emit_and(f, e);
+		return cel_vm_emit_and(s, f, e);
 
-	sz = cel_vm_emit_expr(f, e->ce_op.ce_binary.left);
-	sz = cel_vm_emit_expr(f, e->ce_op.ce_binary.right);
+	sz = cel_vm_emit_expr(s, f, e->ce_op.ce_binary.left);
+	sz = cel_vm_emit_expr(s, f, e->ce_op.ce_binary.right);
 
 	switch (e->ce_op.ce_binary.oper) {
 	case cel_op_plus:	op = is64? CEL_I_ADD8 : CEL_I_ADD4; break;
@@ -437,7 +444,8 @@ cel_vm_expr_to_u64(e)
 }
 
 static int32_t
-cel_vm_emit_literal(f, e)
+cel_vm_emit_literal(s, f, e)
+	cel_scope_t	*s;
 	cel_vm_func_t	*f;
 	cel_expr_t	*e;
 {
@@ -458,13 +466,14 @@ cel_vm_emit_literal(f, e)
 }
 
 static int32_t
-cel_vm_emit_return(f, e)
+cel_vm_emit_return(s, f, e)
+	cel_scope_t	*s;
 	cel_vm_func_t	*f;
 	cel_expr_t	*e;
 {
 int32_t	sz = 0;
 
-	sz += cel_vm_emit_expr(f, e->ce_op.ce_unary.operand);
+	sz += cel_vm_emit_expr(s, f, e->ce_op.ce_unary.operand);
 
 	switch (e->ce_op.ce_unary.operand->ce_type->ct_tag) {
 	case cel_type_int8:

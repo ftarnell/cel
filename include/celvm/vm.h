@@ -14,6 +14,7 @@
 #include	<inttypes.h>
 
 #include	"celcore/expr.h"
+#include	"celcore/scope.h"
 
 typedef struct cel_vm_func {
 	uint8_t	*vf_bytecode;
@@ -23,8 +24,8 @@ typedef struct cel_vm_func {
 	size_t	 vf_bcallocsz;
 } cel_vm_func_t;
 
-cel_vm_func_t	*cel_vm_func_compile(cel_expr_list_t *);
-cel_expr_t	*cel_vm_func_execute(cel_vm_func_t*);
-void		 cel_vm_func_free(cel_expr_t *);
+cel_vm_func_t	*cel_vm_func_compile(cel_scope_t *, cel_expr_list_t *);
+cel_expr_t	*cel_vm_func_execute(cel_scope_t *, cel_vm_func_t*);
+void		 cel_vm_func_free(cel_scope_t *, cel_expr_t *);
 
 #endif	/* CEL_VM_H */

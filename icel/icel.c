@@ -86,12 +86,12 @@ cel_expr_t	*result;
 
 	if (use_vm) {
 	cel_vm_func_t	*vfunc;
-		if ((vfunc = cel_vm_func_compile(program)) == NULL) {
+		if ((vfunc = cel_vm_func_compile(scope, program)) == NULL) {
 			fprintf(stderr, "(compile failure)\n");
 			return 1;
 		}
 
-		if ((result = cel_vm_func_execute(vfunc)) == NULL) {
+		if ((result = cel_vm_func_execute(scope, vfunc)) == NULL) {
 			fprintf(stderr, "(exec failure)\n");
 			return 1;
 		}	

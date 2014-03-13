@@ -51,7 +51,8 @@ typedef union any {
 } any_t;
 
 cel_expr_t *
-cel_vm_func_execute(f)
+cel_vm_func_execute(s, f)
+	cel_scope_t	*s;
 	cel_vm_func_t	*f;
 {
 any_t		 stack[STACKSZ];
@@ -211,5 +212,4 @@ uint8_t	const	*ip, *oip;
 			return NULL;
 		}
 	}
-
 }
