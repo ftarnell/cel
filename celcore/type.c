@@ -86,11 +86,12 @@ cel_name_function(type, buf, bsz)
 	size_t		 bsz;
 {
 cel_type_t	*u;
-char		 buf_[64];
+char		 buf_[64] = {};
 
 	strlcpy(buf, "((", bsz);
 
 	CEL_TAILQ_FOREACH(u, type->ct_type.ct_function.ct_args, ct_entry) {
+		buf_[0] = 0;
 		cel_name_type(u, buf_, sizeof(buf_));
 		strlcat(buf, buf_, bsz);
 		strlcat(buf, ", ", bsz);
@@ -99,6 +100,7 @@ char		 buf_[64];
 	if (buf[2])
 		buf[strlen(buf) - 2] = '\0';
 	strlcat(buf, ") -> ", bsz);
+	buf_[0] = 0;
 	cel_name_type(type->ct_type.ct_function.ct_return_type, buf_, sizeof(buf_));
 	strlcat(buf, buf_, bsz);
 	strlcat(buf, ")", bsz);
