@@ -173,7 +173,7 @@ int32_t	sz = 0;
 uint32_t patch_false_1,
 	 patch_false_2,
 	 patch_end;
-uint8_t	 off_false_1,
+uint32_t off_false_1,
 	 off_false_2,
 	 off_end;
 uint16_t	i;
@@ -238,7 +238,7 @@ int32_t	sz = 0;
 uint32_t patch_true_1,
 	 patch_true_2,
 	 patch_end;
-uint8_t	 off_true_1,
+uint32_t off_true_1,
 	 off_true_2,
 	 off_end;
 uint16_t	i;
@@ -300,8 +300,8 @@ int32_t	sz = 0;
 	if (e->ce_op.ce_binary.oper == cel_op_and)
 		return cel_vm_emit_and(s, f, e);
 
-	sz = cel_vm_emit_expr(s, f, e->ce_op.ce_binary.left);
-	sz = cel_vm_emit_expr(s, f, e->ce_op.ce_binary.right);
+	sz += cel_vm_emit_expr(s, f, e->ce_op.ce_binary.left);
+	sz += cel_vm_emit_expr(s, f, e->ce_op.ce_binary.right);
 
 	switch (e->ce_op.ce_binary.oper) {
 	case cel_op_plus:	op = is64? CEL_I_ADD8 : CEL_I_ADD4; break;
@@ -320,7 +320,7 @@ int32_t	sz = 0;
 		abort();
 	}
 
-	sz = cel_vm_emit_instr(f, op);
+	sz += cel_vm_emit_instr(f, op);
 	return sz;
 }
 
