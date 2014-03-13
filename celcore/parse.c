@@ -334,9 +334,16 @@ int		 const_ = 0;
 		}
 		e->ce_mutable = !const_;
 
-		if (extern_)
+		if (extern_) {
 			/* hmm */
-			e->ce_op.ce_uint8 = dlsym(RTLD_SELF, extern_);
+			if ((e->ce_op.ce_uint8 = dlsym(RTLD_SELF, extern_)) == NULL) {
+			char	err[128];
+				snprintf(err, sizeof(err), "undefined external variable \"%s\"",
+					 extern_);
+				ERROR(err);
+			}
+		}
+
 		cel_scope_add_expr(sc, names[i].name, e);
 	}
 
@@ -597,8 +604,13 @@ char		*extern_ = NULL;
 		cel_type_t	*ty;
 
 			func->cf_extern = 1;
-			func->cf_ptr = dlsym(RTLD_SELF, extern_);
-printf("extern %s\n", extern_);
+			if ((func->cf_ptr = dlsym(RTLD_SELF, extern_)) == NULL) {
+			char	err[128];
+				snprintf(err, sizeof(err), "undefined external function \"%s\"",
+					 extern_);
+				ERROR(err);
+			}
+
 			switch (func->cf_return_type->ct_tag) {
 			case cel_type_int8:	rtype = &ffi_type_sint8; break;
 			case cel_type_uint8:	rtype = &ffi_type_uint8; break;
