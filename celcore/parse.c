@@ -217,10 +217,38 @@ cel_parse_var(par, sc)
 struct vard	*names = NULL;
 size_t		 nnames = 0, i;
 cel_type_t	*type = NULL;
+char		*extern_ = NULL;
+int		 const_ = 0;
 
 	if (!EXPECT(T_VAR))
 		return NULL;
 	CONSUME();
+
+/* Attribute list */
+	if (ACCEPT(T_LPAR)) {
+		for (;;) {
+			if (ACCEPT(T_RPAR))
+				break;
+
+			if (ACCEPT(T_CONST)) {
+				const_ = 1;
+				continue;
+			}
+
+			if (ACCEPT(T_EXTERN)) {
+				if (EXPECT(T_LIT_STR)) {
+					extern_ = strdup(par->cp_tok.ct_literal);
+					CONSUME();
+					continue;
+				} else {
+					ERROR("expected string");
+					continue;
+				}
+			} 
+
+			ERROR("expected 'extern' or ')'");
+		}
+	}
 
 /* Identifier list, colon */
 	for (;;) {
@@ -304,14 +332,19 @@ cel_type_t	*type = NULL;
 		} else {
 			e = cel_make_any(type);
 		}
-		e->ce_mutable = 1;
+		e->ce_mutable = !const_;
 
+		if (extern_)
+			/* hmm */
+			e->ce_op.ce_uint8 = dlsym(RTLD_SELF, extern_);
 		cel_scope_add_expr(sc, names[i].name, e);
 	}
+
 	free_varvec(names, nnames);
 	
 	if (type)
 		cel_type_free(type);
+
 	return cel_make_void();
 }
 

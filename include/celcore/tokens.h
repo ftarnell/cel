@@ -84,6 +84,7 @@
 #define	T_MULTN		70 /* :*= */
 #define	T_DIVN		71 /* :/= */
 #define	T_EXTERN	72
+#define	T_CONST		73
 
 /*
  * Lexer state.

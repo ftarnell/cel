@@ -76,7 +76,8 @@ struct {
 	{ "void",	T_VOID		},
 	{ "while",	T_WHILE		},
 	{ "do",		T_DO		},
-	{ "extern",	T_EXTERN	}
+	{ "extern",	T_EXTERN	},
+	{ "const",	T_CONST		}
 };
 
 /* Skip whitespace */
