@@ -50,6 +50,11 @@ typedef union any {
 	int32_t		i32;
 } any_t;
 
+typedef union any64 {
+	uint32_t	u32;
+	uint64_t	u64;
+} any64_t;
+
 cel_expr_t *
 cel_vm_func_execute(s, f)
 	cel_scope_t	*s;
@@ -58,6 +63,9 @@ cel_vm_func_execute(s, f)
 any_t		 stack[STACKSZ];
 int		 sp;
 uint8_t	const	*ip, *oip;
+any64_t		*vars;
+
+	vars = calloc(f->vf_nvars, sizeof(any64_t));
 
 	ip = f->vf_bytecode;
 	sp = 0;
@@ -213,36 +221,36 @@ uint8_t	const	*ip, *oip;
 		case CEL_I_INCV4:
 			GET_II16(i16);
 			GET_SU32(u32a);
-			*f->vf_vars[i16]->ce_op.ce_uint32 += u32a;
+			vars[i16].u32 += u32a;
 			break;
 
 		case CEL_I_DECV4:
 			GET_II16(i16);
 			GET_SU32(u32a);
-			*f->vf_vars[i16]->ce_op.ce_uint32 -= u32a;
+			vars[i16].u32 -= u32a;
 			break;
 
 		case CEL_I_MULV4:
 			GET_II16(i16);
 			GET_SU32(u32a);
-			*f->vf_vars[i16]->ce_op.ce_uint32 *= u32a;
+			vars[i16].u32 *= u32a;
 			break;
 
 		case CEL_I_DIVV4:
 			GET_II16(i16);
 			GET_SU32(u32a);
-			*f->vf_vars[i16]->ce_op.ce_uint32 /= u32a;
+			vars[i16].u32 /= u32a;
 			break;
 
 		case CEL_I_LOADV4:
 			GET_II16(i16);
-			PUT_SU32(*f->vf_vars[i16]->ce_op.ce_uint32);
+			PUT_SU32(vars[i16].u32);
 			break;
 
 		case CEL_I_STOV4:
 			GET_II16(i16);
 			GET_SU32(u32a);
-			*f->vf_vars[i16]->ce_op.ce_uint32 = u32a;
+			vars[i16].u32 = u32a;
 			break;
 
 		default:

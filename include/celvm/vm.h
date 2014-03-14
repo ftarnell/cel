@@ -20,7 +20,7 @@ typedef struct cel_vm_func {
 	uint8_t		*vf_bytecode;
 	size_t		 vf_bytecodesz;
 
-	cel_expr_t	**vf_vars;
+	char const	**vf_vars;
 	size_t		  vf_nvars;
 } cel_vm_func_t;
 

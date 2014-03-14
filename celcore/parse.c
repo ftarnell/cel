@@ -330,11 +330,13 @@ int		 const_ = 0;
 
 				ERROR_TOK(&err_tok, err);
 			}
-			e = cel_eval(sc, names[i].init);
+			e = cel_make_vardecl(names[i].name, type ? type : names[i].init->ce_type, names[i].init);
 		} else {
-			e = cel_make_any(type);
+			e = cel_make_vardecl(names[i].name, type, NULL);
 		}
 		e->ce_mutable = !const_;
+		cel_scope_add_expr(sc, names[i].name, e);
+		return e;
 
 		if (extern_) {
 			/* hmm */
@@ -350,11 +352,8 @@ int		 const_ = 0;
 	}
 
 	free_varvec(names, nnames);
-	
-	if (type)
-		cel_type_free(type);
 
-	return cel_make_void();
+	return NULL;
 }
 
 cel_type_t *
@@ -626,6 +625,7 @@ char		*extern_ = NULL;
 			case cel_type_int64:	rtype = &ffi_type_sint64; break;
 			case cel_type_uint64:	rtype = &ffi_type_uint64; break;
 			case cel_type_string:	rtype = &ffi_type_pointer; break;
+			case cel_type_ptr:	rtype = &ffi_type_pointer; break;
 			default:
 				ERROR("unsupported FFI return type");
 				return ef;
@@ -1192,6 +1192,7 @@ cel_token_t	 err_tok;
 		return NULL;
 
 /* Function call */
+	err_tok = par->cp_tok;
 	while ((op = ACCEPT(T_LPAR)) || (op = ACCEPT(T_LSQ)) ||
 	       (op = ACCEPT(T_AS)) || (op = ACCEPT(T_ADDR)) ||
 	       (op = ACCEPT(T_CARET))) {
@@ -1200,10 +1201,15 @@ cel_token_t	 err_tok;
 
 		switch (op) {
 		case T_CARET:
-			e = cel_make_deref(e);
+			if (e->ce_type->ct_tag != cel_type_ptr)
+				ERROR_TOK(&err_tok, "only pointers can be dereferenced");
+			else
+				e = cel_make_deref(e);
 			break;
 
 		case T_ADDR:
+			if (e->ce_tag != cel_exp_variable)
+				ERROR_TOK(&err_tok, "cannot take address of temporary");
 			t = cel_make_ptr(e->ce_type);
 			e = cel_make_unary(cel_op_addr, e);
 			e->ce_type = t;

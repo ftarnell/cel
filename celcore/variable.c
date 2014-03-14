@@ -12,18 +12,6 @@
 
 #include	"celcore/variable.h"
 
-cel_expr_t *
-cel_make_vardecl(vd)
-	cel_vardecl_t	*vd;
-{
-cel_expr_t	*ret;
-	if ((ret = calloc(1, sizeof(*ret))) == NULL)
-		return NULL;
-	ret->ce_tag = cel_exp_vardecl;
-	ret->ce_op.ce_vardecl = vd;
-	return ret;
-}
-
 void
 cel_vardecl_free(vd)
 	cel_vardecl_t	*vd;

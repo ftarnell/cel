@@ -144,10 +144,12 @@ cel_derive_unary_type(op, a)
 {
 	switch (op) {
 	case cel_op_addr:
-		return a;
+		return cel_make_ptr(a);
 
 	case cel_op_deref:
-		return a;
+		if (a->ct_tag != cel_type_ptr)
+			return NULL;
+		return a->ct_type.ct_ptr_type;
 
 	case cel_op_uni_minus:
 		switch (a->ct_tag) {
@@ -189,10 +191,10 @@ cel_derive_unary_promotion(op, a)
 {
 	switch (op) {
 	case cel_op_addr:
-		return a;
+		return cel_make_ptr(a);
 
 	case cel_op_deref:
-		return a;
+		return a->ct_type.ct_ptr_type;
 
 	case cel_op_uni_minus:
 		switch (a->ct_tag) {

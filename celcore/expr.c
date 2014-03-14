@@ -154,7 +154,10 @@ cel_make_unary(op, e)
 {
 cel_expr_t	*ret;
 	ret = cel_make_expr();
-	ret->ce_mutable = 0;
+	if (op == cel_op_addr)
+		ret->ce_mutable = e->ce_op.ce_ptr->ce_mutable;
+	else
+		ret->ce_mutable = 0;
 	ret->ce_const = 0;
 	ret->ce_type = NULL;
 	ret->ce_tag = cel_exp_unary;
@@ -193,6 +196,22 @@ cel_expr_t	*ret;
 }
 
 cel_expr_t *
+cel_make_vardecl(n, t, i)
+	char const	*n;
+	cel_type_t	*t;
+	cel_expr_t	*i;
+{
+cel_expr_t	*ret;
+	ret = cel_make_expr();
+	ret->ce_tag = cel_exp_vardecl;
+	ret->ce_mutable = ret->ce_const = 0;
+	ret->ce_type = t;
+	ret->ce_op.ce_vardecl.name = strdup(n);
+	ret->ce_op.ce_vardecl.init = i;
+	return ret;
+}
+
+cel_expr_t *
 cel_make_deref(e)
 	cel_expr_t	*e;
 {
@@ -200,7 +219,7 @@ cel_expr_t	*ret;
 	assert(e);
 
 	ret = cel_make_expr();
-	ret->ce_mutable = 0;
+	ret->ce_mutable = e->ce_mutable;
 	ret->ce_const = 0;
 	ret->ce_tag = cel_exp_unary;
 	ret->ce_type = e->ce_type->ct_type.ct_ptr_type;
@@ -217,11 +236,12 @@ cel_expr_t	*ret;
 	assert(e);
 
 	ret = cel_make_expr();
-	ret->ce_mutable = 0;
+	ret->ce_mutable = e->ce_mutable;
 	ret->ce_const = 0;
-	ret->ce_tag = cel_exp_literal;
+	ret->ce_tag = cel_exp_unary;
 	ret->ce_type = cel_make_ptr(e->ce_type);
-	ret->ce_op.ce_ptr = 0;
+	ret->ce_op.ce_unary.operand = e;
+	ret->ce_op.ce_unary.oper = cel_op_addr;
 	return ret;
 }
 

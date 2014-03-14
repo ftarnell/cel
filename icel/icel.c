@@ -65,6 +65,7 @@ cel_lexer_t	 lex;
 cel_parser_t	*par;
 cel_expr_list_t	*program;
 cel_expr_t	*result;
+cel_vm_func_t	*func;
 
 	if (cel_lexer_init(&lex, s) != 0) {
 		fprintf(stderr, "icel: cannot init lexer\n");
@@ -84,8 +85,13 @@ cel_expr_t	*result;
 		return 1;
 	}
 
-	if ((result = cel_eval_list(scope, program)) == NULL) {
-		fprintf(stderr, "(eval error)\n");
+	if ((func = cel_vm_func_compile(scope, program)) == NULL) {
+		fprintf(stderr, "(compile error)\n");
+		return 1;
+	}
+
+	if ((result = cel_vm_func_execute(scope, func)) == NULL) {
+		fprintf(stderr, "(execution error)\n");
 		return 1;
 	}
 

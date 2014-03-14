@@ -112,7 +112,10 @@ typedef struct cel_expr {
 		struct cel_while	*ce_while;
 
 		struct cel_function	*ce_function;
-		struct cel_vardecl 	*ce_vardecl;
+		struct {
+			char const	*name;
+			struct cel_expr	*init;
+		} ce_vardecl;
 	} ce_op;
 
 	CEL_TAILQ_ENTRY(cel_expr) ce_entry;
@@ -155,6 +158,7 @@ cel_expr_t	*cel_make_uint64(uint64_t);
 cel_expr_t	*cel_make_bool(int);
 cel_expr_t	*cel_make_string(char const *);
 cel_expr_t	*cel_make_variable(char const *, struct cel_type *);
+cel_expr_t	*cel_make_vardecl(char const *name, struct cel_type *, cel_expr_t *init);
 cel_expr_t	*cel_make_void(void);
 cel_expr_t	*cel_make_any(struct cel_type *);
 

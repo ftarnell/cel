@@ -20,8 +20,6 @@ typedef struct cel_vardecl {
 	int		 cv_nnames;
 } cel_vardecl_t;
 
-cel_expr_t	*cel_make_vardecl(cel_vardecl_t *);
-
 void	cel_vardecl_free(cel_vardecl_t *);
 
 #endif	/* !CEL_VARIABLE_H */

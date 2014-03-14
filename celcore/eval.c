@@ -229,18 +229,21 @@ cel_type_t	*ptype;
 
 	switch (e->ce_op.ce_unary.oper) {
 	case cel_op_addr:
+		return v;
+#if 0
 		ret = calloc(1, sizeof(cel_expr_t));
 		ret->ce_tag = cel_exp_literal;
 		ret->ce_type = cel_make_ptr(pv->ce_type);
 		ret->ce_op.ce_ptr = pv;
 		return ret;
+#endif
 
 	case cel_op_negate:
 		ret = cel_make_bool(!pv->ce_op.ce_bool);
 		break;
 
 	case cel_op_deref:
-		return pv->ce_op.ce_ptr;
+		return pv->ce_op.ce_unary.operand;
 
 	case cel_op_uni_minus:
 		switch (ptype->ct_tag) {
@@ -318,15 +321,17 @@ cel_eval_assign(s, l, r)
 	cel_scope_t	*s;
 	cel_expr_t	*l, *r;
 {
-cel_expr_t		*cr, *el, *er;
+cel_expr_t		*cr, *el = NULL, *er;
 cel_scope_item_t	*scope;
 int			 free_el = 0;
 
+	if (l->ce_tag != cel_exp_variable)
+		l = cel_eval(s, l);
 	if (l->ce_tag == cel_exp_variable) {
 		if ((scope = cel_scope_find_item(s, l->ce_op.ce_variable)) == NULL)
 			return NULL;
 		el = scope->si_ob.si_expr;
-	}
+	} 
 
 	if ((er = cel_eval(s, r)) == NULL) {
 		if (free_el)

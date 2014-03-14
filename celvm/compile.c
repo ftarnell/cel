@@ -26,6 +26,7 @@ static int32_t	cel_vm_emit_unary(cel_scope_t *, cel_vm_func_t *, cel_expr_t *);
 static int32_t	cel_vm_emit_literal(cel_scope_t *, cel_vm_func_t *, cel_expr_t *);
 static int32_t	cel_vm_emit_return(cel_scope_t *, cel_vm_func_t *, cel_expr_t *);
 static int32_t	cel_vm_emit_variable(cel_scope_t *, cel_vm_func_t *, cel_expr_t *);
+static int32_t	cel_vm_emit_vardecl(cel_scope_t *, cel_vm_func_t *, cel_expr_t *);
 static int32_t	cel_vm_emit_assign(cel_scope_t *, cel_vm_func_t *, cel_expr_t *);
 static int32_t	cel_vm_emit_call(cel_scope_t *, cel_vm_func_t *, cel_expr_t *);
 static int32_t	cel_vm_emit_incr(cel_scope_t *, cel_vm_func_t *, cel_expr_t *);
@@ -70,6 +71,7 @@ cel_vm_emit_expr(s, f, e)
 	case cel_exp_literal:	return cel_vm_emit_literal(s, f, e);
 	case cel_exp_while:	return cel_vm_emit_while(s, f, e);
 	case cel_exp_variable:	return cel_vm_emit_variable(s, f, e);
+	case cel_exp_vardecl:	return cel_vm_emit_vardecl(s, f, e);
 #if 0
 	case cel_exp_call:	return cel_vm_emit_call(s, f, e);
 #endif
@@ -524,6 +526,37 @@ int32_t	sz = 0;
 }
 
 static int32_t
+cel_vm_emit_vardecl(s, f, e)
+	cel_scope_t	*s;
+	cel_vm_func_t	*f;
+	cel_expr_t	*e;
+{
+ssize_t		 i;
+int16_t		 varn = -1;
+int32_t		 sz = 0;
+cel_scope_item_t *it;
+
+/* Is this variable already in the var table? */
+	for (i = 0; i < f->vf_nvars; i++)
+		if (strcmp(e->ce_op.ce_vardecl.name, f->vf_vars[i]) == 0)
+			return -1;
+
+/* No; add a new var ref */
+	varn = f->vf_nvars;
+	f->vf_vars = realloc(f->vf_vars, sizeof(char const *) * (f->vf_nvars + 1));
+	f->vf_vars[varn] = e->ce_op.ce_vardecl.name;
+	f->vf_nvars++;
+
+/* If it has an initialiser, emit the init code */
+	if (e->ce_op.ce_vardecl.init) {
+		sz += cel_vm_emit_expr(s, f, e->ce_op.ce_vardecl.init);
+		sz += cel_vm_emit_instr(f, CEL_I_STOV4);
+		sz += cel_vm_emit_immed16(f, varn);
+	}
+	return sz;
+}
+
+static int32_t
 cel_vm_emit_variable(s, f, e)
 	cel_scope_t	*s;
 	cel_vm_func_t	*f;
@@ -535,24 +568,14 @@ int32_t		 sz = 0;
 
 /* Is this variable already in the var table? */
 	for (i = 0; i < f->vf_nvars; i++) {
-		if (strcmp(e->ce_op.ce_variable, f->vf_vars[i]->ce_op.ce_variable) == 0) {
+		if (strcmp(e->ce_op.ce_variable, f->vf_vars[i]) == 0) {
 			varn = i;
 			break;
 		}
 	}
 
-	if (varn == -1) {
-	/* No; add a new var ref */
-	cel_scope_item_t	*it;
-
-		if ((it = cel_scope_find_item(s, e->ce_op.ce_variable)) == NULL)
-			return -1;
-
-		varn = f->vf_nvars;
-		f->vf_vars = realloc(f->vf_vars, sizeof(cel_expr_t **) * (f->vf_nvars + 1));
-		f->vf_vars[varn] = it->si_ob.si_expr;
-		f->vf_nvars++;
-	}
+	if (varn == -1)
+		return -1;
 
 	sz += cel_vm_emit_instr(f, CEL_I_LOADV4);
 	sz += cel_vm_emit_immed16(f, i);
@@ -572,24 +595,14 @@ int32_t		 sz = 0;
 /* Is this variable already in the var table? */
 	for (i = 0; i < f->vf_nvars; i++) {
 		if (strcmp(e->ce_op.ce_binary.left->ce_op.ce_variable,
-			   f->vf_vars[i]->ce_op.ce_variable) == 0) {
+			   f->vf_vars[i]) == 0) {
 			varn = i;
 			break;
 		}
 	}
 
-	if (varn == -1) {
-	/* No; add a new var ref */
-	cel_scope_item_t	*it;
-
-		if ((it = cel_scope_find_item(s, e->ce_op.ce_binary.left->ce_op.ce_variable)) == NULL)
-			return -1;
-
-		varn = f->vf_nvars;
-		f->vf_vars = realloc(f->vf_vars, sizeof(cel_expr_t **) * (f->vf_nvars + 1));
-		f->vf_vars[varn] = it->si_ob.si_expr;
-		f->vf_nvars++;
-	}
+	if (varn == -1)
+		return -1;
 
 	sz += cel_vm_emit_expr(s, f, e->ce_op.ce_binary.right);
 	sz += cel_vm_emit_instr(f, CEL_I_STOV4);
@@ -622,24 +635,14 @@ int		 inst;
 /* Is this variable already in the var table? */
 	for (i = 0; i < f->vf_nvars; i++) {
 		if (strcmp(e->ce_op.ce_binary.left->ce_op.ce_variable,
-			   f->vf_vars[i]->ce_op.ce_variable) == 0) {
+			   f->vf_vars[i]) == 0) {
 			varn = i;
 			break;
 		}
 	}
 
-	if (varn == -1) {
-	/* No; add a new var ref */
-	cel_scope_item_t	*it;
-
-		if ((it = cel_scope_find_item(s, e->ce_op.ce_binary.left->ce_op.ce_variable)) == NULL)
-			return -1;
-
-		varn = f->vf_nvars;
-		f->vf_vars = realloc(f->vf_vars, sizeof(cel_expr_t **) * (f->vf_nvars + 1));
-		f->vf_vars[varn] = it->si_ob.si_expr;
-		f->vf_nvars++;
-	}
+	if (varn == -1)
+		return -1;
 
 	switch (e->ce_op.ce_binary.oper) {
 	case cel_op_incr:	inst = CEL_I_INCV4; break;
