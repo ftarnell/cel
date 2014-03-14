@@ -64,8 +64,9 @@ char		 type[64] = {}, value[128];
 cel_lexer_t	 lex;
 cel_parser_t	*par;
 cel_expr_list_t	*program;
-cel_expr_t	*result;
 cel_vm_func_t	*func;
+cel_vm_any_t	 ret;
+cel_expr_t	*result;
 
 	if (cel_lexer_init(&lex, s) != 0) {
 		fprintf(stderr, "icel: cannot init lexer\n");
@@ -90,18 +91,17 @@ cel_vm_func_t	*func;
 		return 1;
 	}
 
-	if ((result = cel_vm_func_execute(scope, func)) == NULL) {
+	if (cel_vm_func_execute(scope, func, &ret) == -1) {
 		fprintf(stderr, "(execution error)\n");
 		return 1;
 	}
 
-	if (result->ce_type->ct_tag != cel_type_void) {
-		cel_name_type(result->ce_type, type, sizeof(type) / sizeof(char));
-		cel_expr_print(result, value, sizeof(value) / sizeof(char));
-		printf("<%s> %s\n", type, value);
-	}
-
+	result = cel_make_int32(ret.i32);
+	cel_name_type(result->ce_type, type, sizeof(type) / sizeof(char));
+	cel_expr_print(result, value, sizeof(value) / sizeof(char));
+	printf("<%s> %s\n", type, value);
 	cel_expr_free(result);
+
 	return 0;
 }
 

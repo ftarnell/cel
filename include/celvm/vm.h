@@ -13,8 +13,19 @@
 
 #include	<inttypes.h>
 
-#include	"celcore/expr.h"
 #include	"celcore/scope.h"
+
+typedef union cel_vm_any_t {
+	int8_t		i8;
+	uint8_t		u8;
+	int16_t		i16;
+	uint16_t	u16;
+	int32_t		i32;
+	uint32_t	u32;
+	int64_t		i64;
+	uint64_t	u64;
+	void		*ptr;
+} cel_vm_any_t;
 
 typedef struct cel_vm_func {
 	uint8_t		*vf_bytecode;
@@ -25,7 +36,7 @@ typedef struct cel_vm_func {
 } cel_vm_func_t;
 
 cel_vm_func_t	*cel_vm_func_compile(cel_scope_t *, cel_expr_list_t *);
-cel_expr_t	*cel_vm_func_execute(cel_scope_t *, cel_vm_func_t*);
+int		 cel_vm_func_execute(cel_scope_t *, cel_vm_func_t *, cel_vm_any_t *ret);
 void		 cel_vm_func_free(cel_scope_t *, cel_expr_t *);
 
 #endif	/* CEL_VM_H */

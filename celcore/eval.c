@@ -101,17 +101,33 @@ cel_call_function(s, e, a)
 	cel_expr_t	*e;
 	cel_arglist_t	*a;
 {
-cel_expr_t	*stmt;
-cel_expr_t	*fu;
-cel_scope_t	*sc, *args;
+cel_expr_t	 *stmt;
+cel_expr_t	 *fu;
+cel_scope_t	 *sc, *args;
 cel_scope_item_t *si;
-size_t		i;
+size_t		  i;
+cel_expr_t	 *rete;
+cel_vm_any_t	  ret;
 
 	if ((fu = cel_eval(s, e)) == NULL)
 		return NULL;
 
-	if (fu->ce_op.ce_function->cf_bytecode)
-		return cel_vm_func_execute(s, fu->ce_op.ce_function->cf_bytecode);
+	if (fu->ce_op.ce_function->cf_bytecode) {
+	 	if (cel_vm_func_execute(s, fu->ce_op.ce_function->cf_bytecode, &ret) == -1)
+			return NULL;
+		rete = cel_make_any(fu->ce_op.ce_function->cf_return_type);
+		switch (fu->ce_op.ce_function->cf_return_type->ct_tag) {
+		case cel_type_int8:	*rete->ce_op.ce_int8 = ret.i8; break;
+		case cel_type_uint8:	*rete->ce_op.ce_uint8 = ret.u8; break;
+		case cel_type_int16:	*rete->ce_op.ce_int16 = ret.i16; break;
+		case cel_type_uint16:	*rete->ce_op.ce_uint16 = ret.u16; break;
+		case cel_type_int32:	*rete->ce_op.ce_int32 = ret.i32; break;
+		case cel_type_uint32:	*rete->ce_op.ce_uint32 = ret.u32; break;
+		case cel_type_int64:	*rete->ce_op.ce_int64 = ret.i64; break;
+		case cel_type_uint64:	*rete->ce_op.ce_uint64 = ret.u64; break;
+		}
+		return 0;
+	}
 
 	if (fu->ce_op.ce_function->cf_extern) {
 	uint8_t		ret[16];

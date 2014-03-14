@@ -20,6 +20,7 @@
 static int32_t	cel_vm_add_bytecode(cel_vm_func_t *, uint8_t *, size_t);
 static int32_t	cel_vm_emit_expr(cel_scope_t *, cel_vm_func_t *, cel_expr_t *);
 static int32_t	cel_vm_emit_instr(cel_vm_func_t *, int);
+static int32_t	cel_vm_emit_instr_immed8(cel_vm_func_t *, int, int);
 static int32_t	cel_vm_emit_while(cel_scope_t *, cel_vm_func_t *, cel_expr_t *);
 static int32_t	cel_vm_emit_binary(cel_scope_t *, cel_vm_func_t *, cel_expr_t *);
 static int32_t	cel_vm_emit_unary(cel_scope_t *, cel_vm_func_t *, cel_expr_t *);
@@ -30,6 +31,8 @@ static int32_t	cel_vm_emit_vardecl(cel_scope_t *, cel_vm_func_t *, cel_expr_t *)
 static int32_t	cel_vm_emit_assign(cel_scope_t *, cel_vm_func_t *, cel_expr_t *);
 static int32_t	cel_vm_emit_call(cel_scope_t *, cel_vm_func_t *, cel_expr_t *);
 static int32_t	cel_vm_emit_incr(cel_scope_t *, cel_vm_func_t *, cel_expr_t *);
+static int32_t	cel_vm_emit_ret(cel_vm_func_t *, int type);
+static int32_t	cel_vm_emit_immed8(cel_vm_func_t *, uint32_t);
 static int32_t	cel_vm_emit_immed16(cel_vm_func_t *, uint32_t);
 static int32_t	cel_vm_emit_immed32(cel_vm_func_t *, uint32_t);
 static int32_t	cel_vm_emit_immed64(cel_vm_func_t *, uint64_t);
@@ -54,8 +57,18 @@ cel_vm_func_t	*ret;
 		if (cel_vm_emit_expr(s, ret, e) == -1)
 			return NULL;
 
-	cel_vm_emit_instr(ret, CEL_I_RET);
+	cel_vm_emit_ret(ret, CEL_VA_VOID);
 	return ret;
+}
+
+static int32_t
+cel_vm_emit_ret(f, t)
+	cel_vm_func_t	*f;
+{
+int32_t	sz = 0;
+	sz += cel_vm_emit_instr(f, CEL_I_RET);
+	sz += cel_vm_emit_immed8(f, t);
+	return sz;
 }
 
 static int32_t
@@ -88,21 +101,31 @@ cel_vm_emit_unary(s, f, e)
 	cel_vm_func_t	*f;
 	cel_expr_t	*e;
 {
-int	is64 = 0;
+int	type;
 int32_t	sz;
-
-	if (e->ce_op.ce_unary.operand->ce_type->ct_tag == cel_type_int64)
-		is64 = 1;
 
 	sz = cel_vm_emit_expr(s, f, e->ce_op.ce_unary.operand);
 
+	switch (e->ce_op.ce_unary.operand->ce_type->ct_tag) {
+	case cel_type_int8:	type = CEL_VA_INT8; break;
+	case cel_type_uint8:	type = CEL_VA_UINT8; break;
+	case cel_type_int16:	type = CEL_VA_INT16; break;
+	case cel_type_uint16:	type = CEL_VA_UINT16; break;
+	case cel_type_bool:
+	case cel_type_int32:	type = CEL_VA_INT32; break;
+	case cel_type_uint32:	type = CEL_VA_UINT32; break;
+	case cel_type_int64:	type = CEL_VA_INT64; break;
+	case cel_type_uint64:	type = CEL_VA_UINT64; break;
+	case cel_type_ptr:	type = CEL_VA_PTR; break;
+	}
+
 	switch (e->ce_op.ce_unary.oper) {
 	case cel_op_uni_minus:
-		sz += cel_vm_emit_instr(f, is64 ? CEL_I_NEG8 : CEL_I_NEG4);
+		sz += cel_vm_emit_instr_immed8(f, CEL_I_NEG, type);
 		break;
 
 	case cel_op_negate:
-		sz += cel_vm_emit_instr(f, is64 ? CEL_I_NOT8 : CEL_I_NOT4);
+		sz += cel_vm_emit_instr_immed8(f, CEL_I_NOT, type);
 		break;
 
 	default:
@@ -299,8 +322,7 @@ cel_vm_emit_binary(s, f, e)
 	cel_vm_func_t	*f;
 	cel_expr_t	*e;
 {
-int	is64 = 0;
-int	op;
+int	op, type;
 int32_t	sz = 0;
 
 	switch (e->ce_op.ce_binary.oper) {
@@ -318,31 +340,40 @@ int32_t	sz = 0;
 	if (e->ce_op.ce_binary.oper == cel_op_and)
 		return cel_vm_emit_and(s, f, e);
 
-	if (e->ce_op.ce_binary.left->ce_type->ct_tag == cel_type_int64 ||
-	    e->ce_op.ce_binary.left->ce_type->ct_tag == cel_type_uint64)
-		is64 = 1;
-
 	sz += cel_vm_emit_expr(s, f, e->ce_op.ce_binary.left);
 	sz += cel_vm_emit_expr(s, f, e->ce_op.ce_binary.right);
 
+	switch (e->ce_op.ce_binary.left->ce_type->ct_tag) {
+	case cel_type_int8:	type = CEL_VA_INT8; break;
+	case cel_type_uint8:	type = CEL_VA_UINT8; break;
+	case cel_type_int16:	type = CEL_VA_INT16; break;
+	case cel_type_uint16:	type = CEL_VA_UINT16; break;
+	case cel_type_bool:
+	case cel_type_int32:	type = CEL_VA_INT32; break;
+	case cel_type_uint32:	type = CEL_VA_UINT32; break;
+	case cel_type_int64:	type = CEL_VA_INT64; break;
+	case cel_type_uint64:	type = CEL_VA_UINT64; break;
+	case cel_type_ptr:	type = CEL_VA_PTR; break;
+	}
+
 	switch (e->ce_op.ce_binary.oper) {
-	case cel_op_plus:	op = is64? CEL_I_ADD8 : CEL_I_ADD4; break;
-	case cel_op_minus:	op = is64? CEL_I_SUB8 : CEL_I_SUB4; break;
-	case cel_op_mult:	op = is64? CEL_I_MUL8 : CEL_I_MUL4; break;
-	case cel_op_div:	op = is64? CEL_I_DIV8 : CEL_I_DIV4; break;
-	case cel_op_le:		op = is64? CEL_I_TLE8 : CEL_I_TLE4; break;
-	case cel_op_lt:		op = is64? CEL_I_TLT8 : CEL_I_TLT4; break;
-	case cel_op_ge:		op = is64? CEL_I_TGE8 : CEL_I_TGE4; break;
-	case cel_op_gt:		op = is64? CEL_I_TGT8 : CEL_I_TGT4; break;
-	case cel_op_eq:		op = is64? CEL_I_TEQ8 : CEL_I_TEQ4; break;
-	case cel_op_neq:	op = is64? CEL_I_TNE8 : CEL_I_TNE4; break;
+	case cel_op_plus:	op = CEL_I_ADD; break;
+	case cel_op_minus:	op = CEL_I_SUB; break;
+	case cel_op_mult:	op = CEL_I_MUL; break;
+	case cel_op_div:	op = CEL_I_DIV; break;
+	case cel_op_le:		op = CEL_I_TLE; break;
+	case cel_op_lt:		op = CEL_I_TLT; break;
+	case cel_op_ge:		op = CEL_I_TGE; break;
+	case cel_op_gt:		op = CEL_I_TGT; break;
+	case cel_op_eq:		op = CEL_I_TEQ; break;
+	case cel_op_neq:	op = CEL_I_TNE; break;
 
 	default:
 		printf("can't emit binary type %d\n", e->ce_op.ce_binary.oper);
 		return -1;
 	}
 
-	sz += cel_vm_emit_instr(f, op);
+	sz += cel_vm_emit_instr_immed8(f, op, type);
 	return sz;
 }
 
@@ -365,6 +396,25 @@ cel_vm_emit_instr(f, i)
 {
 uint8_t	bc[] = { i };
 	return cel_vm_add_bytecode(f, bc, 1);
+}
+
+static int32_t
+cel_vm_emit_immed8(f, i)
+	cel_vm_func_t	*f;
+	uint32_t	 i;
+{
+uint8_t	bc[] = { i };
+	return cel_vm_add_bytecode(f, bc, sizeof(bc));
+}
+
+static int32_t
+cel_vm_emit_instr_immed8(f, i, v)
+	cel_vm_func_t	*f;
+{
+int32_t	sz = 0;
+	sz += cel_vm_emit_instr(f, i);
+	sz += cel_vm_emit_immed8(f, v);
+	return sz;
 }
 
 static int32_t
@@ -417,7 +467,8 @@ cel_vm_emit_loadi32(f, i)
 	uint32_t	 i;
 {
 int32_t	sz = 0;
-	sz += cel_vm_emit_instr(f, CEL_I_LOADI4);
+	sz += cel_vm_emit_instr(f, CEL_I_LOADI);
+	sz += cel_vm_emit_immed8(f, CEL_VA_UINT32);
 	sz += cel_vm_emit_immed32(f, i);
 	return sz;
 }
@@ -428,7 +479,8 @@ cel_vm_emit_loadi64(f, i)
 	uint64_t	 i;
 {
 int32_t	sz = 0;
-	sz += cel_vm_emit_instr(f, CEL_I_LOADI8);
+	sz += cel_vm_emit_instr(f, CEL_I_LOADI);
+	sz += cel_vm_emit_immed8(f, CEL_VA_UINT64);
 	sz += cel_vm_emit_immed64(f, i);
 	return sz;
 }
@@ -500,21 +552,27 @@ int32_t	sz = 0;
 	switch (e->ce_op.ce_unary.operand->ce_type->ct_tag) {
 	case cel_type_int8:
 	case cel_type_uint8:
+		sz += cel_vm_emit_ret(f, CEL_VA_UINT8);
+		break;
+
 	case cel_type_int16:
 	case cel_type_uint16:
+		sz += cel_vm_emit_ret(f, CEL_VA_UINT16);
+		break;
+
+	case cel_type_bool:
 	case cel_type_int32:
 	case cel_type_uint32:
-	case cel_type_bool:
-		sz += cel_vm_emit_instr(f, CEL_I_RET4);
+		sz += cel_vm_emit_ret(f, CEL_VA_UINT32);
 		break;
 
 	case cel_type_int64:
 	case cel_type_uint64:
-		sz += cel_vm_emit_instr(f, CEL_I_RET8);
+		sz += cel_vm_emit_ret(f, CEL_VA_UINT64);
 		break;
 
 	case cel_type_void:
-		sz += cel_vm_emit_instr(f, CEL_I_RET);
+		sz += cel_vm_emit_ret(f, CEL_VA_VOID);
 		break;
 
 	default:
@@ -549,9 +607,23 @@ cel_scope_item_t *it;
 
 /* If it has an initialiser, emit the init code */
 	if (e->ce_op.ce_vardecl.init) {
+	int	type;
+		switch (e->ce_op.ce_unary.operand->ce_type->ct_tag) {
+		case cel_type_int8:	type = CEL_VA_INT8; break;
+		case cel_type_uint8:	type = CEL_VA_UINT8; break;
+		case cel_type_int16:	type = CEL_VA_INT16; break;
+		case cel_type_uint16:	type = CEL_VA_UINT16; break;
+		case cel_type_bool:
+		case cel_type_int32:	type = CEL_VA_INT32; break;
+		case cel_type_uint32:	type = CEL_VA_UINT32; break;
+		case cel_type_int64:	type = CEL_VA_INT64; break;
+		case cel_type_uint64:	type = CEL_VA_UINT64; break;
+		case cel_type_ptr:	type = CEL_VA_PTR; break;
+		}
 		sz += cel_vm_emit_expr(s, f, e->ce_op.ce_vardecl.init);
-		sz += cel_vm_emit_instr(f, CEL_I_STOV4);
+		sz += cel_vm_emit_instr(f, CEL_I_STOV);
 		sz += cel_vm_emit_immed16(f, varn);
+		sz += cel_vm_emit_immed8(f, type);
 	}
 	return sz;
 }
@@ -565,6 +637,7 @@ cel_vm_emit_variable(s, f, e)
 ssize_t		 i;
 int16_t		 varn = -1;
 int32_t		 sz = 0;
+int		 type;
 
 /* Is this variable already in the var table? */
 	for (i = 0; i < f->vf_nvars; i++) {
@@ -577,8 +650,22 @@ int32_t		 sz = 0;
 	if (varn == -1)
 		return -1;
 
-	sz += cel_vm_emit_instr(f, CEL_I_LOADV4);
+	switch (e->ce_op.ce_binary.left->ce_type->ct_tag) {
+	case cel_type_int8:	type = CEL_VA_INT8; break;
+	case cel_type_uint8:	type = CEL_VA_UINT8; break;
+	case cel_type_int16:	type = CEL_VA_INT16; break;
+	case cel_type_uint16:	type = CEL_VA_UINT16; break;
+	case cel_type_bool:
+	case cel_type_int32:	type = CEL_VA_INT32; break;
+	case cel_type_uint32:	type = CEL_VA_UINT32; break;
+	case cel_type_int64:	type = CEL_VA_INT64; break;
+	case cel_type_uint64:	type = CEL_VA_UINT64; break;
+	case cel_type_ptr:	type = CEL_VA_PTR; break;
+	}
+
+	sz += cel_vm_emit_instr(f, CEL_I_LOADV);
 	sz += cel_vm_emit_immed16(f, i);
+	sz += cel_vm_emit_immed8(f, type);
 	return sz;
 }
 
@@ -591,6 +678,7 @@ cel_vm_emit_assign(s, f, e)
 ssize_t		 i;
 int16_t		 varn = -1;
 int32_t		 sz = 0;
+int		 type;
 
 /* Is this variable already in the var table? */
 	for (i = 0; i < f->vf_nvars; i++) {
@@ -604,11 +692,26 @@ int32_t		 sz = 0;
 	if (varn == -1)
 		return -1;
 
+	switch (e->ce_op.ce_binary.left->ce_type->ct_tag) {
+	case cel_type_int8:	type = CEL_VA_INT8; break;
+	case cel_type_uint8:	type = CEL_VA_UINT8; break;
+	case cel_type_int16:	type = CEL_VA_INT16; break;
+	case cel_type_uint16:	type = CEL_VA_UINT16; break;
+	case cel_type_bool:
+	case cel_type_int32:	type = CEL_VA_INT32; break;
+	case cel_type_uint32:	type = CEL_VA_UINT32; break;
+	case cel_type_int64:	type = CEL_VA_INT64; break;
+	case cel_type_uint64:	type = CEL_VA_UINT64; break;
+	case cel_type_ptr:	type = CEL_VA_PTR; break;
+	}
+
 	sz += cel_vm_emit_expr(s, f, e->ce_op.ce_binary.right);
-	sz += cel_vm_emit_instr(f, CEL_I_STOV4);
+	sz += cel_vm_emit_instr(f, CEL_I_STOV);
 	sz += cel_vm_emit_immed16(f, varn);
-	sz += cel_vm_emit_instr(f, CEL_I_LOADV4);
+	sz += cel_vm_emit_immed8(f, type);
+	sz += cel_vm_emit_instr(f, CEL_I_LOADV);
 	sz += cel_vm_emit_immed16(f, varn);
+	sz += cel_vm_emit_immed8(f, type);
 	return sz;
 }
 
@@ -630,7 +733,7 @@ cel_vm_emit_incr(s, f, e)
 ssize_t		 i;
 int16_t		 varn = -1;
 int32_t		 sz = 0;
-int		 inst;
+int		 inst, type;
 
 /* Is this variable already in the var table? */
 	for (i = 0; i < f->vf_nvars; i++) {
@@ -645,14 +748,28 @@ int		 inst;
 		return -1;
 
 	switch (e->ce_op.ce_binary.oper) {
-	case cel_op_incr:	inst = CEL_I_INCV4; break;
-	case cel_op_decr:	inst = CEL_I_DECV4; break;
-	case cel_op_multn:	inst = CEL_I_MULV4; break;
-	case cel_op_divn:	inst = CEL_I_DIVV4; break;
+	case cel_op_incr:	inst = CEL_I_INCV; break;
+	case cel_op_decr:	inst = CEL_I_DECV; break;
+	case cel_op_multn:	inst = CEL_I_MULV; break;
+	case cel_op_divn:	inst = CEL_I_DIVV; break;
+	}
+
+	switch (e->ce_op.ce_unary.operand->ce_type->ct_tag) {
+	case cel_type_int8:	type = CEL_VA_INT8; break;
+	case cel_type_uint8:	type = CEL_VA_UINT8; break;
+	case cel_type_int16:	type = CEL_VA_INT16; break;
+	case cel_type_uint16:	type = CEL_VA_UINT16; break;
+	case cel_type_bool:
+	case cel_type_int32:	type = CEL_VA_INT32; break;
+	case cel_type_uint32:	type = CEL_VA_UINT32; break;
+	case cel_type_int64:	type = CEL_VA_INT64; break;
+	case cel_type_uint64:	type = CEL_VA_UINT64; break;
+	case cel_type_ptr:	type = CEL_VA_PTR; break;
 	}
 
 	sz += cel_vm_emit_expr(s, f, e->ce_op.ce_binary.right);
 	sz += cel_vm_emit_instr(f, inst);
 	sz += cel_vm_emit_immed16(f, varn);
+	sz += cel_vm_emit_immed8(f, type);
 	return sz;
 }
