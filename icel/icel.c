@@ -10,7 +10,6 @@
 
 #include	<stdlib.h>
 #include	<stdio.h>
-#include	<wchar.h>
 #include	<unistd.h>
 
 #include	"celcore/tokens.h"

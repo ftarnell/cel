@@ -11,7 +11,6 @@
 #ifndef	CEL_EXPR_H
 #define	CEL_EXPR_H
 
-#include	<wchar.h>
 #include	<stdlib.h>
 
 #include	"celcore/tailq.h"

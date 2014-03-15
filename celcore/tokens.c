@@ -10,8 +10,7 @@
 
 #include	<string.h>
 #include	<stdlib.h>
-#include	<wchar.h>
-#include	<wctype.h>
+#include	<ctype.h>
 
 #include	"celcore/tokens.h"
 
@@ -84,7 +83,7 @@ struct {
 };
 
 /* Skip whitespace */
-	while (iswspace(*lex->cl_bufp)) {
+	while (isspace(*lex->cl_bufp)) {
 		if (*lex->cl_bufp == '\n') {
 			lex->cl_lineno++;
 			lex->cl_line = lex->cl_bufp + 1;

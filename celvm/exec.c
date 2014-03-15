@@ -8,6 +8,8 @@
  * warranty.
  */
 
+#include	<stdio.h>
+
 #include	"celcore/cel-config.h"
 
 #ifdef	CEL_HAVE_FFI

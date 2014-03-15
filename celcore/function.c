@@ -8,7 +8,6 @@
  * warranty.
  */
 
-#include	<wchar.h>
 #include	<stdlib.h>
 
 #include	"celcore/function.h"

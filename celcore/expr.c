@@ -10,6 +10,7 @@
 
 #include	<string.h>
 #include	<inttypes.h>
+#include	<stdio.h>
 #include	<assert.h>
 
 #include	"celcore/expr.h"
