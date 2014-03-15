@@ -410,6 +410,21 @@ cel_function_t	*func;
 
 				ffi_call(func->cf_ffi, func->cf_ptr, ret, args);
 
+				switch (func->cf_type->ct_type.ct_function.ct_return_type->ct_tag) {
+				case cel_type_int8:	PUT_SI8(*(int8_t *)ret); break;
+				case cel_type_uint8:	PUT_SU8(*(uint8_t *)ret); break;
+				case cel_type_int16:	PUT_SI16(*(int16_t *)ret); break;
+				case cel_type_uint16:	PUT_SU16(*(uint16_t *)ret); break;
+				case cel_type_int32:	PUT_SI32(*(int32_t *)ret); break;
+				case cel_type_uint32:	PUT_SU32(*(uint32_t *)ret); break;
+				case cel_type_int64:	PUT_SI64(*(int64_t *)ret); break;
+				case cel_type_uint64:	PUT_SU64(*(uint64_t *)ret); break;
+				case cel_type_ptr:	PUT_SP(*(uintptr_t *)ret); break;
+				case cel_type_sfloat:	PUT_SSF(*(float *)ret); break;
+				case cel_type_dfloat:	PUT_SDF(*(double *)ret); break;
+				case cel_type_qfloat:	PUT_SQF(*(long double *)ret); break;
+				}
+
 				free(args);
 				free(aargs);
 			} else {
