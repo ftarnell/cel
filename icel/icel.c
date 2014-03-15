@@ -62,7 +62,7 @@ icel_exec(s)
 char		 type[64] = {}, value[128];
 cel_lexer_t	 lex;
 cel_parser_t	*par;
-cel_expr_list_t	*program;
+cel_expr_list_t	 program;
 cel_vm_func_t	*func;
 cel_vm_any_t	 ret;
 cel_expr_t	*result, *e;
@@ -84,19 +84,17 @@ cel_type_t	*rtype = NULL;
 	par->cp_error = icel_error;
 	par->cp_warn = icel_warn;
 
-	if (cel_parse(par) == -1) {
+	if ((e = cel_parse_one(par)) == NULL) {
 		fprintf(stderr, "(parse error)\n");
 		return 1;
 	}
 
-	if ((e = CEL_TAILQ_FIRST(program)) && !CEL_TAILQ_NEXT(e, ce_entry)) {
-		rtype = e->ce_type;
-		e = cel_make_unary(cel_op_return, e);
-		CEL_TAILQ_INIT(program);
-		CEL_TAILQ_INSERT_TAIL(program, e, ce_entry);
-	}
+	rtype = e->ce_type;
+	e = cel_make_return(e);
+	CEL_TAILQ_INIT(&program);
+	CEL_TAILQ_INSERT_TAIL(&program, e, ce_entry);
 
-	if ((func = cel_vm_func_compile(scope, program)) == NULL) {
+	if ((func = cel_vm_func_compile(scope, &program)) == NULL) {
 		fprintf(stderr, "(compile error)\n");
 		return 1;
 	}
@@ -106,14 +104,12 @@ cel_type_t	*rtype = NULL;
 		return 1;
 	}
 
-	if (rtype) {
-		result = cel_make_any(rtype);
-		result->ce_op.ce_uint64 = ret.u64;
-		cel_name_type(result->ce_type, type, sizeof(type));
-		cel_expr_print(result, value, sizeof(value));
-		printf("<%s> %s\n", type, value);
-		cel_expr_free(result);
-	}
+	result = cel_make_any(rtype);
+	result->ce_op.ce_uint64 = ret.u64;
+	cel_name_type(result->ce_type, type, sizeof(type));
+	cel_expr_print(result, value, sizeof(value));
+	printf("<%s> %s\n", type, value);
+	cel_expr_free(result);
 
 	return 0;
 }

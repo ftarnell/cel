@@ -609,6 +609,10 @@ int32_t	sz = 0;
 		sz += cel_vm_emit_ret(f, CEL_VA_QFLOAT);
 		break;
 
+	case cel_type_ptr:
+		sz += cel_vm_emit_ret(f, CEL_VA_PTR);
+		break;
+
 	case cel_type_void:
 		sz += cel_vm_emit_ret(f, CEL_VA_VOID);
 		break;

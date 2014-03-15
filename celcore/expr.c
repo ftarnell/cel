@@ -157,7 +157,7 @@ cel_expr_t	*ret;
 	else
 		ret->ce_mutable = 0;
 	ret->ce_const = 0;
-	ret->ce_type = NULL;
+	ret->ce_type = cel_derive_unary_type(op, e->ce_type);
 	ret->ce_tag = cel_exp_unary;
 	ret->ce_op.ce_unary.oper = op;
 	ret->ce_op.ce_unary.operand = e;
@@ -189,6 +189,7 @@ cel_expr_t	*ret;
 	ret->ce_const = 0;
 	ret->ce_tag = cel_exp_unary;
 	ret->ce_type = cel_make_type(cel_type_void);
+	ret->ce_op.ce_unary.oper = cel_op_return;
 	ret->ce_op.ce_unary.operand = e;
 	return ret;
 }
@@ -407,7 +408,12 @@ char	t[64];
 		case cel_type_uint32:	snprintf(b, bsz, "%"PRIu32, e->ce_op.ce_uint32); break;
 		case cel_type_int64:	snprintf(b, bsz, "%"PRId64, e->ce_op.ce_int64); break;
 		case cel_type_uint64:	snprintf(b, bsz, "%"PRIu64, e->ce_op.ce_uint64); break;
-		case cel_type_ptr:	snprintf(b, bsz, "<ptr @ %p>", e->ce_op.ce_ptr); break;
+		case cel_type_ptr:
+			if (e->ce_type->ct_type.ct_ptr_type->ct_tag == cel_type_schar)
+				strlcpy(b, e->ce_op.ce_ptr, bsz);
+			else
+				snprintf(b, bsz, "<ptr @ %p>", e->ce_op.ce_ptr); 
+			break;
 		default:		return;
 		}
 		break;

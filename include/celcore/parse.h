@@ -40,6 +40,7 @@ typedef struct cel_parser {
 
 cel_parser_t	*cel_parser_new(cel_lexer_t *, struct cel_scope *);
 
-int cel_parse(cel_parser_t *);
+int		 cel_parse(cel_parser_t *);
+cel_expr_t	*cel_parse_one(cel_parser_t *);
 
 #endif	/* !CEL_PARSE_H */

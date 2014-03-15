@@ -156,6 +156,17 @@ cel_token_t	 start_tok;
 	return -1;
 }
 
+cel_expr_t *
+cel_parse_one(par)
+	cel_parser_t	*par;
+{
+cel_expr_t	*ret;
+
+	CONSUME();
+	ret = cel_parse_expr(par, par->cp_scope, 0);
+	return ret;
+}
+
 cel_typedef_t *
 cel_parse_typedef(par, sc)
 	cel_scope_t	*sc;
