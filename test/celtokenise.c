@@ -50,8 +50,8 @@ cel_token_t	tok;
 		return 1;
 	}
 
-	while (cel_next_token(&lex, &tok) != T_ERR) {
-		if (tok.ct_token == T_EOT)
+	while (cel_next_token(&lex, &tok) != CEL_T_ERR) {
+		if (tok.ct_token == CEL_T_EOT)
 			return 0;
 
 		fprintf(stderr, "[%s]:%d\n",

@@ -53,6 +53,13 @@ typedef enum cel_bi_oper {
 	cel_op_decr,
 	cel_op_multn,
 	cel_op_divn,
+	cel_op_lshift,
+	cel_op_rshift,
+	cel_op_bit_and,
+	cel_op_bit_or,
+	cel_op_bit_not,
+	cel_op_lshiftn,
+	cel_op_rshiftn,
 	cel_bi_op_last
 } cel_bi_oper_t;
 
@@ -60,7 +67,8 @@ typedef enum cel_uni_oper {
 	cel_op_negate,
 	cel_op_uni_minus,
 	cel_op_addr,
-	cel_op_deref
+	cel_op_deref,
+	cel_op_return
 } cel_uni_oper_t;
 
 struct cel_expr;
@@ -87,6 +95,8 @@ typedef struct cel_expr {
 		uint32_t		*ce_uint32;
 		int64_t			*ce_int64;
 		uint64_t		*ce_uint64;
+		float			 ce_sfloat;
+		double			 ce_dfloat;
 		struct cel_expr		*ce_ptr;
 
 		int	 *ce_bool;

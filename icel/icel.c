@@ -56,8 +56,7 @@ icel_warn(par, tok, s)
 }
 
 static int
-icel_exec(scope, s)
-	cel_scope_t	*scope;
+icel_exec(s)
 	char const	*s;
 {
 char		 type[64] = {}, value[128];
@@ -67,11 +66,14 @@ cel_expr_list_t	*program;
 cel_vm_func_t	*func;
 cel_vm_any_t	 ret;
 cel_expr_t	*result;
+cel_scope_t	*scope;
 
 	if (cel_lexer_init(&lex, s) != 0) {
 		fprintf(stderr, "icel: cannot init lexer\n");
 		return 1;
 	}
+
+	scope = cel_scope_new(NULL);
 
 	if ((par = cel_parser_new(&lex, scope)) == NULL) {
 		fprintf(stderr, "icel: cannot init parser\n");
@@ -109,7 +111,6 @@ int
 main(argc, argv)
 	char	**argv;
 {
-cel_scope_t	*scope;
 int		 i;
 	
 #ifdef	HAVE_LIBEDIT
@@ -136,10 +137,9 @@ HistEvent	 ev;
 
 	printf("CEL %s [%s] interactive interpreter\n",
 	       CEL_VERSION, CEL_HOST);
-	scope = cel_scope_new(NULL);
 
 	if (argv[0])
-		return icel_exec(scope, argv[0]);
+		return icel_exec(argv[0]);
 
 	for (;;) {
 #ifndef	HAVE_LIBEDIT
@@ -169,7 +169,7 @@ HistEvent	 ev;
 		line = line_;
 #endif
 
-		icel_exec(scope, line);
+		icel_exec(line);
 	}
 
 	return 0;

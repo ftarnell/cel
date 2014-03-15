@@ -78,7 +78,6 @@ cel_vm_emit_expr(s, f, e)
 	cel_expr_t	*e;
 {
 	switch (e->ce_tag) {
-	case cel_exp_return:	return cel_vm_emit_return(s, f, e);
 	case cel_exp_binary:	return cel_vm_emit_binary(s, f, e);
 	case cel_exp_unary:	return cel_vm_emit_unary(s, f, e);
 	case cel_exp_literal:	return cel_vm_emit_literal(s, f, e);
@@ -126,6 +125,10 @@ int32_t	sz;
 
 	case cel_op_negate:
 		sz += cel_vm_emit_instr_immed8(f, CEL_I_NOT, type);
+		break;
+
+	case cel_op_return:
+		sz += cel_vm_emit_return(s, f, e);
 		break;
 
 	default:
@@ -650,7 +653,7 @@ int		 type;
 	if (varn == -1)
 		return -1;
 
-	switch (e->ce_op.ce_binary.left->ce_type->ct_tag) {
+	switch (e->ce_type->ct_tag) {
 	case cel_type_int8:	type = CEL_VA_INT8; break;
 	case cel_type_uint8:	type = CEL_VA_UINT8; break;
 	case cel_type_int16:	type = CEL_VA_INT16; break;
@@ -747,7 +750,7 @@ int		 inst, type;
 	if (varn == -1)
 		return -1;
 
-	switch (e->ce_op.ce_binary.oper) {
+	switch (e->ce_op.ce_unary.oper) {
 	case cel_op_incr:	inst = CEL_I_INCV; break;
 	case cel_op_decr:	inst = CEL_I_DECV; break;
 	case cel_op_multn:	inst = CEL_I_MULV; break;

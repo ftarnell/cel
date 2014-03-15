@@ -66,22 +66,11 @@
 
 static cel_expr_t	*cel_parse_func		(cel_parser_t *, cel_scope_t *);
 static cel_expr_t	*cel_parse_var		(cel_parser_t *, cel_scope_t *);
+static cel_expr_t	*cel_parse_expr		(cel_parser_t *, cel_scope_t *, int);
 static cel_typedef_t	*cel_parse_typedef	(cel_parser_t *, cel_scope_t *);
 static cel_type_t	*cel_parse_type		(cel_parser_t *, cel_scope_t *);
-static cel_expr_t	*cel_parse_stmt		(cel_parser_t *, cel_scope_t *);
-static cel_expr_t	*cel_parse_expr		(cel_parser_t *, cel_scope_t *);
-static cel_expr_t	*cel_parse_expr_return	(cel_parser_t *, cel_scope_t *);
-static cel_expr_t	*cel_parse_expr_assign	(cel_parser_t *, cel_scope_t *);
-static cel_expr_t	*cel_parse_expr_or	(cel_parser_t *, cel_scope_t *);
-static cel_expr_t	*cel_parse_expr_and	(cel_parser_t *, cel_scope_t *);
-static cel_expr_t	*cel_parse_expr_eq1	(cel_parser_t *, cel_scope_t *);
-static cel_expr_t	*cel_parse_expr_eq2	(cel_parser_t *, cel_scope_t *);
-static cel_expr_t	*cel_parse_expr_plus	(cel_parser_t *, cel_scope_t *);
-static cel_expr_t	*cel_parse_expr_mult	(cel_parser_t *, cel_scope_t *);
-static cel_expr_t	*cel_parse_expr_unary	(cel_parser_t *, cel_scope_t *);
-static cel_expr_t	*cel_parse_expr_post	(cel_parser_t *, cel_scope_t *);
-static cel_expr_t	*cel_parse_expr_value	(cel_parser_t *, cel_scope_t *);
 static cel_expr_t	*cel_parse_value	(cel_parser_t *, cel_scope_t *);
+static cel_expr_t	*cel_parse_post		(cel_parser_t *, cel_scope_t *, cel_expr_t *);
 static cel_arglist_t	*cel_parse_arglist	(cel_parser_t *, cel_scope_t *);
 static cel_expr_t	*cel_parse_if		(cel_parser_t *, cel_scope_t *);
 static cel_expr_t	*cel_parse_while	(cel_parser_t *, cel_scope_t *);
@@ -121,24 +110,24 @@ cel_token_t	 start_tok;
 	for (;;) {
 		start_tok = par->cp_tok;
 
-		if ((e = cel_parse_expr(par, par->cp_scope)) == NULL)
+		if ((e = cel_parse_expr(par, par->cp_scope, 0)) == NULL)
 			break;
 
 		CEL_TAILQ_INSERT_TAIL(list, e, ce_entry);
 
-		if (!ACCEPT(T_SEMI)) {
+		if (!ACCEPT(CEL_T_SEMI)) {
 			/*
 			 * The last statement in the file doesn't need a
 			 * semicolon.
 			 */
-			if (EXPECT(T_EOT))
+			if (EXPECT(CEL_T_EOT))
 				return par->cp_nerrs ? NULL : list;
 
 			FATAL("expected ';'");
 		}
 	}
 
-	if (EXPECT(T_EOT))
+	if (EXPECT(CEL_T_EOT))
 		return par->cp_nerrs ? NULL : list;
 
 	FATAL_TOK(&start_tok, "failed to parse statement");
@@ -159,19 +148,19 @@ cel_parse_typedef(par, sc)
 cel_type_t	*type = NULL;
 char		*name;
 
-	if (!ACCEPT(T_TYPE))
+	if (!ACCEPT(CEL_T_TYPE))
 		return NULL;
 
 /* Identifier list, colon */
 	for (;;) {
-		if (!ACCEPT(T_ID))
+		if (!ACCEPT(CEL_T_ID))
 			FATAL("expected identifier");
 		name = strdup(par->cp_tok.ct_literal);
 
-		if (ACCEPT(T_COMMA))
+		if (ACCEPT(CEL_T_COMMA))
 			continue;
 
-		if (ACCEPT(T_COLON))
+		if (ACCEPT(CEL_T_COLON))
 			break;
 
 		free(name);
@@ -203,6 +192,329 @@ free_varvec(v, n)
 	free(v);
 }
 
+static struct biop {
+	int		tok;
+	cel_bi_oper_t	op;
+	int		prec;
+	enum {l,r}	assoc;
+} biops[] = {
+	{ CEL_T_STAR,		cel_op_mult,	9, l },
+	{ CEL_T_SLASH,		cel_op_div,	9, l },
+	{ CEL_T_PERCENT,	cel_op_modulus,	9, l },
+	{ CEL_T_PLUS,		cel_op_plus,	8, l },
+	{ CEL_T_MINUS,		cel_op_minus,   8, l },
+	{ CEL_T_LSH,		cel_op_lshift,	7, l },
+	{ CEL_T_RSH,		cel_op_rshift,	7, l },
+	{ CEL_T_LT,		cel_op_lt,	6, l },
+	{ CEL_T_LE,		cel_op_le,	6, l },
+	{ CEL_T_GT,		cel_op_gt,	6, l },
+	{ CEL_T_GE,		cel_op_ge,	6, l },
+	{ CEL_T_EQ,		cel_op_eq,	5, l },
+	{ CEL_T_NEQ,		cel_op_neq,	5, l },
+	{ CEL_T_BIT_AND,	cel_op_bit_and,	4, l },
+	{ CEL_T_NOT,		cel_op_bit_not,	4, l },
+	{ CEL_T_BIT_OR,		cel_op_bit_or,	4, l },
+	{ CEL_T_AND,		cel_op_and,	3, l },
+	{ CEL_T_OR,		cel_op_or,	2, l },
+	{ CEL_T_ASSIGN,		cel_op_assign,	1, r },
+	{ CEL_T_INCRN,		cel_op_incr,	1, r },
+	{ CEL_T_DECRN,		cel_op_decr,	1, r },
+	{ CEL_T_MULTN,		cel_op_multn,	1, r },
+	{ CEL_T_DIVN,		cel_op_divn,	1, r },
+	{ CEL_T_LSHN,		cel_op_lshiftn,	1, r },
+	{ CEL_T_RSHN,		cel_op_rshiftn,	1, r },
+};
+
+static struct biop *
+cel_find_biop(tok)
+{
+size_t	i;
+	for (i = 0; i < sizeof(biops) / sizeof(*biops); i++)
+		if (biops[i].tok == tok)
+			return &biops[i];
+	return NULL;
+}
+
+static struct uniop {
+	int		tok;
+	cel_uni_oper_t	op;
+	int		prec;
+} uniops[] = {
+	{ CEL_T_MINUS,		cel_op_uni_minus,	10 },
+	{ CEL_T_NOT,		cel_op_negate,		10 },
+	{ CEL_T_RETURN,		cel_op_return,		0 },
+};
+
+cel_expr_t *
+cel_parse_expr(par, sc, prec)
+	cel_parser_t	*par;
+	cel_scope_t	*sc;
+{
+cel_expr_t	*t, *t1;
+struct biop	*b;
+cel_token_t	 op_tok;
+
+	if ((t = cel_parse_value(par, sc)) == NULL)
+		return NULL;
+
+	t = cel_parse_post(par, sc, t);
+
+	while ((b = cel_find_biop(par->cp_tok.ct_token)) && b->prec >= prec) {
+	int		 q;
+	cel_type_t	*type;
+
+		op_tok = par->cp_tok;
+		CONSUME();
+
+		q = b->assoc == r ? b->prec : 1+b->prec;
+		if ((t1 = cel_parse_expr(par, sc, q)) == NULL)
+			return NULL;
+
+		if ((type = cel_derive_binary_type(b->op, t->ce_type, t1->ce_type)) == NULL) {
+		char	a1[64] = {}, a2[64] = {};
+		char	err[128];
+
+			cel_name_type(t->ce_type, a1, sizeof(a1) / sizeof(char));
+			cel_name_type(t1->ce_type, a2, sizeof(a2) / sizeof(char));
+
+			snprintf(err, sizeof(err) / sizeof(char),
+				 "incompatible types in expression: \"%s\", \"%s\"",
+				 a1, a2);
+
+			cel_expr_free(t);
+			cel_expr_free(t1);
+			ERROR_TOK(&op_tok, err);
+		}
+
+		if ((t = cel_make_binary(b->op, t, t1)) == NULL)
+			return NULL;
+	}
+	return t;
+}
+
+cel_expr_t *
+cel_parse_value(par, sc)
+	cel_parser_t	*par;
+	cel_scope_t	*sc;
+{
+cel_expr_t	*e = NULL;
+int		 op, i = 0;
+
+	for (i = 0; i < sizeof(uniops) / sizeof(*uniops); i++) {
+	cel_expr_t	*t;
+		if (par->cp_tok.ct_token == uniops[i].tok) {
+			CONSUME();
+			if ((t = cel_parse_expr(par, sc, uniops[i].prec)) == NULL)
+				FATAL("expected expression");
+			return cel_make_unary(uniops[i].op, t);
+		}
+	}
+
+	if (ACCEPT(CEL_T_LPAR)) {
+	cel_expr_t	*t;
+		t = cel_parse_expr(par, sc, 0);
+		if (!ACCEPT(CEL_T_RPAR))
+			FATAL("expected ')'");
+		return t;
+	}
+
+/* if expression */
+	if (ACCEPT(CEL_T_IF)) {
+		if ((e = cel_parse_if(par, sc)) == NULL)
+			return NULL;
+		return e;
+	}
+
+/* while expression */
+	if (ACCEPT(CEL_T_WHILE)) {
+		if ((e = cel_parse_while(par, sc)) == NULL)
+			return NULL;
+		return e;
+	}
+
+/* Function definition */
+	if (e = cel_parse_func(par, sc))
+		return e;
+
+/* Variable definition */
+	if (e = cel_parse_var(par, sc))
+		return e;
+
+	if (EXPECT(CEL_T_ID)) {
+	cel_scope_item_t	*v;
+	cel_token_t		 err_tok = par->cp_tok;
+
+		v = cel_scope_find_item(sc, par->cp_tok.ct_literal);
+
+		if (v == NULL) {
+		char	err[128];
+			snprintf(err, sizeof(err), "undeclared identifier \"%s\"",
+				 par->cp_tok.ct_literal);
+			CONSUME();
+
+			FATAL_TOK(&err_tok, err);
+		}
+
+		if (v->si_type != cel_item_expr) {
+		char	err[128];
+			snprintf(err, sizeof(err), "not a variable type: \"%s\"",
+				 par->cp_tok.ct_literal);
+			CONSUME();
+
+			FATAL_TOK(&err_tok, err);
+		}
+
+		e = cel_make_variable(v->si_name, v->si_ob.si_expr->ce_type);
+		e->ce_mutable = v->si_ob.si_expr->ce_mutable;
+	} else if (EXPECT(CEL_T_LIT_INT8))
+		e = cel_make_int8(strtol(par->cp_tok.ct_literal, NULL, 0));
+	else if (EXPECT(CEL_T_LIT_UINT8))
+		e = cel_make_uint8(strtol(par->cp_tok.ct_literal, NULL, 0));
+	else if (EXPECT(CEL_T_LIT_INT16))
+		e = cel_make_int16(strtol(par->cp_tok.ct_literal, NULL, 0));
+	else if (EXPECT(CEL_T_LIT_UINT16))
+		e = cel_make_uint16(strtol(par->cp_tok.ct_literal, NULL, 0));
+	else if (EXPECT(CEL_T_LIT_INT32))
+		e = cel_make_int32(strtol(par->cp_tok.ct_literal, NULL, 0));
+	else if (EXPECT(CEL_T_LIT_UINT32))
+		e = cel_make_uint32(strtol(par->cp_tok.ct_literal, NULL, 0));
+	else if (EXPECT(CEL_T_LIT_INT64))
+		e = cel_make_int64(strtol(par->cp_tok.ct_literal, NULL, 0));
+	else if (EXPECT(CEL_T_LIT_UINT64))
+		e = cel_make_uint64(strtol(par->cp_tok.ct_literal, NULL, 0));
+	else if (EXPECT(CEL_T_LIT_STR)) {
+		e = cel_make_string(par->cp_tok.ct_literal);
+	} else if (EXPECT(CEL_T_TRUE))
+		e = cel_make_bool(1);
+	else if (EXPECT(CEL_T_FALSE))
+		e = cel_make_bool(0);
+
+	if (e)
+		CONSUME();
+
+	return e;
+}
+
+cel_expr_t *
+cel_parse_post(par, sc, e)
+	cel_parser_t	*par;
+	cel_scope_t	*sc;
+	cel_expr_t	*e;
+{
+int		 op;
+cel_token_t	 err_tok;
+
+/* Function call */
+	err_tok = par->cp_tok;
+	while ((op = ACCEPT(CEL_T_LPAR)) || (op = ACCEPT(CEL_T_LSQ)) ||
+	       (op = ACCEPT(CEL_T_AS)) || (op = ACCEPT(CEL_T_AT)) ||
+	       (op = ACCEPT(CEL_T_CARET))) {
+	cel_type_t	*t;
+	cel_arglist_t	*args;
+
+		switch (op) {
+		case CEL_T_CARET:
+			if (e->ce_type->ct_tag != cel_type_ptr)
+				ERROR_TOK(&err_tok, "not a pointer type");
+			else
+				e = cel_make_deref(e);
+			break;
+
+		case CEL_T_AT:
+			if (e->ce_tag != cel_exp_variable)
+				ERROR_TOK(&err_tok, "cannot take address of temporary");
+			t = cel_make_ptr(e->ce_type);
+			e = cel_make_unary(cel_op_addr, e);
+			e->ce_type = t;
+			break;
+
+		case CEL_T_LPAR:
+			if ((args = cel_parse_arglist(par, sc)) == NULL) {
+				cel_expr_free(e);
+				return NULL;
+			}
+
+			if (!ACCEPT(CEL_T_RPAR)) {
+				cel_expr_free(e);
+				FATAL("expected ')'");
+			}
+
+			if (e->ce_type->ct_tag != cel_type_function)
+				ERROR_TOK(&err_tok, "only functions can be called");
+			else
+				e = cel_make_call(e, args);
+			break;
+
+		case CEL_T_LSQ:
+			if (cel_parse_expr(par, sc, 0) == NULL) {
+				cel_expr_free(e);
+				FATAL("expected expression");
+			}
+
+			if (!ACCEPT(CEL_T_RSQ)) {
+				cel_expr_free(e);
+				FATAL("expected ']'");
+			}
+			break;
+
+		case CEL_T_AS:
+			err_tok = par->cp_tok;
+
+			if ((t = cel_parse_type(par, sc)) == NULL) {
+				cel_expr_free(e);
+				FATAL("expected type");
+			}
+
+			if (!cel_type_convertable(e->ce_type, t)) {
+			char	a1[64], a2[64];
+			char	err[128];
+
+				cel_name_type(e->ce_type, a1, sizeof(a1));
+				cel_name_type(t, a2, sizeof(a2));
+
+				snprintf(err, sizeof(err) / sizeof(char),
+					 "expression of type \"%s\" cannot be converted to \"%s\"",
+					 a1, a2);
+
+				cel_expr_free(e);
+				ERROR_TOK(&err_tok, err);
+			}
+
+			e = cel_make_cast(e, t);
+			break;
+		}
+	}
+
+	return e;
+}
+
+cel_arglist_t *
+cel_parse_arglist(par, sc)
+	cel_parser_t	*par;
+	cel_scope_t	*sc;
+{
+/*
+ * An argument list is just a comma-separated list of expressions termined by
+ * an RPAR.
+ */
+cel_arglist_t	*al;
+cel_expr_t	*e;
+
+	al = calloc(1, sizeof(*al));
+
+	while (e = cel_parse_expr(par, sc, 0)) {
+		al->ca_args = realloc(al->ca_args,
+				      sizeof(cel_type_t *) * (al->ca_nargs + 1));
+		al->ca_args[al->ca_nargs] = e;
+		al->ca_nargs++;
+
+		if (ACCEPT(CEL_T_COMMA))
+			continue;
+	}
+
+	return al;
+}
+
 cel_expr_t *
 cel_parse_var(par, sc)
 	cel_scope_t	*sc;
@@ -221,23 +533,23 @@ cel_type_t	*type = NULL;
 char		*extern_ = NULL;
 int		 const_ = 0;
 
-	if (!EXPECT(T_VAR))
+	if (!EXPECT(CEL_T_VAR))
 		return NULL;
 	CONSUME();
 
 /* Attribute list */
-	if (ACCEPT(T_LPAR)) {
+	if (ACCEPT(CEL_T_LPAR)) {
 		for (;;) {
-			if (ACCEPT(T_RPAR))
+			if (ACCEPT(CEL_T_RPAR))
 				break;
 
-			if (ACCEPT(T_CONST)) {
+			if (ACCEPT(CEL_T_CONST)) {
 				const_ = 1;
 				continue;
 			}
 
-			if (ACCEPT(T_EXTERN)) {
-				if (EXPECT(T_LIT_STR)) {
+			if (ACCEPT(CEL_T_EXTERN)) {
+				if (EXPECT(CEL_T_LIT_STR)) {
 					extern_ = strdup(par->cp_tok.ct_literal);
 					CONSUME();
 					continue;
@@ -259,7 +571,7 @@ int		 const_ = 0;
 
 		err_tok = par->cp_tok;
 
-		if (!EXPECT(T_ID)) {
+		if (!EXPECT(CEL_T_ID)) {
 			free_varvec(names, nnames);
 			FATAL("expected identifier");
 		}
@@ -277,10 +589,10 @@ int		 const_ = 0;
 		name = strdup(par->cp_tok.ct_literal);
 		CONSUME();
 
-		if (ACCEPT(T_ASSIGN)) {
+		if (ACCEPT(CEL_T_ASSIGN)) {
 			err_tok = par->cp_tok;
 
-			if ((e = cel_parse_expr(par, sc)) == NULL) {
+			if ((e = cel_parse_expr(par, sc, 0)) == NULL) {
 				free(name);
 				FATAL("expected expression");
 			}
@@ -292,14 +604,14 @@ int		 const_ = 0;
 		names[nnames].err_tok = err_tok;
 		nnames++;
 
-		if (ACCEPT(T_COMMA))
+		if (ACCEPT(CEL_T_COMMA))
 			continue;
 		else
 			break;
 	}
 
 /* Type */
-	if (ACCEPT(T_COLON)) {
+	if (ACCEPT(CEL_T_COLON)) {
 		if ((type = cel_parse_type(par, sc)) == NULL) {
 			free_varvec(names, nnames);
 			FATAL("expected type name");
@@ -372,27 +684,27 @@ cel_type_t	*type;
 int		 op;
 
 /* Optional array specifier */
-	while (op = ACCEPT(T_CARET)) {
+	while (op = ACCEPT(CEL_T_CARET)) {
 #if 0
-		if (!ACCEPT(T_RSQ))
+		if (!ACCEPT(CEL_T_RSQ))
 			FATAL("expected ']'");
 #endif
 		ptr++;
 	}
 
 /* Identifier */
-	if (ACCEPT(T_INT))		type = cel_make_type(cel_type_int32);
-	else if (ACCEPT(T_INT8))	type = cel_make_type(cel_type_int8);
-	else if (ACCEPT(T_UINT8))	type = cel_make_type(cel_type_uint8);
-	else if (ACCEPT(T_INT16))	type = cel_make_type(cel_type_int16);
-	else if (ACCEPT(T_UINT16))	type = cel_make_type(cel_type_uint16);
-	else if (ACCEPT(T_INT32))	type = cel_make_type(cel_type_int32);
-	else if (ACCEPT(T_UINT32))	type = cel_make_type(cel_type_uint32);
-	else if (ACCEPT(T_INT64))	type = cel_make_type(cel_type_int64);
-	else if (ACCEPT(T_UINT64))	type = cel_make_type(cel_type_uint64);
-	else if (ACCEPT(T_STRING))	type = cel_make_type(cel_type_string);
-	else if (ACCEPT(T_BOOL))	type = cel_make_type(cel_type_bool);
-	else if (ACCEPT(T_VOID))	type = cel_make_type(cel_type_void);
+	if (ACCEPT(CEL_T_INT))		type = cel_make_type(cel_type_int32);
+	else if (ACCEPT(CEL_T_INT8))	type = cel_make_type(cel_type_int8);
+	else if (ACCEPT(CEL_T_UINT8))	type = cel_make_type(cel_type_uint8);
+	else if (ACCEPT(CEL_T_INT16))	type = cel_make_type(cel_type_int16);
+	else if (ACCEPT(CEL_T_UINT16))	type = cel_make_type(cel_type_uint16);
+	else if (ACCEPT(CEL_T_INT32))	type = cel_make_type(cel_type_int32);
+	else if (ACCEPT(CEL_T_UINT32))	type = cel_make_type(cel_type_uint32);
+	else if (ACCEPT(CEL_T_INT64))	type = cel_make_type(cel_type_int64);
+	else if (ACCEPT(CEL_T_UINT64))	type = cel_make_type(cel_type_uint64);
+	else if (ACCEPT(CEL_T_STRING))	type = cel_make_type(cel_type_string);
+	else if (ACCEPT(CEL_T_BOOL))	type = cel_make_type(cel_type_bool);
+	else if (ACCEPT(CEL_T_VOID))	type = cel_make_type(cel_type_void);
 	else
 		return NULL;
 
@@ -422,7 +734,7 @@ int		 auto_type = 0;
 int		 single_stmt = 0;
 char		*extern_ = NULL;
 
-	if (!ACCEPT(T_FUNC))
+	if (!ACCEPT(CEL_T_FUNC))
 		return NULL;
 
 	func = calloc(1, sizeof(*func));
@@ -433,13 +745,13 @@ char		*extern_ = NULL;
 	CEL_TAILQ_INIT(&func->cf_body);
 
 /* Attributes */
-	if (ACCEPT(T_LPAR)) {
+	if (ACCEPT(CEL_T_LPAR)) {
 		for (;;) {
-			if (ACCEPT(T_RPAR))
+			if (ACCEPT(CEL_T_RPAR))
 				break;
 
-			if (ACCEPT(T_EXTERN)) {
-				if (EXPECT(T_LIT_STR)) {
+			if (ACCEPT(CEL_T_EXTERN)) {
+				if (EXPECT(CEL_T_LIT_STR)) {
 					extern_ = strdup(par->cp_tok.ct_literal);
 					CONSUME();
 					continue;
@@ -454,7 +766,7 @@ char		*extern_ = NULL;
 	}
 
 /* Identifier (function name) */
-	if (EXPECT(T_ID)) {
+	if (EXPECT(CEL_T_ID)) {
 		if (cel_scope_find_item(sc_, par->cp_tok.ct_literal)) {
 		char		err[128];
 		cel_token_t	err_tok = par->cp_tok;
@@ -471,13 +783,13 @@ char		*extern_ = NULL;
 	}
 
 /* Colon */
-	if (!ACCEPT(T_COLON)) {
+	if (!ACCEPT(CEL_T_COLON)) {
 		cel_function_free(func);
 		FATAL("expected ':'");
 	}
 
 /* Opening bracket */
-	if (!ACCEPT(T_LPAR)) {
+	if (!ACCEPT(CEL_T_LPAR)) {
 		cel_function_free(func);
 		FATAL("expected ')'");
 	}
@@ -486,15 +798,15 @@ char		*extern_ = NULL;
 	func->cf_scope = cel_scope_new(func->cf_argscope);
 
 /* Argument list */
-	if (!ACCEPT(T_LPAR)) {
+	if (!ACCEPT(CEL_T_LPAR)) {
 		cel_function_free(func);
 		FATAL("expected '('");
 	}
 
-	if (EXPECT(T_VOID)) {
+	if (EXPECT(CEL_T_VOID)) {
 		CONSUME();
 	} else {
-		while (EXPECT(T_ID)) {
+		while (EXPECT(CEL_T_ID)) {
 		cel_type_t	*a;
 		char		*nm;
 
@@ -502,7 +814,7 @@ char		*extern_ = NULL;
 			CONSUME();
 
 		/* Colon */
-			if (!ACCEPT(T_COLON)) {
+			if (!ACCEPT(CEL_T_COLON)) {
 				cel_function_free(func);
 				FATAL("expected ':'");
 			}
@@ -520,18 +832,18 @@ char		*extern_ = NULL;
 			func->cf_nargs++;
 
 		/* ')' or ',' */
-			if (ACCEPT(T_COMMA))
+			if (ACCEPT(CEL_T_COMMA))
 				continue;
 
 			break;
 		}
 	}
 
-	if (!ACCEPT(T_RPAR))
+	if (!ACCEPT(CEL_T_RPAR))
 		FATAL("expected ')'");
 
 /* -> */
-	if (ACCEPT(T_ARROW)) {
+	if (ACCEPT(CEL_T_ARROW)) {
 	/* Return type */
 		if ((t = cel_parse_type(par, sc_)) == NULL) {
 			cel_function_free(func);
@@ -546,16 +858,16 @@ char		*extern_ = NULL;
 	} else
 		auto_type = 1;
 
-	if (!ACCEPT(T_RPAR)) {
+	if (!ACCEPT(CEL_T_RPAR)) {
 		cel_function_free(func);
 		FATAL("expected ')'");
 	}
 
 /* Single-statement function */
-	if (ACCEPT(T_EQ)) {
+	if (ACCEPT(CEL_T_EQ)) {
 	cel_expr_t	*f;
 		single_stmt = 1;
-		if ((e = cel_parse_expr(par, func->cf_scope)) == NULL)
+		if ((e = cel_parse_expr(par, func->cf_scope, 0)) == NULL)
 			FATAL("expected expression");
 
 		func->cf_return_type = e->ce_type;
@@ -580,20 +892,20 @@ char		*extern_ = NULL;
 		}
 
 	/* Begin */
-		if (ACCEPT(T_BEGIN)) {
+		if (ACCEPT(CEL_T_BEGIN)) {
 		/*
 		 * List of statements.
 		 */
 
-			while (e = cel_parse_expr(par, func->cf_scope)) {
+			while (e = cel_parse_expr(par, func->cf_scope, 0)) {
 				CEL_TAILQ_INSERT_TAIL(&func->cf_body, e, ce_entry);
 
-				if (ACCEPT(T_SEMI))
+				if (ACCEPT(CEL_T_SEMI))
 					continue;
 			}
 
 
-			if (!ACCEPT(T_END)) {
+			if (!ACCEPT(CEL_T_END)) {
 				cel_function_free(func);
 				return NULL;
 			}
@@ -667,110 +979,175 @@ char		*extern_ = NULL;
 }
 
 cel_expr_t *
-cel_parse_stmt(par, sc)
-	cel_scope_t	*sc;
+cel_parse_if(par, sc)
 	cel_parser_t	*par;
+	cel_scope_t	*sc;
 {
 /*
- * Statement handling.  The definition of 'statement' is fairly wide and
- * includes anything that can occur within a function, including variable
- * definitions, control constructs (if) and function calls.  'end' is
- * handled as a special type of statement; we return '2' to distinguish
- * that, as it relates to parsing rather than semantics.
+ * An if expression begins 'if <expr> then', followed by a code block; the code
+ * block can be followed by a number of 'else' or 'elif' statements also
+ * followed by a code block, and finally an 'end'.
  */
-cel_expr_t	*e;
 
-	if (e = cel_parse_expr(par, sc))
-		return e;
+cel_expr_t	*ret, *e;
+cel_if_branch_t	*if_;
+cel_type_t	*bool_;
 
-	return NULL;
-}
+	ret = calloc(1, sizeof(*ret));
+	ret->ce_tag = cel_exp_if;
+	ret->ce_type = cel_make_type(cel_type_void);
+	ret->ce_op.ce_if = calloc(1, sizeof(*ret->ce_op.ce_if));
+	CEL_TAILQ_INIT(ret->ce_op.ce_if);
 
-cel_expr_t *
-cel_parse_expr(par, sc)
-	cel_scope_t	*sc;
-	cel_parser_t	*par;
-{
-	return cel_parse_expr_return(par, sc);
-}
+	if_ = calloc(1, sizeof(*if_));
 
-cel_expr_t *
-cel_parse_expr_return(par, sc)
-	cel_scope_t	*sc;
-	cel_parser_t	*par;
-{
-	if (ACCEPT(T_RETURN)) {
-		cel_expr_t	*e;
+/* Expression */
+	if ((e = cel_parse_expr(par, sc, 0)) == NULL) {
+		cel_expr_free(ret);
+		FATAL("expected expression");
+	}
 
-		if ((e = cel_parse_expr_assign(par, sc)) == NULL)
-			FATAL("expected expression");
+	bool_ = cel_make_type(cel_type_bool);
+	if (!cel_type_convertable(bool_, e->ce_type)) {
+		free(if_);
+		cel_expr_free(e);
+		cel_type_free(bool_);
+		ERROR("type error: expected boolean");
+	}
 
-		return cel_make_return(e);
-	} else
-		return cel_parse_expr_assign(par, sc);
-}
+	if_->ib_condition = e;
+	cel_type_free(bool_);
 
-cel_expr_t *
-cel_parse_expr_assign(par, sc)
-	cel_scope_t	*sc;
-	cel_parser_t	*par;
-{
-cel_expr_t	*e, *f;
-cel_token_t	 lv_tok, op_tok;
+/* 'then' */
+	if (!ACCEPT(CEL_T_THEN)) {
+		cel_expr_free(ret);
+		free(if_);
+		FATAL("expected 'then'");
+	}
 
-	lv_tok = par->cp_tok;
+	CEL_TAILQ_INIT(&if_->ib_exprs);
 
-	if ((e = cel_parse_expr_or(par, sc)) == NULL)
-		return NULL;
-
+/* list of statements */
 	for (;;) {
-	cel_type_t	*type;
-	cel_type_t	*t;
-	cel_bi_oper_t	 oper = cel_bi_op_last;
-	int		 op;
+	cel_expr_t	*e;
+		while ((e = cel_parse_expr(par, sc, 0)) != NULL) {
+			CEL_TAILQ_INSERT_TAIL(&if_->ib_exprs, e, ce_entry);
 
-		op_tok = par->cp_tok;
+			/*
+			 * Each statement has to be followed by a semicolon,
+			 * except for the last one in the block.
+			 */
+			if (ACCEPT(CEL_T_SEMI))
+				continue;
+		}
+			
+		if (ACCEPT(CEL_T_ELIF)) {
+			CEL_TAILQ_INSERT_TAIL(e->ce_op.ce_if, if_, ib_entry);
 
-		if (!(op = ACCEPT(T_ASSIGN)) && !(op = ACCEPT(T_INCRN)) &&
-		    !(op = ACCEPT(T_DECRN)) && !(op = ACCEPT(T_MULTN)) &&
-		    !(op = ACCEPT(T_DIVN)))
-			break;
+			if ((e = cel_parse_expr(par, sc, 0)) == NULL) {
+				cel_expr_free(ret);
+				FATAL("expected expression");
+			}
 
-		if ((f = cel_parse_expr_assign(par, sc)) == NULL) {
-			cel_expr_free(e);
-			FATAL("expected expression");
+			if (!ACCEPT(CEL_T_THEN)) {
+				cel_expr_free(ret);
+				FATAL("expected 'then'");
+			}
+
+			if_ = calloc(1, sizeof(*if_));
+
+			bool_ = cel_make_type(cel_type_bool);
+			if (!cel_type_convertable(bool_, e->ce_type)) {
+				free(if_);
+				cel_expr_free(e);
+				cel_type_free(bool_);
+				FATAL("type error: expected boolean");
+			}
+
+			if_->ib_condition = e;
+			cel_type_free(bool_);
+			CEL_TAILQ_INIT(&if_->ib_exprs);
+			continue;
 		}
 
-		if (!e->ce_mutable)
-			ERROR_TOK(&op_tok, "assignment to read-only location");
-
-		switch (op) {
-		case T_INCRN:	oper = cel_op_plus; break;
-		case T_DECRN:	oper = cel_op_minus; break;
-		case T_MULTN:	oper = cel_op_mult; break;
-		case T_DIVN:	oper = cel_op_div; break;
+		if (ACCEPT(CEL_T_ELSE)) {
+			CEL_TAILQ_INSERT_TAIL(ret->ce_op.ce_if, if_, ib_entry);
+			if_ = calloc(1, sizeof(*if_));
+			CEL_TAILQ_INIT(&if_->ib_exprs);
+			continue;
 		}
 
-		if (oper != cel_bi_op_last) {
-			t = cel_derive_binary_type(oper, e->ce_type, f->ce_type);
-			f = cel_make_binary(oper, e, f);
-			f->ce_type = t;
+		if (ACCEPT(CEL_T_END)) {
+			CEL_TAILQ_INSERT_TAIL(ret->ce_op.ce_if, if_, ib_entry);
+			return ret;
 		}
 
-		if (!cel_type_convertable(e->ce_type, f->ce_type)) {
-		char	a1[64] = {}, a2[64] = {};
-		char	err[128];
+		cel_expr_free(ret);
+		FATAL("expected statement, 'end', 'else' or 'elif'");
+	}
+}
 
-			cel_name_type(e->ce_type, a1, sizeof(a1) / sizeof(char));
-			cel_name_type(f->ce_type, a2, sizeof(a2) / sizeof(char));
+cel_expr_t *
+cel_parse_while(par, sc)
+	cel_parser_t	*par;
+	cel_scope_t	*sc;
+{
+cel_expr_t	*ret, *e;
+cel_type_t	*bool_;
 
-			snprintf(err, sizeof(err) / sizeof(char),
-				 "incompatible types in assignment: \"%s\" := \"%s\"",
-				 a1, a2);
+	ret = calloc(1, sizeof(*ret));
+	ret->ce_tag = cel_exp_while;
+	ret->ce_type = cel_make_type(cel_type_void);
+	ret->ce_op.ce_while = calloc(1, sizeof(*ret->ce_op.ce_while));
 
-			ERROR_TOK(&op_tok, err);
+/* Expression */
+	if ((e = cel_parse_expr(par, sc, 0)) == NULL) {
+		cel_expr_free(ret);
+		FATAL("expected expression");
+	}
+
+	bool_ = cel_make_type(cel_type_bool);
+	if (!cel_type_convertable(bool_, e->ce_type)) {
+		cel_expr_free(e);
+		cel_type_free(bool_);
+		FATAL("type error: expected boolean");
+	}
+
+	ret->ce_op.ce_while->wh_condition = e;
+	cel_type_free(bool_);
+
+/* 'do' */
+	if (!ACCEPT(CEL_T_DO)) {
+		cel_expr_free(ret);
+		FATAL("expected 'do'");
+	}
+
+	CEL_TAILQ_INIT(&ret->ce_op.ce_while->wh_exprs);
+
+/* list of statements */
+	for (;;) {
+	cel_expr_t	*e;
+		while ((e = cel_parse_expr(par, sc, 0)) != NULL) {
+			CEL_TAILQ_INSERT_TAIL(&ret->ce_op.ce_while->wh_exprs, e, ce_entry);
+
+			/*
+			 * Each statement has to be followed by a semicolon,
+			 * except for the last one in the block.
+			 */
+			if (ACCEPT(CEL_T_SEMI))
+				continue;
 		}
+			
+		if (ACCEPT(CEL_T_END))
+			return ret;
 
+		cel_expr_free(ret);
+		FATAL("expected statement or 'end'");
+	}
+}
+
+#if 0
+/* Optimisation for i := i + 1  ->  i +:= 1 */
 		if (f->ce_tag == cel_exp_binary) {
 		cel_expr_t	*n = e, *v = NULL;
 		cel_expr_t	*left = f->ce_op.ce_binary.left;
@@ -799,780 +1176,7 @@ cel_token_t	 lv_tok, op_tok;
 				goto done;
 			}
 		}
+#endif
 
-		type = e->ce_type;
-		e = cel_make_assign(e, f);
-		e->ce_type = type;
-done:
-		;
-	}
-
-	return e;
-}
-
-cel_expr_t *
-cel_parse_expr_or(par, sc)
-	cel_scope_t	*sc;
-	cel_parser_t	*par;
-{
-cel_expr_t	*e, *f;
-cel_token_t	 op_tok;
-int		 op;
-
-	if ((e = cel_parse_expr_and(par, sc)) == NULL)
-		return NULL;
-
-	for (;;) {
-	cel_type_t	*type;
-
-		op_tok = par->cp_tok;
-
-		if (!(op = ACCEPT(T_OR)))
-			break;
-
-		if ((f = cel_parse_expr_and(par, sc)) == NULL) {
-			cel_expr_free(e);
-			FATAL("expected expression");
-		}
-
-		if ((type = cel_derive_binary_type(cel_op_or, e->ce_type, f->ce_type)) == NULL) {
-		char	a1[64] = {}, a2[64] = {};
-		char	err[128];
-
-			cel_name_type(e->ce_type, a1, sizeof(a1) / sizeof(char));
-			cel_name_type(f->ce_type, a2, sizeof(a2) / sizeof(char));
-
-			snprintf(err, sizeof(err) / sizeof(char),
-				 "incompatible types in expression: \"%s\", \"%s\"",
-				 a1, a2);
-
-			cel_expr_free(e);
-			cel_expr_free(f);
-			ERROR_TOK(&op_tok, err);
-		}
-
-		e = cel_make_or(e, f);
-		e->ce_type = type;
-	}
-
-	return e;
-}
-
-cel_expr_t *
-cel_parse_expr_and(par, sc)
-	cel_scope_t	*sc;
-	cel_parser_t	*par;
-{
-cel_expr_t	*e, *f;
-cel_token_t	 op_tok;
-int		 op;
-
-	if ((e = cel_parse_expr_eq1(par, sc)) == NULL)
-		return NULL;
-
-	for (;;) {
-	cel_type_t	*type;
-
-		op_tok = par->cp_tok;
-
-		if (!(op = ACCEPT(T_AND)))
-			break;
-
-		if ((f = cel_parse_expr_eq1(par, sc)) == NULL) {
-			cel_expr_free(e);
-			FATAL("expected expression");
-		}
-
-		if ((type = cel_derive_binary_type(cel_op_and, e->ce_type, f->ce_type)) == NULL) {
-		char	a1[64] = {}, a2[64] = {};
-		char	err[128];
-
-			cel_name_type(e->ce_type, a1, sizeof(a1) / sizeof(char));
-			cel_name_type(f->ce_type, a2, sizeof(a2) / sizeof(char));
-
-			snprintf(err, sizeof(err) / sizeof(char),
-				 "incompatible types in expression: \"%s\", \"%s\"",
-				 a1, a2);
-
-			cel_expr_free(e);
-			cel_expr_free(f);
-			ERROR_TOK(&op_tok, err);
-		}
-
-		e = cel_make_and(e, f);
-		e->ce_type = type;
-	}
-
-	return e;
-}
-
-cel_expr_t *
-cel_parse_expr_eq1(par, sc)
-	cel_scope_t	*sc;
-	cel_parser_t	*par;
-{
-cel_expr_t	*e, *f;
-cel_token_t	 op_tok;
-int		 op;
-
-	if ((e = cel_parse_expr_eq2(par, sc)) == NULL)
-		return NULL;
-
-	for (;;) {
-	cel_type_t	*type;
-	cel_bi_oper_t	 oper;
-
-		op_tok = par->cp_tok;
-
-		if (!(op = ACCEPT(T_EQ)) && !(op = ACCEPT(T_NEQ)))
-			break;
-
-		if ((f = cel_parse_expr_eq2(par, sc)) == NULL) {
-			cel_expr_free(e);
-			FATAL("expected expression");
-		}
-
-		switch (op) {
-		case T_EQ:	oper = cel_op_eq; break;
-		case T_NEQ:	oper = cel_op_neq; break;
-		}
-
-		if ((type = cel_derive_binary_type(oper, e->ce_type, f->ce_type)) == NULL) {
-		char	a1[64] = {}, a2[64] = {};
-		char	err[128];
-
-			cel_name_type(e->ce_type, a1, sizeof(a1) / sizeof(char));
-			cel_name_type(f->ce_type, a2, sizeof(a2) / sizeof(char));
-
-			snprintf(err, sizeof(err) / sizeof(char),
-				 "incompatible types in expression: \"%s\", \"%s\"",
-				 a1, a2);
-
-			cel_expr_free(e);
-			cel_expr_free(f);
-			ERROR_TOK(&op_tok, err);
-		}
-
-		e = cel_make_binary(oper, e, f);
-		e->ce_type = type;
-	}
-
-	return e;
-}
-
-cel_expr_t *
-cel_parse_expr_eq2(par, sc)
-	cel_scope_t	*sc;
-	cel_parser_t	*par;
-{
-cel_expr_t	*e, *f;
-cel_token_t	 op_tok;
-int		 op;
-
-	if ((e = cel_parse_expr_plus(par, sc)) == NULL)
-		return NULL;
-
-	for (;;) {
-	cel_type_t	*type;
-	cel_bi_oper_t	 oper;
-
-		op_tok = par->cp_tok;
-
-		if (!(op = ACCEPT(T_GT)) && !(op = ACCEPT(T_GE)) &&
-		    !(op = ACCEPT(T_LT)) && !(op = ACCEPT(T_LE)))
-			break;
-
-		if ((f = cel_parse_expr_plus(par, sc)) == NULL) {
-			cel_expr_free(e);
-			FATAL("expected expression");
-		}
-
-		switch (op) {
-		case T_GT:	oper = cel_op_gt; break;
-		case T_GE:	oper = cel_op_ge; break;
-		case T_LT:	oper = cel_op_lt; break;
-		case T_LE:	oper = cel_op_le; break;
-		}
-
-		if ((type = cel_derive_binary_type(oper, e->ce_type, f->ce_type)) == NULL) {
-		char	a1[64] = {}, a2[64] = {};
-		char	err[128];
-
-			cel_name_type(e->ce_type, a1, sizeof(a1) / sizeof(char));
-			cel_name_type(f->ce_type, a2, sizeof(a2) / sizeof(char));
-
-			snprintf(err, sizeof(err) / sizeof(char),
-				 "incompatible types in expression: \"%s\", \"%s\"",
-				 a1, a2);
-
-			cel_expr_free(e);
-			cel_expr_free(f);
-			ERROR_TOK(&op_tok, err);
-		}
-
-		e = cel_make_binary(oper, e, f);
-		e->ce_type = type;
-	}
-
-	return e;
-}
-
-cel_expr_t *
-cel_parse_expr_plus(par, sc)
-	cel_parser_t	*par;
-	cel_scope_t	*sc;
-{
-cel_expr_t	*e, *f;
-cel_token_t	 op_tok;
-int		 op;
-
-	if ((e = cel_parse_expr_mult(par, sc)) == NULL)
-		return NULL;
-
-	for (;;) {
-	cel_type_t	*type;
-	cel_bi_oper_t	 oper;
-
-		op_tok = par->cp_tok;
-
-		if (!(op = ACCEPT(T_PLUS)) && !(op = ACCEPT(T_MINUS)))
-			break;
-
-		if ((f = cel_parse_expr_mult(par, sc)) == NULL) {
-			cel_expr_free(e);
-			FATAL("expected expression");
-		}
-
-		switch (op) {
-		case T_PLUS:	oper = cel_op_plus; break;
-		case T_MINUS:	oper = cel_op_minus; break;
-		}
-
-		if ((type = cel_derive_binary_type(oper, e->ce_type, f->ce_type)) == NULL) {
-		char	a1[64] = {}, a2[64] = {};
-		char	err[128];
-
-			cel_name_type(e->ce_type, a1, sizeof(a1) / sizeof(char));
-			cel_name_type(f->ce_type, a2, sizeof(a2) / sizeof(char));
-
-			snprintf(err, sizeof(err) / sizeof(char),
-				 "incompatible types in expression: \"%s\", \"%s\"",
-				 a1, a2);
-
-			cel_expr_free(e);
-			cel_expr_free(f);
-			ERROR_TOK(&op_tok, err);
-		}
-
-		e = cel_make_binary(oper, e, f);
-		e->ce_type = type;
-	}
-
-	return e;
-}
-
-cel_expr_t *
-cel_parse_expr_mult(par, sc)
-	cel_parser_t	*par;
-	cel_scope_t	*sc;
-{
-cel_expr_t	*e, *f;
-cel_token_t	 op_tok;
-int		 op;
-
-	if ((e = cel_parse_expr_unary(par, sc)) == NULL)
-		return NULL;
-
-	for (;;) {
-	cel_type_t	*type;
-	cel_bi_oper_t	 oper;
-
-		op_tok = par->cp_tok;
-
-		if (!(op = ACCEPT(T_STAR)) && !(op = ACCEPT(T_SLASH)) &&
-		    !(op = ACCEPT(T_PERCENT)))
-			break;
-
-		if ((f = cel_parse_expr_unary(par, sc)) == NULL) {
-			cel_expr_free(e);
-			FATAL("expected expression");
-		}
-
-		switch (op) {
-		case T_STAR:	oper = cel_op_mult; break;
-		case T_SLASH:	oper = cel_op_div; break;
-		case T_PERCENT:	oper = cel_op_modulus; break;
-		}
-
-		if ((type = cel_derive_binary_type(oper, e->ce_type, f->ce_type)) == NULL) {
-		char	a1[64] = {}, a2[64] = {};
-		char	err[128];
-
-			cel_name_type(e->ce_type, a1, sizeof(a1) / sizeof(char));
-			cel_name_type(f->ce_type, a2, sizeof(a2) / sizeof(char));
-
-			snprintf(err, sizeof(err) / sizeof(char),
-				 "incompatible types in expression: \"%s\", \"%s\"",
-				 a1, a2);
-
-			cel_expr_free(e);
-			cel_expr_free(f);
-			ERROR_TOK(&op_tok, err);
-		}
-
-		e = cel_make_binary(oper, e, f);
-		e->ce_type = type;
-	}
-
-	return e;
-}
-
-cel_expr_t *
-cel_parse_expr_unary(par, sc)
-	cel_parser_t	*par;
-	cel_scope_t	*sc;
-{
-/* expr_unary  --> expr_post  | "-" expr_unary | "!" expr_unary */
-cel_expr_t	*e = NULL;
-
-	for (;;) {
-	cel_type_t	*type;
-	cel_uni_oper_t	 oper;
-	int		 op;
-	cel_token_t	 op_tok;
-
-		op_tok = par->cp_tok;
-
-		if (!(op = ACCEPT(T_MINUS)) && !(op = ACCEPT(T_NEGATE)))
-			break;
-
-		if ((e = cel_parse_expr_unary(par, sc)) == NULL) {
-			cel_expr_free(e);
-			FATAL("expected expression");
-		}
-
-		switch (op) {
-		case T_NEGATE:	oper = cel_op_negate; break;
-		case T_MINUS:	oper = cel_op_uni_minus; break;
-		}
-
-		if ((type = cel_derive_unary_type(oper, e->ce_type)) == NULL) {
-		char	a1[64] = {}, err[128] = {};
-
-			cel_name_type(e->ce_type, a1, sizeof(a1) / sizeof(char));
-
-			snprintf(err, sizeof(err) / sizeof(char),
-				 "incompatible type in expression: \"%s\"", a1);
-
-			cel_expr_free(e);
-			ERROR_TOK(&op_tok, err);
-		}
-
-		e = cel_make_unary(oper, e);
-		e->ce_type = type;
-	}
-
-	if (e)
-		return e;
-
-	return cel_parse_expr_post(par, sc);
-}
-
-cel_expr_t *
-cel_parse_expr_post(par, sc)
-	cel_parser_t	*par;
-	cel_scope_t	*sc;
-{
-/* expr_post   --> expr_value [ ( "(" arglist ")" | "[" expr "]" ) ] */
-cel_expr_t	*e;
-int		 op;
-cel_token_t	 err_tok;
-
-	if ((e = cel_parse_expr_value(par, sc)) == NULL)
-		return NULL;
-
-/* Function call */
-	err_tok = par->cp_tok;
-	while ((op = ACCEPT(T_LPAR)) || (op = ACCEPT(T_LSQ)) ||
-	       (op = ACCEPT(T_AS)) || (op = ACCEPT(T_ADDR)) ||
-	       (op = ACCEPT(T_CARET))) {
-	cel_type_t	*t;
-	cel_arglist_t	*args;
-
-		switch (op) {
-		case T_CARET:
-			if (e->ce_type->ct_tag != cel_type_ptr)
-				ERROR_TOK(&err_tok, "only pointers can be dereferenced");
-			else
-				e = cel_make_deref(e);
-			break;
-
-		case T_ADDR:
-			if (e->ce_tag != cel_exp_variable)
-				ERROR_TOK(&err_tok, "cannot take address of temporary");
-			t = cel_make_ptr(e->ce_type);
-			e = cel_make_unary(cel_op_addr, e);
-			e->ce_type = t;
-			break;
-
-		case T_LPAR:
-			if ((args = cel_parse_arglist(par, sc)) == NULL) {
-				cel_expr_free(e);
-				return NULL;
-			}
-
-			if (!ACCEPT(T_RPAR)) {
-				cel_expr_free(e);
-				FATAL("expected ')'");
-			}
-
-			e = cel_make_call(e, args);
-			break;
-
-		case T_LSQ:
-			if (cel_parse_expr(par, sc) == NULL) {
-				cel_expr_free(e);
-				FATAL("expected expression");
-			}
-
-			if (!ACCEPT(T_RSQ)) {
-				cel_expr_free(e);
-				FATAL("expected ']'");
-			}
-			break;
-
-		case T_AS:
-			err_tok = par->cp_tok;
-
-			if ((t = cel_parse_type(par, sc)) == NULL) {
-				cel_expr_free(e);
-				FATAL("expected type");
-			}
-
-			if (!cel_type_convertable(e->ce_type, t)) {
-			char	a1[64], a2[64];
-			char	err[128];
-
-				cel_name_type(e->ce_type, a1, sizeof(a1));
-				cel_name_type(t, a2, sizeof(a2));
-
-				snprintf(err, sizeof(err) / sizeof(char),
-					 "expression of type \"%s\" cannot be converted to \"%s\"",
-					 a1, a2);
-
-				cel_expr_free(e);
-				ERROR_TOK(&err_tok, err);
-			}
-
-			e = cel_make_cast(e, t);
-			break;
-		}
-	}
-
-	return e;
-}
-
-cel_expr_t *
-cel_parse_expr_value(par, sc)
-	cel_scope_t	*sc;
-	cel_parser_t	*par;
-{
-/* expr_value  --> value | "(" expr ")" | ifexpr */
-cel_expr_t	*e;
-
-	if ((e = cel_parse_value(par, sc)) != NULL)
-		return e;
-
-	if (ACCEPT(T_LPAR)) {
-		if ((e = cel_parse_expr(par, sc)) == NULL)
-			FATAL("expected expression");
-
-		if (!ACCEPT(T_RPAR)) {
-			cel_expr_free(e);
-			FATAL("expected ')'");
-		}
-
-		return e;
-	}
-
-/* if expression */
-	if (ACCEPT(T_IF)) {
-		if ((e = cel_parse_if(par, sc)) == NULL)
-			return NULL;
-		return e;
-	}
-
-/* while expression */
-	if (ACCEPT(T_WHILE)) {
-		if ((e = cel_parse_while(par, sc)) == NULL)
-			return NULL;
-		return e;
-	}
-
-/* Function definition */
-	if (e = cel_parse_func(par, sc))
-		return e;
-
-/* Variable definition */
-	if (e = cel_parse_var(par, sc))
-		return e;
-
-	return NULL;
-}
-
-cel_expr_t *
-cel_parse_value(par, sc)
-	cel_parser_t	*par;
-	cel_scope_t	*sc;
-{
-cel_expr_t	*ret = NULL;
-
-	if (EXPECT(T_ID)) {
-	cel_scope_item_t	*v;
-	cel_token_t		 err_tok = par->cp_tok;
-
-		v = cel_scope_find_item(sc, par->cp_tok.ct_literal);
-
-		if (v == NULL) {
-		char	err[128];
-			snprintf(err, sizeof(err), "undeclared identifier \"%s\"",
-				 par->cp_tok.ct_literal);
-			CONSUME();
-
-			ERROR_TOK(&err_tok, err);
-		}
-
-		if (v->si_type != cel_item_expr) {
-		char	err[128];
-			snprintf(err, sizeof(err), "not a variable type: \"%s\"",
-				 par->cp_tok.ct_literal);
-			CONSUME();
-
-			ERROR_TOK(&err_tok, err);
-		}
-
-		ret = cel_make_variable(v->si_name, v->si_ob.si_expr->ce_type);
-		ret->ce_mutable = v->si_ob.si_expr->ce_mutable;
-	} else if (EXPECT(T_LIT_INT8))
-		ret = cel_make_int8(strtol(par->cp_tok.ct_literal, NULL, 0));
-	else if (EXPECT(T_LIT_UINT8))
-		ret = cel_make_uint8(strtol(par->cp_tok.ct_literal, NULL, 0));
-	else if (EXPECT(T_LIT_INT16))
-		ret = cel_make_int16(strtol(par->cp_tok.ct_literal, NULL, 0));
-	else if (EXPECT(T_LIT_UINT16))
-		ret = cel_make_uint16(strtol(par->cp_tok.ct_literal, NULL, 0));
-	else if (EXPECT(T_LIT_INT32))
-		ret = cel_make_int32(strtol(par->cp_tok.ct_literal, NULL, 0));
-	else if (EXPECT(T_LIT_UINT32))
-		ret = cel_make_uint32(strtol(par->cp_tok.ct_literal, NULL, 0));
-	else if (EXPECT(T_LIT_INT64))
-		ret = cel_make_int64(strtol(par->cp_tok.ct_literal, NULL, 0));
-	else if (EXPECT(T_LIT_UINT64))
-		ret = cel_make_uint64(strtol(par->cp_tok.ct_literal, NULL, 0));
-	else if (EXPECT(T_LIT_STR)) {
-		ret = cel_make_string(par->cp_tok.ct_literal);
-	} else if (EXPECT(T_TRUE))
-		ret = cel_make_bool(1);
-	else if (EXPECT(T_FALSE))
-		ret = cel_make_bool(0);
-
-	if (ret)
-		CONSUME();
-
-	return ret;
-}
-
-cel_arglist_t *
-cel_parse_arglist(par, sc)
-	cel_parser_t	*par;
-	cel_scope_t	*sc;
-{
-/*
- * An argument list is just a comma-separated list of expressions termined by
- * an RPAR.
- */
-cel_arglist_t	*al;
-cel_expr_t	*e;
-
-	al = calloc(1, sizeof(*al));
-
-	while (e = cel_parse_expr(par, sc)) {
-		al->ca_args = realloc(al->ca_args,
-				      sizeof(cel_type_t *) * (al->ca_nargs + 1));
-		al->ca_args[al->ca_nargs] = e;
-		al->ca_nargs++;
-
-		if (ACCEPT(T_COMMA))
-			continue;
-	}
-
-	return al;
-}
-
-cel_expr_t *
-cel_parse_if(par, sc)
-	cel_parser_t	*par;
-	cel_scope_t	*sc;
-{
-/*
- * An if expression begins 'if <expr> then', followed by a code block; the code
- * block can be followed by a number of 'else' or 'elif' statements also
- * followed by a code block, and finally an 'end'.
- */
-
-cel_expr_t	*ret, *e;
-cel_if_branch_t	*if_;
-cel_type_t	*bool_;
-
-	ret = calloc(1, sizeof(*ret));
-	ret->ce_tag = cel_exp_if;
-	ret->ce_type = cel_make_type(cel_type_void);
-	ret->ce_op.ce_if = calloc(1, sizeof(*ret->ce_op.ce_if));
-	CEL_TAILQ_INIT(ret->ce_op.ce_if);
-
-	if_ = calloc(1, sizeof(*if_));
-
-/* Expression */
-	if ((e = cel_parse_expr(par, sc)) == NULL) {
-		cel_expr_free(ret);
-		FATAL("expected expression");
-	}
-
-	bool_ = cel_make_type(cel_type_bool);
-	if (!cel_type_convertable(bool_, e->ce_type)) {
-		free(if_);
-		cel_expr_free(e);
-		cel_type_free(bool_);
-		ERROR("type error: expected boolean");
-	}
-
-	if_->ib_condition = e;
-	cel_type_free(bool_);
-
-/* 'then' */
-	if (!ACCEPT(T_THEN)) {
-		cel_expr_free(ret);
-		free(if_);
-		FATAL("expected 'then'");
-	}
-
-	CEL_TAILQ_INIT(&if_->ib_exprs);
-
-/* list of statements */
-	for (;;) {
-	cel_expr_t	*e;
-		while ((e = cel_parse_stmt(par, sc)) != NULL) {
-			CEL_TAILQ_INSERT_TAIL(&if_->ib_exprs, e, ce_entry);
-
-			/*
-			 * Each statement has to be followed by a semicolon,
-			 * except for the last one in the block.
-			 */
-			if (ACCEPT(T_SEMI))
-				continue;
-		}
-			
-		if (ACCEPT(T_ELIF)) {
-			CEL_TAILQ_INSERT_TAIL(e->ce_op.ce_if, if_, ib_entry);
-
-			if ((e = cel_parse_expr(par, sc)) == NULL) {
-				cel_expr_free(ret);
-				FATAL("expected expression");
-			}
-
-			if (!ACCEPT(T_THEN)) {
-				cel_expr_free(ret);
-				FATAL("expected 'then'");
-			}
-
-			if_ = calloc(1, sizeof(*if_));
-
-			bool_ = cel_make_type(cel_type_bool);
-			if (!cel_type_convertable(bool_, e->ce_type)) {
-				free(if_);
-				cel_expr_free(e);
-				cel_type_free(bool_);
-				FATAL("type error: expected boolean");
-			}
-
-			if_->ib_condition = e;
-			cel_type_free(bool_);
-			CEL_TAILQ_INIT(&if_->ib_exprs);
-			continue;
-		}
-
-		if (ACCEPT(T_ELSE)) {
-			CEL_TAILQ_INSERT_TAIL(ret->ce_op.ce_if, if_, ib_entry);
-			if_ = calloc(1, sizeof(*if_));
-			CEL_TAILQ_INIT(&if_->ib_exprs);
-			continue;
-		}
-
-		if (ACCEPT(T_END)) {
-			CEL_TAILQ_INSERT_TAIL(ret->ce_op.ce_if, if_, ib_entry);
-			return ret;
-		}
-
-		cel_expr_free(ret);
-		FATAL("expected statement, 'end', 'else' or 'elif'");
-	}
-}
-
-cel_expr_t *
-cel_parse_while(par, sc)
-	cel_parser_t	*par;
-	cel_scope_t	*sc;
-{
-cel_expr_t	*ret, *e;
-cel_type_t	*bool_;
-
-	ret = calloc(1, sizeof(*ret));
-	ret->ce_tag = cel_exp_while;
-	ret->ce_type = cel_make_type(cel_type_void);
-	ret->ce_op.ce_while = calloc(1, sizeof(*ret->ce_op.ce_while));
-
-/* Expression */
-	if ((e = cel_parse_expr(par, sc)) == NULL) {
-		cel_expr_free(ret);
-		FATAL("expected expression");
-	}
-
-	bool_ = cel_make_type(cel_type_bool);
-	if (!cel_type_convertable(bool_, e->ce_type)) {
-		cel_expr_free(e);
-		cel_type_free(bool_);
-		FATAL("type error: expected boolean");
-	}
-
-	ret->ce_op.ce_while->wh_condition = e;
-	cel_type_free(bool_);
-
-/* 'do' */
-	if (!ACCEPT(T_DO)) {
-		cel_expr_free(ret);
-		FATAL("expected 'do'");
-	}
-
-	CEL_TAILQ_INIT(&ret->ce_op.ce_while->wh_exprs);
-
-/* list of statements */
-	for (;;) {
-	cel_expr_t	*e;
-		while ((e = cel_parse_stmt(par, sc)) != NULL) {
-			CEL_TAILQ_INSERT_TAIL(&ret->ce_op.ce_while->wh_exprs, e, ce_entry);
-
-			/*
-			 * Each statement has to be followed by a semicolon,
-			 * except for the last one in the block.
-			 */
-			if (ACCEPT(T_SEMI))
-				continue;
-		}
-			
-		if (ACCEPT(T_END))
-			return ret;
-
-		cel_expr_free(ret);
-		FATAL("expected statement or 'end'");
-	}
-}
+#if 0
+#endif

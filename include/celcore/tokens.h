@@ -13,79 +13,86 @@
 
 #include	<stdio.h>
 
-#define	T_ERR		(-1)
-#define	T_FUNC		1
-#define	T_VAR		2
-#define	T_BEGIN		3
-#define	T_TYPE		4
-#define	T_IF		5
-#define	T_END		6
-#define	T_LPAR		7	/* (  */
-#define	T_RPAR		8	/* )  */
-#define	T_LSQ		9	/* [  */
-#define	T_RSQ		10	/* ]  */
-#define	T_LCUR		11	/* {  */
-#define	T_RCUR		12	/* }  */
-#define	T_LIT_STR	14
-#define	T_COMMA		16
-#define	T_COLON		17
-#define	T_SEMI		18	/* ;  */
-#define	T_ASSIGN	19	/* := */
-#define	T_EQ		20	/* =  */
-#define	T_LT		21	/* <  */
-#define	T_GT		22	/* >  */
-#define	T_LE		23	/* <= */
-#define	T_GE		24	/* >= */
-#define	T_NE		25	/* /= */
-#define	T_EOT		26	/* end of file */
-#define	T_ID		27	/* identifier */
-#define	T_PLUS		28	/* +  */
-#define	T_MINUS		29	/* -  */
-#define	T_STAR		30	/* *  */
-#define	T_SLASH		31	/* /  */
-#define	T_ARROW		32	/* -> */
-#define	T_ELIF		33
-#define	T_ELSE		34
-#define	T_THEN		35
-#define	T_CARET		36
-#define	T_PERCENT	37
-#define	T_AND		38
-#define	T_OR		39
-#define	T_NEQ		40
-#define	T_NEGATE	41
-#define	T_INT		42
-#define	T_STRING	43
-#define	T_BOOL		44
-#define	T_TRUE		45
-#define	T_FALSE		46
-#define	T_LIT_INT8	47
-#define	T_LIT_UINT8	48
-#define	T_LIT_INT16	49
-#define	T_LIT_UINT16	50
-#define	T_LIT_INT32	51
-#define	T_LIT_UINT32	52
-#define	T_LIT_INT64	53
-#define	T_LIT_UINT64	54
-#define	T_INT8		55
-#define	T_UINT8		56
-#define	T_INT16		57
-#define	T_UINT16	58
-#define	T_INT32		59
-#define	T_UINT32	60
-#define	T_INT64		61
-#define	T_UINT64	62
-#define	T_AS		63
-#define	T_RETURN	64
-#define	T_VOID		65
-#define	T_WHILE		66
-#define	T_DO		67
-#define	T_INCRN		68 /* :+= */
-#define	T_DECRN		69 /* :-= */
-#define	T_MULTN		70 /* :*= */
-#define	T_DIVN		71 /* :/= */
-#define	T_EXTERN	72
-#define	T_CONST		73
-#define	T_ADDR		74
+#define	CEL_T_ERR		(-1)
+#define	CEL_T_FUNC		1
+#define	CEL_T_VAR		2
+#define	CEL_T_BEGIN		3
+#define	CEL_T_TYPE		4
+#define	CEL_T_IF		5
+#define	CEL_T_END		6
+#define	CEL_T_LPAR		7	/* (  */
+#define	CEL_T_RPAR		8	/* )  */
+#define	CEL_T_LSQ		9	/* [  */
+#define	CEL_T_RSQ		10	/* ]  */
+#define	CEL_T_LCUR		11	/* {  */
+#define	CEL_T_RCUR		12	/* }  */
+#define	CEL_T_LIT_STR		14
+#define	CEL_T_COMMA		16
+#define	CEL_T_COLON		17
+#define	CEL_T_SEMI		18	/* ;  */
+#define	CEL_T_ASSIGN		19	/* := */
+#define	CEL_T_EQ		20	/* =  */
+#define	CEL_T_LT		21	/* <  */
+#define	CEL_T_GT		22	/* >  */
+#define	CEL_T_LE		23	/* <= */
+#define	CEL_T_GE		24	/* >= */
+#define	CEL_T_NE		25	/* /= */
+#define	CEL_T_EOT		26	/* end of file */
+#define	CEL_T_ID		27	/* identifier */
+#define	CEL_T_PLUS		28	/* +  */
+#define	CEL_T_MINUS		29	/* -  */
+#define	CEL_T_STAR		30	/* *  */
+#define	CEL_T_SLASH		31	/* /  */
+#define	CEL_T_ARROW		32	/* -> */
+#define	CEL_T_ELIF		33
+#define	CEL_T_ELSE		34
+#define	CEL_T_THEN		35
+#define	CEL_T_CARET		36
+#define	CEL_T_PERCENT		37
+#define	CEL_T_AND		38
+#define	CEL_T_OR		39
+#define	CEL_T_NEQ		40
+#define	CEL_T_NOT		41
+#define	CEL_T_INT		42
+#define	CEL_T_STRING		43
+#define	CEL_T_BOOL		44
+#define	CEL_T_TRUE		45
+#define	CEL_T_FALSE		46
+#define	CEL_T_LIT_INT8		47
+#define	CEL_T_LIT_UINT8		48
+#define	CEL_T_LIT_INT16		49
+#define	CEL_T_LIT_UINT16	50
+#define	CEL_T_LIT_INT32		51
+#define	CEL_T_LIT_UINT32	52
+#define	CEL_T_LIT_INT64		53
+#define	CEL_T_LIT_UINT64	54
+#define	CEL_T_INT8		55
+#define	CEL_T_UINT8		56
+#define	CEL_T_INT16		57
+#define	CEL_T_UINT16		58
+#define	CEL_T_INT32		59
+#define	CEL_T_UINT32		60
+#define	CEL_T_INT64		61
+#define	CEL_T_UINT64		62
+#define	CEL_T_AS		63
+#define	CEL_T_RETURN		64
+#define	CEL_T_VOID		65
+#define	CEL_T_WHILE		66
+#define	CEL_T_DO		67
+#define	CEL_T_INCRN		68 /* +:= */
+#define	CEL_T_DECRN		69 /* -:= */
+#define	CEL_T_MULTN		70 /* *:= */
+#define	CEL_T_DIVN		71 /* /:= */
+#define	CEL_T_EXTERN		72
+#define	CEL_T_CONST		73
+#define	CEL_T_ADDR		74
+#define	CEL_T_AT		75
+#define	CEL_T_LSH		76
+#define	CEL_T_RSH		77
+#define	CEL_T_BIT_AND		78
+#define	CEL_T_BIT_OR		79
+#define	CEL_T_LSHN		80
+#define	CEL_T_RSHN		81
 
 /*
  * Lexer state.
@@ -118,7 +125,7 @@ int	cel_lexer_init(cel_lexer_t *lex, char const *buf);
  * A single token.
  */
 typedef struct cel_token {
-	/* Token code (T_*) */
+	/* Token code (CEL_T_*) */
 	int		 ct_token;
 
 	/* The literal text comprising the token */

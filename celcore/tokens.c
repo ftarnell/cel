@@ -47,37 +47,35 @@ struct {
 	char const	*token;
 	int		 value;
 } keywords[] = {
-	{ "func",	T_FUNC		},
-	{ "var",	T_VAR		},
-	{ "type",	T_TYPE		},
-	{ "begin",	T_BEGIN		},
-	{ "end",	T_END		},
-	{ "if",		T_IF		},
-	{ "elif",	T_ELIF		},
-	{ "else",	T_ELSE		},
-	{ "then",	T_THEN		},
-	{ "and",	T_AND		},
-	{ "or",		T_OR		},
-	{ "int",	T_INT		},
-	{ "string",	T_STRING	},
-	{ "bool",	T_BOOL		},
-	{ "true",	T_TRUE		},
-	{ "false",	T_FALSE		},
-	{ "int8",	T_INT8		},
-	{ "uint8",	T_UINT8		},
-	{ "int16",	T_INT16		},
-	{ "uint16",	T_UINT16	},
-	{ "int32",	T_INT32		},
-	{ "uint32",	T_UINT32	},
-	{ "int64",	T_INT64		},
-	{ "uint64",	T_UINT64	},
-	{ "as",		T_AS		},
-	{ "return",	T_RETURN	},
-	{ "void",	T_VOID		},
-	{ "while",	T_WHILE		},
-	{ "do",		T_DO		},
-	{ "extern",	T_EXTERN	},
-	{ "const",	T_CONST		}
+	{ "func",	CEL_T_FUNC		},
+	{ "var",	CEL_T_VAR		},
+	{ "type",	CEL_T_TYPE		},
+	{ "begin",	CEL_T_BEGIN		},
+	{ "end",	CEL_T_END		},
+	{ "if",		CEL_T_IF		},
+	{ "elif",	CEL_T_ELIF		},
+	{ "else",	CEL_T_ELSE		},
+	{ "then",	CEL_T_THEN		},
+	{ "int",	CEL_T_INT		},
+	{ "string",	CEL_T_STRING		},
+	{ "bool",	CEL_T_BOOL		},
+	{ "true",	CEL_T_TRUE		},
+	{ "false",	CEL_T_FALSE		},
+	{ "int8",	CEL_T_INT8		},
+	{ "uint8",	CEL_T_UINT8		},
+	{ "int16",	CEL_T_INT16		},
+	{ "uint16",	CEL_T_UINT16		},
+	{ "int32",	CEL_T_INT32		},
+	{ "uint32",	CEL_T_UINT32		},
+	{ "int64",	CEL_T_INT64		},
+	{ "uint64",	CEL_T_UINT64		},
+	{ "as",		CEL_T_AS		},
+	{ "return",	CEL_T_RETURN		},
+	{ "void",	CEL_T_VOID		},
+	{ "while",	CEL_T_WHILE		},
+	{ "do",		CEL_T_DO		},
+	{ "extern",	CEL_T_EXTERN		},
+	{ "const",	CEL_T_CONST		}
 };
 
 /* Skip whitespace */
@@ -100,7 +98,7 @@ struct {
 /* EOT */
 	if (!*lex->cl_bufp) {
 		ret->ct_literal = strdup("<end-of-file>");
-		ret->ct_token = T_EOT;
+		ret->ct_token = CEL_T_EOT;
 		return 0;
 	}
 
@@ -115,59 +113,93 @@ struct {
 
 /* Trivial one- and two-character tokens */
 	switch (*lex->cl_bufp) {
-	TK('{', "{", T_LCUR);
-	TK('}', "}", T_RCUR);
-	TK('(', "(", T_LPAR);
-	TK(')', ")", T_RPAR);
-	TK('[', "[", T_LSQ);
-	TK(']', "]", T_RSQ);
-	TK('=', "=", T_EQ);
-	TK(',', ",", T_COMMA);
-	TK(';', ";", T_SEMI);
-	TK('+', "+", T_PLUS);
-	TK('*', "*", T_STAR);
-	TK('/', "/", T_SLASH);
-	TK('^', "^", T_CARET);
-	TK('%', "%", T_PERCENT);
-	TK('&', "&", T_ADDR);
+	TK('{', "{", CEL_T_LCUR);
+	TK('}', "}", CEL_T_RCUR);
+	TK('(', "(", CEL_T_LPAR);
+	TK(')', ")", CEL_T_RPAR);
+	TK('[', "[", CEL_T_LSQ);
+	TK(']', "]", CEL_T_RSQ);
+	TK('=', "=", CEL_T_EQ);
+	TK(',', ",", CEL_T_COMMA);
+	TK(';', ";", CEL_T_SEMI);
+	TK('^', "^", CEL_T_CARET);
+	TK('%', "%", CEL_T_PERCENT);
+	TK('@', "@", CEL_T_AT);
+
+	case '&':
+		if (lex->cl_bufp[1] == '&')
+			TR("&&", CEL_T_AND, 2);
+		TR("&", CEL_T_BIT_AND, 1);
+		break;
+
+	case '|':
+		if (lex->cl_bufp[1] == '|')
+			TR("||", CEL_T_OR, 2);
+		TR("|", CEL_T_BIT_OR, 1);
+		break;
+
+	case '+':
+		if (lex->cl_bufp[1] == ':' && lex->cl_bufp[2] == '=')
+			TR("+:=", CEL_T_INCRN, 3);
+		TR("+", CEL_T_PLUS, 1);
+		break;
+
+	case '*':
+		if (lex->cl_bufp[1] == ':' && lex->cl_bufp[2] == '=')
+			TR("*:=", CEL_T_MULTN, 3);
+		TR("*", CEL_T_STAR, 1);
+		break;
+	case '/':
+		if (lex->cl_bufp[1] == ':' && lex->cl_bufp[2] == '=')
+			TR("/:=", CEL_T_DIVN, 3);
+		TR("/", CEL_T_SLASH, 1);
+		break;
 
 	case ':':
-		if (lex->cl_bufp[1] == '+' && lex->cl_bufp[2] == '=')
-			TR(":+=", T_INCRN, 3);
-		else if (lex->cl_bufp[1] == '-' && lex->cl_bufp[2] == '=')
-			TR(":-=", T_DECRN, 3);
-		else if (lex->cl_bufp[1] == '*' && lex->cl_bufp[2] == '=')
-			TR(":*=", T_MULTN, 3);
-		else if (lex->cl_bufp[1] == '/' && lex->cl_bufp[2] == '=')
-			TR(":/=", T_DIVN, 3);
-
 		if (lex->cl_bufp[1] == '=')
-			TR(":=", T_ASSIGN, 2);
-		TR(":", T_COLON, 1);
+			TR(":=", CEL_T_ASSIGN, 2);
+		TR(":", CEL_T_COLON, 1);
 		break;
 
 	case '<':
 		if (lex->cl_bufp[1] == '=')
-			TR("<=", T_LE, 2);
-		TR("<", T_LT, 2);
+			TR("<=", CEL_T_LE, 2);
+
+		if (lex->cl_bufp[1] == '<')
+			if (lex->cl_bufp[2] == ':' && lex->cl_bufp[3] == '=')
+				TR("<<:=", CEL_T_LSHN, 4);
+			else
+				TR("<<", CEL_T_LSH, 2);
+
+		TR("<", CEL_T_LT, 2);
 		break;
 
 	case '>':
 		if (lex->cl_bufp[1] == '=')
-			TR(">=", T_GE, 2);
-		TR(">", T_GT, 1);
+			TR(">=", CEL_T_GE, 2);
+
+		if (lex->cl_bufp[1] == '>')
+			if (lex->cl_bufp[2] == ':' && lex->cl_bufp[3] == '=')
+				TR(">>:=", CEL_T_RSHN, 4);
+			else
+				TR(">>", CEL_T_RSH, 2);
+
+		TR(">", CEL_T_GT, 1);
 		break;
 
 	case '-':
-		if (lex->cl_bufp[1] == '>')
-			TR("->", T_ARROW, 2);
-		TR("-", T_MINUS, 1);
+		if (lex->cl_bufp[1] == ':' && lex->cl_bufp[2] == '=')
+			TR("-:=", CEL_T_DECRN, 3);
+		else if (lex->cl_bufp[1] == '>')
+			TR("->", CEL_T_ARROW, 2);
+		else 
+			TR("-", CEL_T_MINUS, 1);
 		break;
 	
 	case '!':
 		if (lex->cl_bufp[1] == '=')
-			TR("!=", T_NEQ, 2);
-		TR("!", T_NEGATE, 1);
+			TR("!=", CEL_T_NEQ, 2);
+		TR("!", CEL_T_NOT, 1);
 		break;
 	}
 
@@ -178,7 +210,7 @@ struct {
 		span = strspn(lex->cl_bufp + 1, ID_CHARS);
 
 		ret->ct_literal = calloc(sizeof(char), span + 2);
-		ret->ct_token = T_ID;
+		ret->ct_token = CEL_T_ID;
 		memcpy(ret->ct_literal, lex->cl_bufp, span + 1);
 
 		/* Check if it's a keyword */
@@ -222,10 +254,10 @@ struct {
 		}
 
 		switch (width) {
-		case 8:		ret->ct_token = signed_? T_LIT_INT8  : T_LIT_UINT8; break;
-		case 16:	ret->ct_token = signed_? T_LIT_INT16 : T_LIT_UINT16; break;
-		case 32:	ret->ct_token = signed_? T_LIT_INT32 : T_LIT_UINT32; break;
-		case 64:	ret->ct_token = signed_? T_LIT_INT64 : T_LIT_UINT64; break;
+		case 8:		ret->ct_token = signed_? CEL_T_LIT_INT8  : CEL_T_LIT_UINT8; break;
+		case 16:	ret->ct_token = signed_? CEL_T_LIT_INT16 : CEL_T_LIT_UINT16; break;
+		case 32:	ret->ct_token = signed_? CEL_T_LIT_INT32 : CEL_T_LIT_UINT32; break;
+		case 64:	ret->ct_token = signed_? CEL_T_LIT_INT64 : CEL_T_LIT_UINT64; break;
 		}
 
 		lex->cl_bufp += span;
@@ -240,7 +272,7 @@ struct {
 
 		for (span = 1; ; span++) {
 			if (!lex->cl_bufp[span])
-				return T_ERR;
+				return CEL_T_ERR;
 
 			if (bsl) {
 				bsl = 0;
@@ -256,7 +288,7 @@ struct {
 
 			if (!bsl && lex->cl_bufp[span] == '"') {
 				ret->ct_literal = calloc(sizeof(char), span);
-				ret->ct_token = T_LIT_STR;
+				ret->ct_token = CEL_T_LIT_STR;
 				memcpy(ret->ct_literal, lex->cl_bufp + 1, span);
 				ret->ct_literal[span - 1] = '\0';
 				lex->cl_bufp += span + 1;
@@ -266,7 +298,7 @@ struct {
 		}
 	}
 
-	return T_ERR;
+	return CEL_T_ERR;
 }
 
 void
@@ -281,7 +313,7 @@ int		 i;
 	if (!tok->ct_line)
 		return;
 
-	if (tok->ct_token == T_EOT) {
+	if (tok->ct_token == CEL_T_EOT) {
 		fputc('a', stream);
 		fputc('t', stream);
 		fputc(' ', stream);
