@@ -226,11 +226,14 @@ struct {
 /* Numeric literals */
 
 	if (strchr("0123456789", lex->cl_bufp[0])) {
-	size_t	span;
+	size_t	span = 0;
 	int	width = 32;
 	int	signed_ = 1;
 
-		span = strspn(lex->cl_bufp, "0123456789");
+		if (lex->cl_bufp[1] == 'x')
+			span += 2;
+
+		span += strspn(lex->cl_bufp + span, "0123456789abcdef");
 
 		ret->ct_literal = calloc(sizeof(char), span + 1);
 		memcpy(ret->ct_literal, lex->cl_bufp, span);
