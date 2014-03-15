@@ -645,9 +645,7 @@ cel_vm_emit_return(s, f, e)
 	cel_expr_t	*e;
 {
 int32_t	sz = 0;
-
-	sz += cel_vm_emit_expr(s, f, e->ce_op.ce_unary.operand);
-
+	
 	switch (e->ce_op.ce_unary.operand->ce_type->ct_tag) {
 	case cel_type_int8:
 	case cel_type_uint8:

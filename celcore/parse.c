@@ -973,6 +973,7 @@ char		*extern_ = NULL;
 			case cel_type_dfloat:	rtype = &ffi_type_double; break;
 			case cel_type_qfloat:	rtype = &ffi_type_longdouble; break;
 			case cel_type_ptr:	rtype = &ffi_type_pointer; break;
+			case cel_type_void:	rtype = &ffi_type_void; break;
 			default:
 				cel_name_type(func->cf_return_type, t, sizeof(t));
 				snprintf(err, sizeof(err), "unsupported FFI return type \"%s\"", t);
