@@ -398,6 +398,8 @@ int		 i = 0;
 		e = cel_make_int64(strtol(par->cp_tok.ct_literal, NULL, 0));
 	else if (EXPECT(CEL_T_LIT_UINT64))
 		e = cel_make_uint64(strtol(par->cp_tok.ct_literal, NULL, 0));
+	else if (EXPECT(CEL_T_LIT_FLOAT))
+		e = cel_make_dfloat(strtof(par->cp_tok.ct_literal, NULL));
 	else if (EXPECT(CEL_T_LIT_STR)) {
 		e = cel_make_string(par->cp_tok.ct_literal);
 	} else if (EXPECT(CEL_T_TRUE))
@@ -724,6 +726,9 @@ int		 op;
 	else if (ACCEPT(CEL_T_CHAR))	type = cel_make_type(cel_type_schar);
 	else if (ACCEPT(CEL_T_UCHAR))	type = cel_make_type(cel_type_schar);
 	else if (ACCEPT(CEL_T_SCHAR))	type = cel_make_type(cel_type_uchar);
+	else if (ACCEPT(CEL_T_SFLOAT))	type = cel_make_type(cel_type_sfloat);
+	else if (ACCEPT(CEL_T_DFLOAT))	type = cel_make_type(cel_type_dfloat);
+	else if (ACCEPT(CEL_T_QFLOAT))	type = cel_make_type(cel_type_qfloat);
 	else if (ACCEPT(CEL_T_VOID))	type = cel_make_type(cel_type_void);
 	else
 		return NULL;
@@ -953,6 +958,9 @@ char		*extern_ = NULL;
 			case cel_type_uint32:	rtype = &ffi_type_uint32; break;
 			case cel_type_int64:	rtype = &ffi_type_sint64; break;
 			case cel_type_uint64:	rtype = &ffi_type_uint64; break;
+			case cel_type_sfloat:	rtype = &ffi_type_float; break;
+			case cel_type_dfloat:	rtype = &ffi_type_double; break;
+			case cel_type_qfloat:	rtype = &ffi_type_longdouble; break;
 			case cel_type_ptr:	rtype = &ffi_type_pointer; break;
 			default:
 				cel_name_type(func->cf_return_type, t, sizeof(t));
@@ -975,6 +983,9 @@ char		*extern_ = NULL;
 				case cel_type_uint32:	argtypes[i] = &ffi_type_uint32; break;
 				case cel_type_int64:	argtypes[i] = &ffi_type_sint64; break;
 				case cel_type_uint64:	argtypes[i] = &ffi_type_uint64; break;
+				case cel_type_sfloat:	argtypes[i] = &ffi_type_float; break;
+				case cel_type_dfloat:	argtypes[i] = &ffi_type_double; break;
+				case cel_type_qfloat:	argtypes[i] = &ffi_type_longdouble; break;
 				case cel_type_ptr:	argtypes[i] = &ffi_type_pointer; break;
 				default:
 					cel_name_type(func->cf_return_type, t, sizeof(t));

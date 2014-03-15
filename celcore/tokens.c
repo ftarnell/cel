@@ -71,6 +71,9 @@ struct {
 	{ "uint32",	CEL_T_UINT32		},
 	{ "int64",	CEL_T_INT64		},
 	{ "uint64",	CEL_T_UINT64		},
+	{ "sfloat",	CEL_T_SFLOAT		},
+	{ "dfloat",	CEL_T_DFLOAT		},
+	{ "qfloat",	CEL_T_QFLOAT		},
 	{ "as",		CEL_T_AS		},
 	{ "return",	CEL_T_RETURN		},
 	{ "void",	CEL_T_VOID		},
@@ -227,21 +230,34 @@ struct {
 
 /* Numeric literals */
 
-	if (strchr("0123456789", lex->cl_bufp[0])) {
+	if (strchr(".0123456789", lex->cl_bufp[0])) {
 	size_t	span = 0;
 	int	width = 32;
 	int	signed_ = 1;
+	int	base = 10;
+	int	float_ = 0;
 
-		if (lex->cl_bufp[1] == 'x')
+		if (lex->cl_bufp[0] == '0' && lex->cl_bufp[1] == 'x') {
 			span += 2;
+			base = 16;
+		} else if (lex->cl_bufp[0] == '0') {
+			span++;
+			base = 8;
+		}
 
-		span += strspn(lex->cl_bufp + span, "0123456789abcdef");
+		span += strspn(lex->cl_bufp + span, 
+			       base == 10 ? "0123456789." :
+			       base == 16 ? "0123456789abcdef" :
+			       base == 8 ? "01234567" : NULL);
 
 		ret->ct_literal = calloc(sizeof(char), span + 1);
 		memcpy(ret->ct_literal, lex->cl_bufp, span);
+		if (memchr(ret->ct_literal, '.', span))
+			float_ = 1;
 
 		/* Optional trailing 'i' or 'u'. */
 		switch (lex->cl_bufp[span]) {
+		case 'f':	float_ = 1; break;
 		case 'u':	signed_ = 0;
 		case 'i':	span++;
 
@@ -258,7 +274,9 @@ struct {
 			break;
 		}
 
-		switch (width) {
+		if (float_)
+			ret->ct_token = CEL_T_LIT_FLOAT;
+		else switch (width) {
 		case 8:		ret->ct_token = signed_? CEL_T_LIT_INT8  : CEL_T_LIT_UINT8; break;
 		case 16:	ret->ct_token = signed_? CEL_T_LIT_INT16 : CEL_T_LIT_UINT16; break;
 		case 32:	ret->ct_token = signed_? CEL_T_LIT_INT32 : CEL_T_LIT_UINT32; break;

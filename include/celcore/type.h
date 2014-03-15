@@ -29,6 +29,7 @@ typedef enum cel_type_tag {
 	cel_last_int_type,
 	cel_type_sfloat,
 	cel_type_dfloat,
+	cel_type_qfloat,
 	cel_type_void,
 	cel_type_array,
 	cel_type_ptr,

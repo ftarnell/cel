@@ -128,6 +128,7 @@ cel_name_type(type, buf, bsz)
 	case cel_type_uint64:	strlcat(buf, "uint64", bsz); break;
 	case cel_type_sfloat:	strlcat(buf, "sfloat", bsz); break;
 	case cel_type_dfloat:	strlcat(buf, "dfloat", bsz); break;
+	case cel_type_qfloat:	strlcat(buf, "qfloat", bsz); break;
 	case cel_type_bool:	strlcat(buf, "bool", bsz); break;
 	case cel_type_schar:	strlcat(buf, "schar", bsz); break;
 	case cel_type_uchar:	strlcat(buf, "uchar", bsz); break;
@@ -166,6 +167,7 @@ cel_derive_unary_type(op, a)
 		case cel_type_uint64:
 		case cel_type_sfloat:
 		case cel_type_dfloat:
+		case cel_type_qfloat:
 		case cel_type_schar:
 		case cel_type_uchar:
 			return a;
@@ -216,6 +218,11 @@ cel_derive_unary_promotion(op, a)
 		case cel_type_uint64:
 			return cel_make_type(cel_type_uint64);
 
+		case cel_type_sfloat:
+		case cel_type_dfloat:
+		case cel_type_qfloat:
+			return a;
+
 		default:
 			return NULL;
 		}
@@ -254,6 +261,13 @@ cel_derive_binary_type(op, a, b)
 
 	default:
 		break;
+	}
+
+	switch (a->ct_tag) {
+	case cel_type_sfloat:
+	case cel_type_dfloat:
+	case cel_type_qfloat:
+		return a;
 	}
 
 	if (a->ct_tag >= cel_last_int_type ||
@@ -390,6 +404,9 @@ cel_type_convertable(lhs, rhs)
 	case cel_type_uint32:
 	case cel_type_int64:
 	case cel_type_uint64:
+	case cel_type_sfloat:
+	case cel_type_dfloat:
+	case cel_type_qfloat:
 		switch (rhs->ct_tag) {
 		case cel_type_int8:
 		case cel_type_uint8:
@@ -401,6 +418,9 @@ cel_type_convertable(lhs, rhs)
 		case cel_type_uint64:
 		case cel_type_schar:
 		case cel_type_uchar:
+		case cel_type_sfloat:
+		case cel_type_dfloat:
+		case cel_type_qfloat:
 			return 1;
 		default:
 			return 0;

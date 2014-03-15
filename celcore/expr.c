@@ -54,6 +54,20 @@ CEL_MAKE_INT(int64)
 CEL_MAKE_INT(uint64)
 
 cel_expr_t *
+cel_make_dfloat(i)
+	double	i;
+{
+cel_expr_t	*ret;
+	ret = cel_make_expr();
+	ret->ce_type = cel_make_type(cel_type_dfloat);
+	ret->ce_tag = cel_exp_literal;
+	ret->ce_op.ce_dfloat = i;
+	ret->ce_mutable = 0;
+	ret->ce_const = 0;
+	return ret;
+}
+
+cel_expr_t *
 cel_make_a_bool(i)
 {
 cel_expr_t	*ret;

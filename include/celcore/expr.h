@@ -164,6 +164,7 @@ cel_expr_t	*cel_make_int32(int32_t);
 cel_expr_t	*cel_make_uint32(uint32_t);
 cel_expr_t	*cel_make_int64(int64_t);
 cel_expr_t	*cel_make_uint64(uint64_t);
+cel_expr_t	*cel_make_dfloat(double);
 cel_expr_t	*cel_make_bool(int);
 cel_expr_t	*cel_make_string(char const *);
 cel_expr_t	*cel_make_variable(char const *, struct cel_type *);

@@ -95,6 +95,10 @@
 #define	CEL_T_RSHN		81
 #define	CEL_T_SCHAR		82
 #define	CEL_T_UCHAR		83
+#define	CEL_T_LIT_FLOAT		84
+#define	CEL_T_SFLOAT		85
+#define	CEL_T_DFLOAT		86
+#define	CEL_T_QFLOAT		87
 
 /*
  * Lexer state.
