@@ -53,6 +53,9 @@
 			 (uint64_t) (p)[5] << 16 |	\
 			 (uint64_t) (p)[6] <<  8 |	\
 			 (uint64_t) (p)[7])
+#define	GET_SFLOAT(p)	(*(float *)p)
+#define	GET_DFLOAT(p)	(*(double *)p)
+#define	GET_QFLOAT(p)	(*(long double *)p)
 #if SIZEOF_VOIDP == 8
 # define GET_PTR(p)	GET_UINT64(p)
 #else
@@ -84,6 +87,15 @@
 #define	PUT_SP(v)	(stack[sp++].ptr = (v))
 #define	GET_IP(v)	do { (v) = GET_PTR(ip); ip += SIZEOF_VOIDP; } while (0)
 #define	GET_SP(v)	((v) = stack[--sp].ptr)
+#define	GET_SSF(v)	((v) = stack[--sp].sflt)
+#define	GET_SDF(v)	((v) = stack[--sp].dflt)
+#define	GET_SQF(v)	((v) = stack[--sp].qflt)
+#define	PUT_SSF(v)	(stack[sp++].sflt = (v))
+#define	PUT_SDF(v)	(stack[sp++].dflt = (v))
+#define	PUT_SQF(v)	(stack[sp++].qflt = (v))
+#define	GET_ISF(v)	do { (v) = GET_SFLOAT(ip); ip += sizeof(float); } while (0)
+#define	GET_IDF(v)	do { (v) = GET_DFLOAT(ip); ip += sizeof(double); } while (0)
+#define	GET_IQF(v)	do { (v) = GET_QFLOAT(ip); ip += sizeof(long double); } while (0)
 
 int
 cel_vm_func_execute(s, f, ret)
@@ -130,6 +142,9 @@ cel_function_t	*func;
 			case CEL_VA_INT64:
 			case CEL_VA_UINT64:	GET_SU64(ret->u64); break;
 			case CEL_VA_PTR:	GET_SP(ret->ptr); break;
+			case CEL_VA_SFLOAT:	GET_SSF(ret->sflt); break;
+			case CEL_VA_DFLOAT:	GET_SDF(ret->dflt); break;
+			case CEL_VA_QFLOAT:	GET_SQF(ret->qflt); break;
 			default:		return -1;
 			}
 
@@ -146,6 +161,9 @@ cel_function_t	*func;
 			case CEL_VA_INT64:
 			case CEL_VA_UINT64:	GET_IU64(a.u64); PUT_SU64(a.u64); break;
 			case CEL_VA_PTR:	GET_IP(a.ptr); PUT_SP(a.u64); break;
+			case CEL_VA_SFLOAT:	GET_ISF(a.sflt); PUT_SSF(a.sflt); break;
+			case CEL_VA_DFLOAT:	GET_IDF(a.dflt); PUT_SDF(a.dflt); break;
+			case CEL_VA_QFLOAT:	GET_IQF(a.qflt); PUT_SQF(a.qflt); break;
 			}
 			break;
 
@@ -170,6 +188,18 @@ cel_function_t	*func;
 		case CEL_VA_INT64:				\
 			GET_SU64(a.u64);			\
 			stack[sp - 1].u64 op a.u64;		\
+			break;					\
+		case CEL_VA_SFLOAT:				\
+			GET_SSF(a.sflt);			\
+			stack[sp - 1].sflt op a.sflt;		\
+			break;					\
+		case CEL_VA_DFLOAT:				\
+			GET_SDF(a.dflt);			\
+			stack[sp - 1].dflt op a.dflt;		\
+			break;					\
+		case CEL_VA_QFLOAT:				\
+			GET_SQF(a.qflt);			\
+			stack[sp - 1].qflt op a.qflt;		\
 			break;					\
 		}						\
 		ip++;
@@ -208,6 +238,15 @@ cel_function_t	*func;
 			case CEL_VA_UINT64:
 				stack[sp - 1].i64 = -stack[sp -1].i64;
 				break;
+			case CEL_VA_SFLOAT:
+				stack[sp - 1].sflt = -stack[sp - 1].sflt;
+				break;
+			case CEL_VA_DFLOAT:
+				stack[sp - 1].dflt = -stack[sp - 1].dflt;
+				break;
+			case CEL_VA_QFLOAT:
+				stack[sp - 1].qflt = -stack[sp - 1].qflt;
+				break;
 			}
 			ip++;
 			break;
@@ -218,22 +257,25 @@ cel_function_t	*func;
 
 #define	CMP_(ty, sz, var, op)					\
 		case ty:					\
-			GET_SI##sz(b.var);			\
-			GET_SI##sz(a.var);			\
+			GET_S##sz(b.var);			\
+			GET_S##sz(a.var);			\
 			PUT_SU32(a.var op b.var);		\
 			break;
 
 #define	CMP(in, op)						\
 		case in:					\
 		switch (*ip) {					\
-			CMP_(CEL_VA_UINT8, 8, u8, op)		\
-			CMP_(CEL_VA_INT8, 8, i8, op)		\
-			CMP_(CEL_VA_UINT16, 16, u16, op)	\
-			CMP_(CEL_VA_INT16, 16, i16, op)		\
-			CMP_(CEL_VA_UINT32, 32, u32, op)	\
-			CMP_(CEL_VA_INT32, 32, i32, op)		\
-			CMP_(CEL_VA_UINT64, 64, u64, op)	\
-			CMP_(CEL_VA_INT64, 64, i64, op)		\
+			CMP_(CEL_VA_UINT8, U8, u8, op)		\
+			CMP_(CEL_VA_INT8, I8, i8, op)		\
+			CMP_(CEL_VA_UINT16, U16, u16, op)	\
+			CMP_(CEL_VA_INT16, I16, i16, op)	\
+			CMP_(CEL_VA_UINT32, U32, u32, op)	\
+			CMP_(CEL_VA_INT32, I32, i32, op)	\
+			CMP_(CEL_VA_UINT64, U64, u64, op)	\
+			CMP_(CEL_VA_INT64, I64, i64, op)	\
+			CMP_(CEL_VA_SFLOAT, SF, sflt, op)	\
+			CMP_(CEL_VA_DFLOAT, DF, dflt, op)	\
+			CMP_(CEL_VA_QFLOAT, QF, qflt, op)	\
 		}						\
 		ip++;						\
 		break;
@@ -281,6 +323,9 @@ cel_function_t	*func;
 			INC_(op, CEL_VA_UINT32, u32, U32)	\
 			INC_(op, CEL_VA_INT64, i64, I64)	\
 			INC_(op, CEL_VA_UINT64, u64, U64)	\
+			INC_(op, CEL_VA_SFLOAT, sflt, SF)	\
+			INC_(op, CEL_VA_DFLOAT, dflt, DF)	\
+			INC_(op, CEL_VA_QFLOAT, qflt, QF)	\
 		}						\
 		ip++;						\
 		break;
@@ -301,6 +346,9 @@ cel_function_t	*func;
 			case CEL_VA_UINT32:	PUT_SU32(vars[b.i16].u32); break;
 			case CEL_VA_INT64:	PUT_SI64(vars[b.i16].i64); break;
 			case CEL_VA_UINT64:	PUT_SU64(vars[b.i16].u64); break;
+			case CEL_VA_SFLOAT:	PUT_SSF(vars[b.i16].sflt); break;
+			case CEL_VA_DFLOAT:	PUT_SDF(vars[b.i16].dflt); break;
+			case CEL_VA_QFLOAT:	PUT_SQF(vars[b.i16].qflt); break;
 			}
 			ip++;
 			break;
@@ -316,6 +364,9 @@ cel_function_t	*func;
 			case CEL_VA_UINT32:	GET_SU32(a.u32); break;
 			case CEL_VA_INT64:	GET_SI64(a.i64); break;
 			case CEL_VA_UINT64:	GET_SU64(a.u64); break;
+			case CEL_VA_SFLOAT:	GET_SSF(a.sflt); break;
+			case CEL_VA_DFLOAT:	GET_SDF(a.dflt); break;
+			case CEL_VA_QFLOAT:	GET_SQF(a.qflt); break;
 			}
 
 			vars[b.i16].u64 = a.u64;
@@ -347,6 +398,9 @@ cel_function_t	*func;
 					case cel_type_int64:	GET_SI64(aargs[i].i64); args[i] = &aargs[i]; break;
 					case cel_type_uint64: 	GET_SU64(aargs[i].u64); args[i] = &aargs[i]; break;
 					case cel_type_ptr:	GET_SP(aargs[i].ptr); args[i] = &aargs[i].ptr; break;
+					case cel_type_sfloat:	GET_SSF(aargs[i].sflt); args[i] = &aargs[i].sflt; break;
+					case cel_type_dfloat:	GET_SDF(aargs[i].dflt); args[i] = &aargs[i].dflt; break;
+					case cel_type_qfloat:	GET_SQF(aargs[i].qflt); args[i] = &aargs[i].qflt; break;
 					default:
 						printf("bad arg type in call");
 						return -1;

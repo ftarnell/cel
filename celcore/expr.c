@@ -55,6 +55,20 @@ CEL_MAKE_INT(int64)
 CEL_MAKE_INT(uint64)
 
 cel_expr_t *
+cel_make_sfloat(i)
+	double	i;
+{
+cel_expr_t	*ret;
+	ret = cel_make_expr();
+	ret->ce_type = cel_make_type(cel_type_sfloat);
+	ret->ce_tag = cel_exp_literal;
+	ret->ce_op.ce_sfloat = i;
+	ret->ce_mutable = 0;
+	ret->ce_const = 0;
+	return ret;
+}
+
+cel_expr_t *
 cel_make_dfloat(i)
 	double	i;
 {
@@ -63,6 +77,20 @@ cel_expr_t	*ret;
 	ret->ce_type = cel_make_type(cel_type_dfloat);
 	ret->ce_tag = cel_exp_literal;
 	ret->ce_op.ce_dfloat = i;
+	ret->ce_mutable = 0;
+	ret->ce_const = 0;
+	return ret;
+}
+
+cel_expr_t *
+cel_make_qfloat(i)
+	long double	i;
+{
+cel_expr_t	*ret;
+	ret = cel_make_expr();
+	ret->ce_type = cel_make_type(cel_type_qfloat);
+	ret->ce_tag = cel_exp_literal;
+	ret->ce_op.ce_qfloat = i;
 	ret->ce_mutable = 0;
 	ret->ce_const = 0;
 	return ret;
@@ -409,6 +437,9 @@ char	t[64];
 		case cel_type_uint32:	snprintf(b, bsz, "%"PRIu32, e->ce_op.ce_uint32); break;
 		case cel_type_int64:	snprintf(b, bsz, "%"PRId64, e->ce_op.ce_int64); break;
 		case cel_type_uint64:	snprintf(b, bsz, "%"PRIu64, e->ce_op.ce_uint64); break;
+		case cel_type_sfloat:	snprintf(b, bsz, "%f", e->ce_op.ce_sfloat); break;
+		case cel_type_dfloat:	snprintf(b, bsz, "%lf", e->ce_op.ce_dfloat); break;
+		case cel_type_qfloat:	snprintf(b, bsz, "%Lf", e->ce_op.ce_qfloat); break;
 		case cel_type_ptr:
 			if (e->ce_type->ct_type.ct_ptr_type->ct_tag == cel_type_schar)
 				strlcpy(b, e->ce_op.ce_ptr, bsz);
@@ -499,6 +530,9 @@ cel_make_any(t)
 	case cel_type_uint32:	return cel_make_uint32(0);
 	case cel_type_int64:	return cel_make_int64(0);
 	case cel_type_uint64:	return cel_make_uint64(0);
+	case cel_type_sfloat:	return cel_make_sfloat(0);
+	case cel_type_dfloat:	return cel_make_dfloat(0);
+	case cel_type_qfloat:	return cel_make_qfloat(0);
 	case cel_type_bool:	return cel_make_bool(0);
 	case cel_type_void:	return cel_make_void();
 	case cel_type_array:

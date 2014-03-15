@@ -38,9 +38,15 @@ static int32_t	cel_vm_emit_immed8(cel_vm_func_t *, uint32_t);
 static int32_t	cel_vm_emit_immed16(cel_vm_func_t *, uint32_t);
 static int32_t	cel_vm_emit_immed32(cel_vm_func_t *, uint32_t);
 static int32_t	cel_vm_emit_immed64(cel_vm_func_t *, uint64_t);
+static int32_t	cel_vm_emit_immedsf(cel_vm_func_t *, double);
+static int32_t	cel_vm_emit_immeddf(cel_vm_func_t *, double);
+static int32_t	cel_vm_emit_immedqf(cel_vm_func_t *, long double);
 static int32_t	cel_vm_emit_loadi16(cel_vm_func_t *, uint32_t);
 static int32_t	cel_vm_emit_loadi32(cel_vm_func_t *, uint32_t);
 static int32_t	cel_vm_emit_loadi64(cel_vm_func_t *, uint64_t);
+static int32_t	cel_vm_emit_loadsf(cel_vm_func_t *, double);
+static int32_t	cel_vm_emit_loaddf(cel_vm_func_t *, double);
+static int32_t	cel_vm_emit_loadqf(cel_vm_func_t *, long double);
 static int32_t	cel_vm_emit_loadip(cel_vm_func_t *, void *);
 static uint32_t	cel_vm_expr_to_u32(cel_expr_t *e);
 static uint64_t cel_vm_expr_to_u64(cel_expr_t *e);
@@ -428,6 +434,33 @@ int32_t	sz = 0;
 }
 
 static int32_t
+cel_vm_emit_immedsf(f, i)
+	cel_vm_func_t	*f;
+	float		 i;
+{
+uint8_t	*bc = (uint8_t *) &i;
+	return cel_vm_add_bytecode(f, bc, sizeof(i));
+}
+
+static int32_t
+cel_vm_emit_immeddf(f, i)
+	cel_vm_func_t	*f;
+	double		 i;
+{
+uint8_t	*bc = (uint8_t *) &i;
+	return cel_vm_add_bytecode(f, bc, sizeof(i));
+}
+
+static int32_t
+cel_vm_emit_immedqf(f, i)
+	cel_vm_func_t	*f;
+	long double	 i;
+{
+uint8_t	*bc = (uint8_t *) &i;
+	return cel_vm_add_bytecode(f, bc, sizeof(i));
+}
+
+static int32_t
 cel_vm_emit_immed16(f, i)
 	cel_vm_func_t	*f;
 	uint32_t	 i;
@@ -469,6 +502,42 @@ uint8_t	bc[] = {
 		(i      ) & 0xff
 };
 	return cel_vm_add_bytecode(f, bc, sizeof(bc));
+}
+
+static int32_t
+cel_vm_emit_loadsf(f, v)
+	cel_vm_func_t	*f;
+	float		 v;
+{
+int32_t	sz = 0;
+	sz += cel_vm_emit_instr(f, CEL_I_LOADI);
+	sz += cel_vm_emit_immed8(f, CEL_VA_SFLOAT);
+	sz += cel_vm_emit_immedsf(f, v);
+	return sz;
+}
+
+static int32_t
+cel_vm_emit_loadsd(f, v)
+	cel_vm_func_t	*f;
+	double		 v;
+{
+int32_t	sz = 0;
+	sz += cel_vm_emit_instr(f, CEL_I_LOADI);
+	sz += cel_vm_emit_immed8(f, CEL_VA_DFLOAT);
+	sz += cel_vm_emit_immeddf(f, v);
+	return sz;
+}
+
+static int32_t
+cel_vm_emit_loadsq(f, v)
+	cel_vm_func_t	*f;
+	long double	 v;
+{
+int32_t	sz = 0;
+	sz += cel_vm_emit_instr(f, CEL_I_LOADI);
+	sz += cel_vm_emit_immed8(f, CEL_VA_QFLOAT);
+	sz += cel_vm_emit_immedqf(f, v);
+	return sz;
 }
 
 static int32_t
@@ -560,6 +629,9 @@ cel_vm_emit_literal(s, f, e)
 	case cel_type_uint64:	return cel_vm_emit_loadi64(f, e->ce_op.ce_uint64);
 	case cel_type_bool:	return cel_vm_emit_loadi32(f, e->ce_op.ce_bool);
 	case cel_type_ptr:	return cel_vm_emit_loadip(f, e->ce_op.ce_ptr);
+	case cel_type_sfloat:	return cel_vm_emit_loadsf(f, e->ce_op.ce_sfloat);
+	case cel_type_dfloat:	return cel_vm_emit_loadsd(f, e->ce_op.ce_dfloat);
+	case cel_type_qfloat:	return cel_vm_emit_loadsq(f, e->ce_op.ce_qfloat);
 	default:
 		printf("can't emit literal for type %d\n", e->ce_type->ct_tag);
 		return -1;
