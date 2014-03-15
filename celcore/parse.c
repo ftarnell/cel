@@ -798,25 +798,22 @@ char		*extern_ = NULL;
 	func->cf_scope = cel_scope_new(func->cf_argscope);
 
 /* Argument list */
-	if (!ACCEPT(CEL_T_LPAR)) {
-		cel_function_free(func);
-		FATAL("expected '('");
-	}
+	if (ACCEPT(CEL_T_LPAR)) {
+	cel_type_t	*a;
+	char		*nm;
 
-	if (EXPECT(CEL_T_VOID)) {
-		CONSUME();
-	} else {
-		while (EXPECT(CEL_T_ID)) {
-		cel_type_t	*a;
-		char		*nm;
+		for (;;) {
+			if (EXPECT(CEL_T_ID)) {
+				nm = strdup(par->cp_tok.ct_literal);
+				CONSUME();
 
-			nm = strdup(par->cp_tok.ct_literal);
-			CONSUME();
-
-		/* Colon */
-			if (!ACCEPT(CEL_T_COLON)) {
-				cel_function_free(func);
-				FATAL("expected ':'");
+			/* Colon */
+				if (!ACCEPT(CEL_T_COLON)) {
+					cel_function_free(func);
+					FATAL("expected ':'");
+				}
+			} else {
+				nm = NULL;
 			}
 
 		/* Type */
@@ -827,7 +824,8 @@ char		*extern_ = NULL;
 
 			CEL_TAILQ_INSERT_TAIL(func->cf_type->ct_type.ct_function.ct_args,
 					      a, ct_entry);
-			cel_scope_add_expr(func->cf_argscope, nm, cel_make_any(a));
+			if (nm)
+				cel_scope_add_expr(func->cf_argscope, nm, cel_make_any(a));
 			free(nm);
 			func->cf_nargs++;
 
@@ -837,10 +835,12 @@ char		*extern_ = NULL;
 
 			break;
 		}
-	}
 
-	if (!ACCEPT(CEL_T_RPAR))
-		FATAL("expected ')'");
+		if (!ACCEPT(CEL_T_RPAR))
+			FATAL("expected ')' or type");
+	} else if (ACCEPT(CEL_T_VOID)) {
+	} else
+		FATAL("expected '(' or 'void'");
 
 /* -> */
 	if (ACCEPT(CEL_T_ARROW)) {
