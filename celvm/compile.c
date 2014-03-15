@@ -115,6 +115,9 @@ int32_t	sz;
 	case cel_type_uint32:	type = CEL_VA_UINT32; break;
 	case cel_type_int64:	type = CEL_VA_INT64; break;
 	case cel_type_uint64:	type = CEL_VA_UINT64; break;
+	case cel_type_sfloat:	type = CEL_VA_SFLOAT; break;
+	case cel_type_dfloat:	type = CEL_VA_DFLOAT; break;
+	case cel_type_qfloat:	type = CEL_VA_QFLOAT; break;
 	case cel_type_ptr:	type = CEL_VA_PTR; break;
 	}
 
@@ -356,6 +359,9 @@ int32_t	sz = 0;
 	case cel_type_uint32:	type = CEL_VA_UINT32; break;
 	case cel_type_int64:	type = CEL_VA_INT64; break;
 	case cel_type_uint64:	type = CEL_VA_UINT64; break;
+	case cel_type_sfloat:	type = CEL_VA_SFLOAT; break;
+	case cel_type_dfloat:	type = CEL_VA_DFLOAT; break;
+	case cel_type_qfloat:	type = CEL_VA_QFLOAT; break;
 	case cel_type_ptr:	type = CEL_VA_PTR; break;
 	}
 
@@ -591,6 +597,18 @@ int32_t	sz = 0;
 		sz += cel_vm_emit_ret(f, CEL_VA_UINT64);
 		break;
 
+	case cel_type_sfloat:
+		sz += cel_vm_emit_ret(f, CEL_VA_SFLOAT);
+		break;
+
+	case cel_type_dfloat:
+		sz += cel_vm_emit_ret(f, CEL_VA_DFLOAT);
+		break;
+
+	case cel_type_qfloat:
+		sz += cel_vm_emit_ret(f, CEL_VA_QFLOAT);
+		break;
+
 	case cel_type_void:
 		sz += cel_vm_emit_ret(f, CEL_VA_VOID);
 		break;
@@ -637,6 +655,9 @@ int32_t		 sz = 0;
 		case cel_type_uint32:	type = CEL_VA_UINT32; break;
 		case cel_type_int64:	type = CEL_VA_INT64; break;
 		case cel_type_uint64:	type = CEL_VA_UINT64; break;
+		case cel_type_sfloat:	type = CEL_VA_SFLOAT; break;
+		case cel_type_dfloat:	type = CEL_VA_DFLOAT; break;
+		case cel_type_qfloat:	type = CEL_VA_QFLOAT; break;
 		case cel_type_ptr:	type = CEL_VA_PTR; break;
 		}
 		sz += cel_vm_emit_expr(s, f, e->ce_op.ce_vardecl.init);
@@ -685,6 +706,9 @@ int		 type;
 	case cel_type_int64:	type = CEL_VA_INT64; break;
 	case cel_type_uint64:	type = CEL_VA_UINT64; break;
 	case cel_type_ptr:	type = CEL_VA_PTR; break;
+	case cel_type_sfloat:	type = CEL_VA_SFLOAT; break;
+	case cel_type_dfloat:	type = CEL_VA_DFLOAT; break;
+	case cel_type_qfloat:	type = CEL_VA_QFLOAT; break;
 	}
 
 	sz += cel_vm_emit_instr(f, CEL_I_LOADV);
@@ -727,6 +751,9 @@ int		 type;
 	case cel_type_int64:	type = CEL_VA_INT64; break;
 	case cel_type_uint64:	type = CEL_VA_UINT64; break;
 	case cel_type_ptr:	type = CEL_VA_PTR; break;
+	case cel_type_sfloat:	type = CEL_VA_SFLOAT; break;
+	case cel_type_dfloat:	type = CEL_VA_DFLOAT; break;
+	case cel_type_qfloat:	type = CEL_VA_QFLOAT; break;
 	}
 
 	sz += cel_vm_emit_expr(s, f, e->ce_op.ce_binary.right);
@@ -814,6 +841,9 @@ int		 inst, type;
 	case cel_type_uint32:	type = CEL_VA_UINT32; break;
 	case cel_type_int64:	type = CEL_VA_INT64; break;
 	case cel_type_uint64:	type = CEL_VA_UINT64; break;
+	case cel_type_sfloat:	type = CEL_VA_SFLOAT; break;
+	case cel_type_dfloat:	type = CEL_VA_DFLOAT; break;
+	case cel_type_qfloat:	type = CEL_VA_QFLOAT; break;
 	case cel_type_ptr:	type = CEL_VA_PTR; break;
 	}
 

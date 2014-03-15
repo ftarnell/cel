@@ -30,6 +30,7 @@ typedef	uint8_t	cel_vm_instr_t;
 #define	CEL_VA_PTR	9
 #define	CEL_VA_SFLOAT	10
 #define	CEL_VA_DFLOAT	11
+#define	CEL_VA_QFLOAT	11
 
 /*	NOP */
 #define	CEL_I_NOP	0

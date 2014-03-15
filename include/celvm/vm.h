@@ -24,6 +24,9 @@ typedef union cel_vm_any_t {
 	uint32_t	u32;
 	int64_t		i64;
 	uint64_t	u64;
+	float		sflt;
+	double		dflt;
+	long double	qflt;
 	uintptr_t	ptr;
 } cel_vm_any_t;
 
