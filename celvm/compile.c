@@ -13,6 +13,7 @@
 
 #include	"celcore/expr.h"
 #include	"celcore/type.h"
+#include	"celcore/function.h"
 
 #include	"celvm/vm.h"
 #include	"celvm/instr.h"
@@ -39,6 +40,7 @@ static int32_t	cel_vm_emit_immed64(cel_vm_func_t *, uint64_t);
 static int32_t	cel_vm_emit_loadi16(cel_vm_func_t *, uint32_t);
 static int32_t	cel_vm_emit_loadi32(cel_vm_func_t *, uint32_t);
 static int32_t	cel_vm_emit_loadi64(cel_vm_func_t *, uint64_t);
+static int32_t	cel_vm_emit_loadip(cel_vm_func_t *, void *);
 static uint32_t	cel_vm_expr_to_u32(cel_expr_t *e);
 static uint64_t cel_vm_expr_to_u64(cel_expr_t *e);
 
@@ -84,9 +86,7 @@ cel_vm_emit_expr(s, f, e)
 	case cel_exp_while:	return cel_vm_emit_while(s, f, e);
 	case cel_exp_variable:	return cel_vm_emit_variable(s, f, e);
 	case cel_exp_vardecl:	return cel_vm_emit_vardecl(s, f, e);
-#if 0
 	case cel_exp_call:	return cel_vm_emit_call(s, f, e);
-#endif
 
 	default:
 		printf("can't compile expr type %d\n", e->ce_tag);
@@ -488,17 +488,33 @@ int32_t	sz = 0;
 	return sz;
 }
 
+static int32_t
+cel_vm_emit_loadip(f, p)
+	cel_vm_func_t	*f;
+	void		*p;
+{
+int32_t sz = 0;
+	sz += cel_vm_emit_instr(f, CEL_I_LOADI);
+	sz += cel_vm_emit_immed8(f, CEL_VA_PTR);
+#if	SIZEOF_VOIDP == 4
+	sz += cel_vm_emit_immed32(f, (uint32_t) p);
+#else
+	sz += cel_vm_emit_immed64(f, (uint64_t) p);
+#endif
+	return sz;
+}
+
 static uint32_t
 cel_vm_expr_to_u32(e)
 	cel_expr_t	*e;
 {
 	switch (e->ce_type->ct_tag) {
-	case cel_type_int8:	return *e->ce_op.ce_int8; break;
-	case cel_type_uint8:	return *e->ce_op.ce_uint8; break;
-	case cel_type_int16:	return *e->ce_op.ce_int16; break;
-	case cel_type_uint16:	return *e->ce_op.ce_uint16; break;
-	case cel_type_int32:	return *e->ce_op.ce_int32; break;
-	case cel_type_uint32:	return *e->ce_op.ce_uint32; break;
+	case cel_type_int8:	return e->ce_op.ce_int8; break;
+	case cel_type_uint8:	return e->ce_op.ce_uint8; break;
+	case cel_type_int16:	return e->ce_op.ce_int16; break;
+	case cel_type_uint16:	return e->ce_op.ce_uint16; break;
+	case cel_type_int32:	return e->ce_op.ce_int32; break;
+	case cel_type_uint32:	return e->ce_op.ce_uint32; break;
 		break;
 
 	default:
@@ -512,8 +528,8 @@ cel_vm_expr_to_u64(e)
 	cel_expr_t	*e;
 {
 	switch (e->ce_type->ct_tag) {
-	case cel_type_int64:	return *e->ce_op.ce_int64;
-	case cel_type_uint64:	return *e->ce_op.ce_uint64;
+	case cel_type_int64:	return e->ce_op.ce_int64;
+	case cel_type_uint64:	return e->ce_op.ce_uint64;
 	default:
 		printf("can't convert tag %d to u64\n", e->ce_type->ct_tag);
 		return -1;
@@ -527,17 +543,18 @@ cel_vm_emit_literal(s, f, e)
 	cel_expr_t	*e;
 {
 	switch (e->ce_type->ct_tag) {
-	case cel_type_int8:	return cel_vm_emit_loadi32(f, *e->ce_op.ce_int8);
-	case cel_type_uint8:	return cel_vm_emit_loadi32(f, *e->ce_op.ce_uint8);
-	case cel_type_int16:	return cel_vm_emit_loadi32(f, *e->ce_op.ce_int16);
-	case cel_type_uint16:	return cel_vm_emit_loadi32(f, *e->ce_op.ce_uint16);
-	case cel_type_int32:	return cel_vm_emit_loadi32(f, *e->ce_op.ce_int32);
-	case cel_type_uint32:	return cel_vm_emit_loadi32(f, *e->ce_op.ce_uint32);
-	case cel_type_int64:	return cel_vm_emit_loadi64(f, *e->ce_op.ce_int64);
-	case cel_type_uint64:	return cel_vm_emit_loadi64(f, *e->ce_op.ce_uint64);
-	case cel_type_bool:	return cel_vm_emit_loadi32(f, *e->ce_op.ce_bool);
+	case cel_type_int8:	return cel_vm_emit_loadi32(f, e->ce_op.ce_int8);
+	case cel_type_uint8:	return cel_vm_emit_loadi32(f, e->ce_op.ce_uint8);
+	case cel_type_int16:	return cel_vm_emit_loadi32(f, e->ce_op.ce_int16);
+	case cel_type_uint16:	return cel_vm_emit_loadi32(f, e->ce_op.ce_uint16);
+	case cel_type_int32:	return cel_vm_emit_loadi32(f, e->ce_op.ce_int32);
+	case cel_type_uint32:	return cel_vm_emit_loadi32(f, e->ce_op.ce_uint32);
+	case cel_type_int64:	return cel_vm_emit_loadi64(f, e->ce_op.ce_int64);
+	case cel_type_uint64:	return cel_vm_emit_loadi64(f, e->ce_op.ce_uint64);
+	case cel_type_bool:	return cel_vm_emit_loadi32(f, e->ce_op.ce_bool);
+	case cel_type_ptr:	return cel_vm_emit_loadip(f, e->ce_op.ce_ptr);
 	default:
-		printf("can't emit literal for tag %d\n", e->ce_tag);
+		printf("can't emit literal for type %d\n", e->ce_type->ct_tag);
 		return -1;
 	}
 }
@@ -595,7 +612,6 @@ cel_vm_emit_vardecl(s, f, e)
 ssize_t		 i;
 int16_t		 varn = -1;
 int32_t		 sz = 0;
-cel_scope_item_t *it;
 
 /* Is this variable already in the var table? */
 	for (i = 0; i < f->vf_nvars; i++)
@@ -650,8 +666,13 @@ int		 type;
 		}
 	}
 
-	if (varn == -1)
-		return -1;
+	if (varn == -1) {
+	/* Global variable */
+	cel_scope_item_t	*i;
+		i = cel_scope_find_item(s, e->ce_op.ce_variable);
+		sz += cel_vm_emit_loadip(f, i->si_ob.si_expr->ce_op.ce_function);
+		return sz;
+	}
 
 	switch (e->ce_type->ct_tag) {
 	case cel_type_int8:	type = CEL_VA_INT8; break;
@@ -724,7 +745,33 @@ cel_vm_emit_call(s, f, e)
 	cel_vm_func_t	*f;
 	cel_expr_t	*e;
 {
-	return -1;
+size_t		 i, fun;
+cel_function_t	*fu;
+int32_t		 sz = 0;
+
+	fu = e->ce_op.ce_call.func->ce_op.ce_function;
+
+/* Is this function already in the func table? */
+	for (fun = 0; fun < f->vf_nfuncs; fun++)
+		if (fu == f->vf_funcs[fun])
+			break;
+
+	if (fun == f->vf_nfuncs) {
+	/* No; add it */
+		fun = f->vf_nvars;
+		f->vf_funcs = realloc(f->vf_funcs, sizeof(cel_function_t *) * (f->vf_nfuncs + 1));
+		f->vf_funcs[fun] = fu;
+		f->vf_nfuncs++;
+	}
+
+	/* Emit the arguments */
+	for (i = 0; i < e->ce_op.ce_call.args->ca_nargs; i++)
+		sz += cel_vm_emit_expr(s, f, e->ce_op.ce_call.args->ca_args[i]);
+
+	/* Emit the function address */
+	sz += cel_vm_emit_expr(s, f, e->ce_op.ce_call.func);
+	sz += cel_vm_emit_instr(f, CEL_I_CALL);
+	return sz;
 }
 
 static int32_t

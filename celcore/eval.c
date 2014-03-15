@@ -53,9 +53,6 @@ cel_if_branch_t	*if_;
 			if ((v = cel_eval(s, stmt)) == NULL)
 				return NULL;
 
-			if (v->ce_tag == cel_exp_return)
-				return v;
-
 			cel_expr_free(v);
 		}
 		break;
@@ -84,9 +81,6 @@ cel_expr_t	*stmt;
 		cel_expr_t	*v;
 			if ((v = cel_eval(s, stmt)) == NULL)
 				return NULL;
-
-			if (v->ce_tag == cel_exp_return)
-				return v;
 
 			cel_expr_free(v);
 		}
@@ -193,9 +187,9 @@ cel_vm_any_t	  ret;
 			return NULL;
 		}
 
-		if (v->ce_tag != cel_exp_return)
-			continue;
+		continue;
 
+#if 0
 		w = cel_eval(sc, v->ce_op.ce_unary.operand);
 		cel_expr_free(v);
 		v = cel_expr_convert(w, fu->ce_op.ce_function->cf_return_type);
@@ -203,6 +197,7 @@ cel_vm_any_t	  ret;
 		cel_expr_free(fu);
 		cel_scope_free(sc);
 		return v;
+#endif
 	}
 
 	cel_expr_free(fu);
@@ -263,14 +258,14 @@ cel_type_t	*ptype;
 
 	case cel_op_uni_minus:
 		switch (ptype->ct_tag) {
-		case cel_type_int8:	ret = cel_make_int8  (-*pv->ce_op.ce_int8); break;
-		case cel_type_uint8:	ret = cel_make_uint8 (-*pv->ce_op.ce_uint8); break;
-		case cel_type_int16:	ret = cel_make_int16 (-*pv->ce_op.ce_int16); break;
-		case cel_type_uint16:	ret = cel_make_uint16(-*pv->ce_op.ce_uint16); break;
-		case cel_type_int32:	ret = cel_make_int32 (-*pv->ce_op.ce_int32); break;
-		case cel_type_uint32:	ret = cel_make_uint32(-*pv->ce_op.ce_uint32); break;
-		case cel_type_int64:	ret = cel_make_int64 (-*pv->ce_op.ce_int64); break;
-		case cel_type_uint64:	ret = cel_make_uint64(-*pv->ce_op.ce_uint64); break;
+		case cel_type_int8:	ret = cel_make_int8  (-pv->ce_op.ce_int8); break;
+		case cel_type_uint8:	ret = cel_make_uint8 (-pv->ce_op.ce_uint8); break;
+		case cel_type_int16:	ret = cel_make_int16 (-pv->ce_op.ce_int16); break;
+		case cel_type_uint16:	ret = cel_make_uint16(-pv->ce_op.ce_uint16); break;
+		case cel_type_int32:	ret = cel_make_int32 (-pv->ce_op.ce_int32); break;
+		case cel_type_uint32:	ret = cel_make_uint32(-pv->ce_op.ce_uint32); break;
+		case cel_type_int64:	ret = cel_make_int64 (-pv->ce_op.ce_int64); break;
+		case cel_type_uint64:	ret = cel_make_uint64(-pv->ce_op.ce_uint64); break;
 		default:
 			break;
 		}
@@ -312,10 +307,10 @@ int			 free_el = 0;
 
 	assert(el->ce_type->ct_tag == cr->ce_type->ct_tag);
 
-#define doit(op,t) ((op) == cel_op_incr  ? (*el->ce_op.ce_##t += *cr->ce_op.ce_##t) :	\
-		    (op) == cel_op_decr  ? (*el->ce_op.ce_##t -= *cr->ce_op.ce_##t) :	\
-		    (op) == cel_op_multn ? (*el->ce_op.ce_##t *= *cr->ce_op.ce_##t) :	\
-		                           (*el->ce_op.ce_##t /= *cr->ce_op.ce_##t))	\
+#define doit(op,t) ((op) == cel_op_incr  ? (el->ce_op.ce_##t += cr->ce_op.ce_##t) :	\
+		    (op) == cel_op_decr  ? (el->ce_op.ce_##t -= cr->ce_op.ce_##t) :	\
+		    (op) == cel_op_multn ? (el->ce_op.ce_##t *= cr->ce_op.ce_##t) :	\
+		                           (el->ce_op.ce_##t /= cr->ce_op.ce_##t))	\
 
 	switch (el->ce_type->ct_tag) {
 	case cel_type_int8:	doit(op, int8); break;
@@ -426,51 +421,42 @@ char		*str;
 	switch (e->ce_op.ce_binary.oper) {
 	case cel_op_plus:
 		switch (rtype->ct_tag) {
-		case cel_type_string:
-			str = malloc(sizeof(char) * (strlen(pl->ce_op.ce_string) +
-						     strlen(pr->ce_op.ce_string) + 1));
-			strcpy(str, pl->ce_op.ce_string);
-			strcat(str, pr->ce_op.ce_string);
-			ret = cel_make_string(str);
-			free(str);
-			break;
-
-		case cel_type_int8:	ret = cel_make_int8(*pl->ce_op.ce_int8 + *pr->ce_op.ce_int8); break;
-		case cel_type_uint8:	ret = cel_make_uint8(*pl->ce_op.ce_uint8 + *pr->ce_op.ce_uint8); break;
-		case cel_type_int16:	ret = cel_make_int16(*pl->ce_op.ce_int16 + *pr->ce_op.ce_int16); break;
-		case cel_type_uint16:	ret = cel_make_uint16(*pl->ce_op.ce_uint16 + *pr->ce_op.ce_uint16); break;
-		case cel_type_int32:	ret = cel_make_int32(*pl->ce_op.ce_int32 + *pr->ce_op.ce_int32); break;
-		case cel_type_uint32:	ret = cel_make_uint32(*pl->ce_op.ce_uint32 + *pr->ce_op.ce_uint32); break;
-		case cel_type_int64:	ret = cel_make_int64(*pl->ce_op.ce_int64 + *pr->ce_op.ce_int64); break;
-		case cel_type_uint64:	ret = cel_make_uint64(*pl->ce_op.ce_uint64 + *pr->ce_op.ce_uint64); break;
+		case cel_type_int8:	ret = cel_make_int8(pl->ce_op.ce_int8 + pr->ce_op.ce_int8); break;
+		case cel_type_uint8:	ret = cel_make_uint8(pl->ce_op.ce_uint8 + pr->ce_op.ce_uint8); break;
+		case cel_type_int16:	ret = cel_make_int16(pl->ce_op.ce_int16 + pr->ce_op.ce_int16); break;
+		case cel_type_uint16:	ret = cel_make_uint16(pl->ce_op.ce_uint16 + pr->ce_op.ce_uint16); break;
+		case cel_type_int32:	ret = cel_make_int32(pl->ce_op.ce_int32 + pr->ce_op.ce_int32); break;
+		case cel_type_uint32:	ret = cel_make_uint32(pl->ce_op.ce_uint32 + pr->ce_op.ce_uint32); break;
+		case cel_type_int64:	ret = cel_make_int64(pl->ce_op.ce_int64 + pr->ce_op.ce_int64); break;
+		case cel_type_uint64:	ret = cel_make_uint64(pl->ce_op.ce_uint64 + pr->ce_op.ce_uint64); break;
 		default:		break;
 		}
 		break;
 
 	case cel_op_minus:
 		switch (rtype->ct_tag) {
-		case cel_type_int8:	ret = cel_make_int8(*pl->ce_op.ce_int8 - *pr->ce_op.ce_int8); break;
-		case cel_type_uint8:	ret = cel_make_uint8(*pl->ce_op.ce_uint8 - *pr->ce_op.ce_uint8); break;
-		case cel_type_int16:	ret = cel_make_int16(*pl->ce_op.ce_int16 - *pr->ce_op.ce_int16); break;
-		case cel_type_uint16:	ret = cel_make_uint16(*pl->ce_op.ce_uint16 - *pr->ce_op.ce_uint16); break;
-		case cel_type_int32:	ret = cel_make_int32(*pl->ce_op.ce_int32 - *pr->ce_op.ce_int32); break;
-		case cel_type_uint32:	ret = cel_make_uint32(*pl->ce_op.ce_uint32 - *pr->ce_op.ce_uint32); break;
-		case cel_type_int64:	ret = cel_make_int64(*pl->ce_op.ce_int64 - *pr->ce_op.ce_int64); break;
-		case cel_type_uint64:	ret = cel_make_uint64(*pl->ce_op.ce_uint64 - *pr->ce_op.ce_uint64); break;
+		case cel_type_int8:	ret = cel_make_int8(*pl->ce_op.ce_int8 - pr->ce_op.ce_int8); break;
+		case cel_type_uint8:	ret = cel_make_uint8(*pl->ce_op.ce_uint8 - pr->ce_op.ce_uint8); break;
+		case cel_type_int16:	ret = cel_make_int16(*pl->ce_op.ce_int16 - pr->ce_op.ce_int16); break;
+		case cel_type_uint16:	ret = cel_make_uint16(*pl->ce_op.ce_uint16 - pr->ce_op.ce_uint16); break;
+		case cel_type_int32:	ret = cel_make_int32(*pl->ce_op.ce_int32 - pr->ce_op.ce_int32); break;
+		case cel_type_uint32:	ret = cel_make_uint32(*pl->ce_op.ce_uint32 - pr->ce_op.ce_uint32); break;
+		case cel_type_int64:	ret = cel_make_int64(*pl->ce_op.ce_int64 - pr->ce_op.ce_int64); break;
+		case cel_type_uint64:	ret = cel_make_uint64(*pl->ce_op.ce_uint64 - pr->ce_op.ce_uint64); break;
 		default:		break;
 		}
 		break;
 
 	case cel_op_mult:
 		switch (rtype->ct_tag) {
-		case cel_type_int8:	ret = cel_make_int8(*pl->ce_op.ce_int8 * *pr->ce_op.ce_int8); break;
-		case cel_type_uint8:	ret = cel_make_uint8(*pl->ce_op.ce_uint8 * *pr->ce_op.ce_uint8); break;
-		case cel_type_int16:	ret = cel_make_int16(*pl->ce_op.ce_int16 * *pr->ce_op.ce_int16); break;
-		case cel_type_uint16:	ret = cel_make_uint16(*pl->ce_op.ce_uint16 * *pr->ce_op.ce_uint16); break;
-		case cel_type_int32:	ret = cel_make_int32(*pl->ce_op.ce_int32 * *pr->ce_op.ce_int32); break;
-		case cel_type_uint32:	ret = cel_make_uint32(*pl->ce_op.ce_uint32 * *pr->ce_op.ce_uint32); break;
-		case cel_type_int64:	ret = cel_make_int64(*pl->ce_op.ce_int64 * *pr->ce_op.ce_int64); break;
-		case cel_type_uint64:	ret = cel_make_uint64(*pl->ce_op.ce_uint64 * *pr->ce_op.ce_uint64); break;
+		case cel_type_int8:	ret = cel_make_int8(*pl->ce_op.ce_int8 * pr->ce_op.ce_int8); break;
+		case cel_type_uint8:	ret = cel_make_uint8(*pl->ce_op.ce_uint8 * pr->ce_op.ce_uint8); break;
+		case cel_type_int16:	ret = cel_make_int16(*pl->ce_op.ce_int16 * pr->ce_op.ce_int16); break;
+		case cel_type_uint16:	ret = cel_make_uint16(*pl->ce_op.ce_uint16 * pr->ce_op.ce_uint16); break;
+		case cel_type_int32:	ret = cel_make_int32(*pl->ce_op.ce_int32 * pr->ce_op.ce_int32); break;
+		case cel_type_uint32:	ret = cel_make_uint32(*pl->ce_op.ce_uint32 * pr->ce_op.ce_uint32); break;
+		case cel_type_int64:	ret = cel_make_int64(*pl->ce_op.ce_int64 * pr->ce_op.ce_int64); break;
+		case cel_type_uint64:	ret = cel_make_uint64(*pl->ce_op.ce_uint64 * pr->ce_op.ce_uint64); break;
 		default:		break;
 		}
 		break;
@@ -632,7 +618,6 @@ cel_scope_item_t	*sc;
 	switch (e->ce_tag) {
 	case cel_exp_literal:
 	case cel_exp_void:
-	case cel_exp_return:
 	case cel_exp_function:
 		return e;
 

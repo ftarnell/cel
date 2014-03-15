@@ -1,0 +1,7 @@
+func (extern "puts") puts : ((^char) -> int);
+
+func main : ((int, ^^char) -> int)
+begin
+	puts("hello, world");
+	return 0;
+end;

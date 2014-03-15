@@ -8,33 +8,32 @@
 
 .SUFFIXES: .c .o .d .h
 
-VPATH		= @top_srcdir@/celcore
+VPATH		= @top_srcdir@/cel
 
 CC		= @CC@
 MAKEDEPEND	= @CC@ -M
 CPPFLAGS	= @CPPFLAGS@ -D_XOPEN_SOURCE_EXTENDED
 CFLAGS		= @CFLAGS@ -I@top_srcdir@/include -I@top_builddir@ -I@top_builddir@/include
-LDFLAGS		= @LDFLAGS@
-LIBS		= @LIBS@
+LDFLAGS		= @LDFLAGS@ -L@top_builddir@/celcore -L@top_builddir@/celvm
+LIBS		= @LIBS@ @EDIT_LIBS@ @FFI_LIB@
 INSTALL		= @INSTALL@
-
-OBJS		= tokens.o parse.o expr.o type.o function.o variable.o 	\
-		  scope.o
 
 prefix		= @prefix@
 exec_prefix	= @exec_prefix@
 bindir		= @bindir@
 libdir		= @libdir@
 
-all: libcelcore.a
+CELCORE		= @top_builddir@/celcore/libcelcore.a
+CELVM		= @top_builddir@/celvm/libcelvm.a
 
-libcelcore.a: ${OBJS}
-	ar r libcelcore.a ${OBJS}
-	ranlib libcelcore.a
+all: cel
+
+cel: cel.o ${CELCORE} ${CELVM}
+	${CC} ${CFLAGS} ${LDFLAGS} cel.o -o cel ${LIBS} -lcelcore -lcelvm
 
 install:
-	${INSTALL} -d -m 0755 ${libdir}
-	${INSTALL} -c -m 0755 libcelcore.a ${libdir}
+	${INSTALL} -d -m 0755 ${bindir}
+	${INSTALL} -c -m 0755 cel ${bindir}
 
 .c.o:
 	${CC} ${CPPFLAGS} ${CFLAGS} -c $<
@@ -42,13 +41,10 @@ install:
 .c.d:
 	$(MAKEDEPEND) $(CPPFLAGS) $(CFLAGS) $< -o $@
 
-vers.c: vers.c.sh configure.ac
-	sh @top_srcdir@/vers.c.sh @top_srcdir@/configure.ac
-
 clean:
-	rm -f libcelcore.a ${OBJS} $(OBJS:.o=.d) 
+	rm -f ical *.o
 
-depend: $(OBJS:.o=.d)
+depend: cel.d
 	sed '/^# Do not remove this line -- make depend needs it/,$$ d' \
 		<Makefile >Makefile.new
 	echo '# Do not remove this line -- make depend needs it' >>Makefile.new

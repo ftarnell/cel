@@ -114,4 +114,10 @@ typedef	uint8_t	cel_vm_instr_t;
 #define	CEL_I_MULV	25
 #define	CEL_I_DIVV	26
 
+/*
+ * 	Call function
+ * 	Arguments:	immediate two-byte function index
+ */
+#define	CEL_I_CALL	27
+
 #endif	/* !CEL_VM_INSTR_H */

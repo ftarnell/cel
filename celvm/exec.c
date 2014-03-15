@@ -8,10 +8,30 @@
  * warranty.
  */
 
+#include	"celcore/cel-config.h"
+
+#ifdef	CEL_HAVE_FFI
+# ifdef CEL_HAVE_FFI_FFI_H
+#  include	<ffi/ffi.h>
+# else
+#  include	<ffi.h>
+# endif
+#endif
+
+/* ffi pollutes the namespace with these */
+#undef		PACKAGE_NAME
+#undef		PACKAGE_STRING
+#undef		PACKAGE_TARNAME
+#undef		PACKAGE_VERSION
+#undef		PACKAGE_BUGREPORT
+
+#include	"celcore/function.h"
 #include	"celcore/expr.h"
 
 #include	"celvm/vm.h"
 #include	"celvm/instr.h"
+
+#include	"build.h"
 
 #define	STACKSZ 16
 
@@ -31,6 +51,11 @@
 			 (uint64_t) (p)[5] << 16 |	\
 			 (uint64_t) (p)[6] <<  8 |	\
 			 (uint64_t) (p)[7])
+#if SIZEOF_VOIDP == 8
+# define GET_PTR(p)	GET_UINT64(p)
+#else
+# define GET_PTR(p)	GET_UINT32(p)
+#endif
 
 #define	GET_IS8(v)	do { (v) = *ip; ip++; } while (0)
 #define	GET_IU8(v)	do { (v) = *ip; ip++; } while (0)
@@ -54,6 +79,9 @@
 #define	PUT_SI32(v)	PUT_SU32(v)
 #define	PUT_SI64(v)	PUT_SU64(v)
 #define	GET_SI64(v)	GET_SU64(v)
+#define	PUT_SP(v)	(stack[sp++].ptr = (v))
+#define	GET_IP(v)	do { (v) = GET_PTR(ip); ip += SIZEOF_VOIDP; } while (0)
+#define	GET_SP(v)	((v) = stack[--sp].ptr)
 
 int
 cel_vm_func_execute(s, f, ret)
@@ -65,6 +93,7 @@ cel_vm_any_t	 stack[STACKSZ];
 cel_vm_any_t	*vars;
 int		 sp;
 uint8_t	const	*ip, *oip;
+cel_function_t	*func;
 
 	vars = calloc(f->vf_nvars, sizeof(cel_vm_any_t));
 
@@ -82,6 +111,7 @@ uint8_t	const	*ip, *oip;
 
 		oip = ip;
 		inst = *ip++;
+
 		switch (inst) {
 		case CEL_I_RET:
 			if (*ip != CEL_VA_VOID && (sp == 0))
@@ -97,6 +127,7 @@ uint8_t	const	*ip, *oip;
 			case CEL_VA_UINT32:	GET_SU32(ret->u32); break;
 			case CEL_VA_INT64:
 			case CEL_VA_UINT64:	GET_SU64(ret->u64); break;
+			case CEL_VA_PTR:	GET_SP(ret->ptr); break;
 			default:		return -1;
 			}
 
@@ -112,6 +143,7 @@ uint8_t	const	*ip, *oip;
 			case CEL_VA_UINT32:	GET_IU32(a.u32); PUT_SU32(a.u32); break;
 			case CEL_VA_INT64:
 			case CEL_VA_UINT64:	GET_IU64(a.u64); PUT_SU64(a.u64); break;
+			case CEL_VA_PTR:	GET_IP(a.ptr); PUT_SP(a.u64); break;
 			}
 			break;
 
@@ -286,6 +318,46 @@ uint8_t	const	*ip, *oip;
 
 			vars[b.i16].u64 = a.u64;
 			ip++;
+			break;
+
+		case CEL_I_CALL:
+			GET_SP(a.ptr);
+			func = (cel_function_t *) a.ptr;
+
+			if (func->cf_extern) {
+			void		**args;
+			cel_vm_any_t	*aargs;
+			cel_type_t	*ty;
+			int		 i = 0;
+			char		 ret[sizeof(uint64_t)];
+
+				args = malloc(sizeof(void *) * func->cf_nargs);
+				aargs = malloc(sizeof(cel_vm_any_t) * func->cf_nargs);
+
+				CEL_TAILQ_FOREACH(ty, func->cf_type->ct_type.ct_function.ct_args, ct_entry) {
+					switch (ty->ct_tag) {
+					case cel_type_int8:	GET_SI8(aargs[i].i8); args[i] = &aargs[i]; break;
+					case cel_type_uint8:	GET_SU8(aargs[i].u8); args[i] = &aargs[i]; break;
+					case cel_type_int16:	GET_SI16(aargs[i].i16); args[i] = &aargs[i]; break;
+					case cel_type_uint16:	GET_SU16(aargs[i].u16); args[i] = &aargs[i]; break;
+					case cel_type_int32:	GET_SI32(aargs[i].i32); args[i] = &aargs[i]; break;
+					case cel_type_uint32:	GET_SU32(aargs[i].u32); args[i] = &aargs[i]; break;
+					case cel_type_int64:	GET_SI64(aargs[i].i64); args[i] = &aargs[i]; break;
+					case cel_type_uint64: 	GET_SU64(aargs[i].u64); args[i] = &aargs[i]; break;
+					case cel_type_ptr:	GET_SP(aargs[i].ptr); args[i] = &aargs[i].ptr; break;
+					default:
+						printf("bad arg type in call");
+						return -1;
+					}
+					i++;
+				}
+
+				ffi_call(func->cf_ffi, func->cf_ptr, ret, args);
+
+				free(args);
+				free(aargs);
+			} else {
+			}
 			break;
 
 		default:

@@ -15,6 +15,10 @@
 #include	"celcore/tokens.h"
 #include	"celcore/parse.h"
 #include	"celcore/scope.h"
+#include	"celcore/function.h"
+#include	"celvm/vm.h"
+
+char const *cel_file;
 
 static void
 celparse_error(par, tok, s)
@@ -22,7 +26,8 @@ celparse_error(par, tok, s)
 	cel_parser_t	*par;
 	char const	*s;
 {
-	fprintf(stderr, "error: %s\n", s);
+	fprintf(stderr, "\"%s\", line %d: error: %s\n",
+			cel_file, tok->ct_lineno, s);
 	cel_token_print_context(par->cp_lex, tok, stderr);
 }
 
@@ -32,7 +37,8 @@ celparse_warn(par, tok, s)
 	cel_parser_t	*par;
 	char const	*s;
 {
-	fprintf(stderr, "warning: %s\n", s);
+	fprintf(stderr, "\"%s\", line %d: warning: %s\n",
+			cel_file, tok->ct_lineno, s);
 	cel_token_print_context(par->cp_lex, tok, stderr);
 }
 
@@ -48,6 +54,8 @@ char	*buf = NULL;
 cel_lexer_t	lex;
 cel_parser_t	*par;
 cel_scope_t	*scope;
+cel_scope_item_t *fu;
+cel_vm_any_t	 ret;
 
 	if (!argv[1]) {
 		fprintf(stderr, "usage: %s <file>\n", argv[0]);
@@ -83,9 +91,26 @@ cel_scope_t	*scope;
 	par->cp_error = celparse_error;
 	par->cp_warn = celparse_warn;
 
-	if (cel_parse(par) != 0) {
+	cel_file = argv[1];
+	if (cel_parse(par) != 0)
+		return 1;
+
+#if 0
+	CEL_TAILQ_FOREACH(fu, &scope->sc_items, si_entry) {
+	cel_function_t	*fn;
+		fn = fu->si_ob.si_expr->ce_op.ce_function;
+		if (fn->cf_extern)
+			continue;
+		if ((fn->cf_bytecode = cel_vm_func_compile(scope, &fn->cf_body)) == NULL)
+			return 1;
+	}
+#endif
+
+	if ((fu = cel_scope_find_item(scope, "main")) == NULL) {
+		fprintf(stderr, "%s: main() undefined\n", argv[1]);
 		return 1;
 	}
 
-	return 0;
+	cel_vm_func_execute(scope, fu->si_ob.si_expr->ce_op.ce_function->cf_bytecode, &ret);
+	return ret.i32;
 }

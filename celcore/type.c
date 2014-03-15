@@ -129,7 +129,8 @@ cel_name_type(type, buf, bsz)
 	case cel_type_sfloat:	strlcat(buf, "sfloat", bsz); break;
 	case cel_type_dfloat:	strlcat(buf, "dfloat", bsz); break;
 	case cel_type_bool:	strlcat(buf, "bool", bsz); break;
-	case cel_type_string:	strlcat(buf, "string", bsz); break;
+	case cel_type_schar:	strlcat(buf, "schar", bsz); break;
+	case cel_type_uchar:	strlcat(buf, "uchar", bsz); break;
 	case cel_type_function:	return cel_name_function(type, buf, bsz);
 	case cel_type_void:	strlcat(buf, "void", bsz); break;
 	case cel_type_ptr:	strlcat(buf, "^", bsz);
@@ -165,6 +166,8 @@ cel_derive_unary_type(op, a)
 		case cel_type_uint64:
 		case cel_type_sfloat:
 		case cel_type_dfloat:
+		case cel_type_schar:
+		case cel_type_uchar:
 			return a;
 		default:
 			return NULL;
@@ -195,11 +198,13 @@ cel_derive_unary_promotion(op, a)
 
 	case cel_op_uni_minus:
 		switch (a->ct_tag) {
+		case cel_type_schar:
 		case cel_type_int8:
 		case cel_type_int16:
 		case cel_type_int32:
 			return cel_make_type(cel_type_int32);
 
+		case cel_type_uchar:
 		case cel_type_uint8:
 		case cel_type_uint16:
 		case cel_type_uint32:
@@ -232,14 +237,6 @@ cel_derive_binary_type(op, a, b)
 	cel_type_t	*a, *b;
 {
 	switch (a->ct_tag) {
-	/*
-	 * The only valid operations on strings is + (concat).
-	 */
-	case cel_type_string:
-		if (op == cel_op_plus && b->ct_tag == cel_type_string)
-			return cel_make_type(cel_type_string);
-		return NULL;
-
 	/*
 	 * Bools can only be compared for equality with each other; not with
 	 * integer types, as that almost certainly doesn't make sense.
@@ -349,6 +346,8 @@ cel_derive_binary_type(op, a, b)
 	default:
 		return NULL;
 	}
+
+	return NULL;
 }
 
 int
@@ -381,6 +380,8 @@ cel_type_convertable(lhs, rhs)
 	cel_type_t	*lhs, *rhs;
 {
 	switch (lhs->ct_tag) {
+	case cel_type_schar:
+	case cel_type_uchar:
 	case cel_type_int8:
 	case cel_type_uint8:
 	case cel_type_int16:
@@ -398,6 +399,8 @@ cel_type_convertable(lhs, rhs)
 		case cel_type_uint32:
 		case cel_type_int64:
 		case cel_type_uint64:
+		case cel_type_schar:
+		case cel_type_uchar:
 			return 1;
 		default:
 			return 0;
@@ -406,9 +409,6 @@ cel_type_convertable(lhs, rhs)
 
 	case cel_type_bool:
 		return (rhs->ct_tag == cel_type_bool);
-
-	case cel_type_string:
-		return (rhs->ct_tag == cel_type_string);
 
 	case cel_type_function:
 		return cel_func_convertable(lhs, rhs);

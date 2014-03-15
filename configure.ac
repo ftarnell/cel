@@ -39,7 +39,8 @@ if test "$FFI_H" = yes -o "$FFI_FFI_H" = yes; then
 			AC_SUBST(FFI_LIB)])
 fi
 
-AC_CONFIG_FILES([Makefile include/Makefile include/celcore/Makefile celcore/Makefile celvm/Makefile test/Makefile icel/Makefile])
+AC_CHECK_SIZEOF([void*])
+AC_CONFIG_FILES([Makefile include/Makefile include/celcore/Makefile celcore/Makefile celvm/Makefile test/Makefile icel/Makefile cel/Makefile])
 AC_CONFIG_COMMANDS([cel], [
 mkdir include 2>/dev/null || true
 mkdir include/celcore 2>/dev/null || true

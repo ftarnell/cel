@@ -19,8 +19,8 @@ struct cel_type;
 struct cel_expr;
 
 typedef enum cel_scope_item_type {
-	cel_item_expr,
-	cel_item_type
+	cel_item_vardecl,
+	cel_item_function,
 } cel_scope_item_type_t;
 
 typedef struct cel_scope_item {
@@ -28,7 +28,6 @@ typedef struct cel_scope_item {
 	cel_scope_item_type_t	 si_type;
 	union {
 		struct cel_expr		*si_expr;
-		struct cel_type		*si_type;
 	} si_ob;
 
 	CEL_TAILQ_ENTRY(cel_scope_item) si_entry;
@@ -37,16 +36,17 @@ typedef struct cel_scope_item {
 typedef CEL_TAILQ_HEAD(cel_scope_item_list, cel_scope_item) cel_scope_item_list_t;
 
 typedef struct cel_scope {
-	struct cel_scope	*sc_parent;
 	cel_scope_item_list_t	 sc_items;
 } cel_scope_t;
 
-cel_scope_t	 *cel_scope_new(cel_scope_t *parent);
+cel_scope_t	 *cel_scope_new(void);
 cel_scope_t	 *cel_scope_copy(cel_scope_t *);
 void		  cel_scope_free(cel_scope_t *);
 cel_scope_item_t *cel_scope_find_item(cel_scope_t *, char const *name);
-void		  cel_scope_add_expr(cel_scope_t *, char const *,
-				     struct cel_expr *);
+void		  cel_scope_add_vardecl(cel_scope_t *, char const *,
+					struct cel_expr *);
+void		  cel_scope_add_function(cel_scope_t *, char const *,
+					 struct cel_expr *);
 
 void		  cel_scope_item_free(cel_scope_item_t *);
 

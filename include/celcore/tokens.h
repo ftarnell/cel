@@ -54,7 +54,7 @@
 #define	CEL_T_NEQ		40
 #define	CEL_T_NOT		41
 #define	CEL_T_INT		42
-#define	CEL_T_STRING		43
+#define	CEL_T_CHAR		43
 #define	CEL_T_BOOL		44
 #define	CEL_T_TRUE		45
 #define	CEL_T_FALSE		46
@@ -93,6 +93,8 @@
 #define	CEL_T_BIT_OR		79
 #define	CEL_T_LSHN		80
 #define	CEL_T_RSHN		81
+#define	CEL_T_SCHAR		82
+#define	CEL_T_UCHAR		83
 
 /*
  * Lexer state.

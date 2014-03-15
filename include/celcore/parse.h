@@ -16,6 +16,8 @@
 
 struct cel_parser;
 struct cel_scope;
+struct cel_function;
+struct cel_variable;
 
 typedef void (*cel_emit_error) (struct cel_parser *, cel_token_t *, char const *);
 typedef void (*cel_emit_warning) (struct cel_parser *, cel_token_t *, char const *);
@@ -38,6 +40,6 @@ typedef struct cel_parser {
 
 cel_parser_t	*cel_parser_new(cel_lexer_t *, struct cel_scope *);
 
-cel_expr_list_t	*cel_parse(cel_parser_t *);
+int cel_parse(cel_parser_t *);
 
 #endif	/* !CEL_PARSE_H */

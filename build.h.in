@@ -3,6 +3,12 @@
 /* Host triplet */
 #undef CEL_HOST
 
+/* Define to 1 if you have the <ffi/ffi.h> header file. */
+#undef HAVE_FFI_FFI_H
+
+/* Define to 1 if you have the <ffi.h> header file. */
+#undef HAVE_FFI_H
+
 /* Define to 1 if you have the <histedit.h> header file. */
 #undef HAVE_HISTEDIT_H
 
@@ -53,6 +59,9 @@
 
 /* Define to the version of this package. */
 #undef PACKAGE_VERSION
+
+/* The size of `void*', as computed by sizeof. */
+#undef SIZEOF_VOIDP
 
 /* Define to 1 if you have the ANSI C header files. */
 #undef STDC_HEADERS

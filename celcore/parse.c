@@ -90,9 +90,9 @@ cel_parser_t	*par;
 	return par;
 }
 
-cel_expr_list_t *
+int
 cel_parse(par)
-	cel_parser_t	*par;
+	cel_parser_t		*par;
 {
 /*
  * Top-level parser.  The only things which can occur at the top level are
@@ -110,10 +110,24 @@ cel_token_t	 start_tok;
 	for (;;) {
 		start_tok = par->cp_tok;
 
-		if ((e = cel_parse_expr(par, par->cp_scope, 0)) == NULL)
-			break;
-
-		CEL_TAILQ_INSERT_TAIL(list, e, ce_entry);
+		if (EXPECT(CEL_T_FUNC)) {
+			if ((e = cel_parse_func(par, par->cp_scope)) != NULL) {
+				cel_scope_add_function(par->cp_scope,
+						       e->ce_op.ce_function->cf_name,
+						       e);
+			}
+		} else if (EXPECT(CEL_T_VAR)) {
+			if ((e = cel_parse_var(par, par->cp_scope)) != NULL) {
+				cel_scope_add_vardecl(par->cp_scope,
+						       e->ce_op.ce_vardecl.name,
+						       e);
+			}
+		} else {
+			if (par->cp_error)
+				par->cp_error(par, &start_tok, "expected function or variable definition");
+			++par->cp_nerrs;
+			return -1;
+		}
 
 		if (!ACCEPT(CEL_T_SEMI)) {
 			/*
@@ -121,16 +135,25 @@ cel_token_t	 start_tok;
 			 * semicolon.
 			 */
 			if (EXPECT(CEL_T_EOT))
-				return par->cp_nerrs ? NULL : list;
+				return par->cp_nerrs ? -1 : 0;
 
-			FATAL("expected ';'");
+			if (par->cp_error)
+				par->cp_error(par, &start_tok, "expected ';'");
+			++par->cp_nerrs;
+			return -1;
 		}
+
+		if (EXPECT(CEL_T_EOT))
+			return par->cp_nerrs ? -1 : 0;
 	}
 
 	if (EXPECT(CEL_T_EOT))
-		return par->cp_nerrs ? NULL : list;
+		return par->cp_nerrs ? -1 : 0;
 
-	FATAL_TOK(&start_tok, "failed to parse statement");
+	if (par->cp_error)
+		par->cp_error(par, &start_tok, "failed to parse statement");
+	++par->cp_nerrs;
+	return -1;
 }
 
 cel_typedef_t *
@@ -298,7 +321,7 @@ cel_parse_value(par, sc)
 	cel_scope_t	*sc;
 {
 cel_expr_t	*e = NULL;
-int		 op, i = 0;
+int		 i = 0;
 
 	for (i = 0; i < sizeof(uniops) / sizeof(*uniops); i++) {
 	cel_expr_t	*t;
@@ -344,7 +367,8 @@ int		 op, i = 0;
 	cel_scope_item_t	*v;
 	cel_token_t		 err_tok = par->cp_tok;
 
-		v = cel_scope_find_item(sc, par->cp_tok.ct_literal);
+		if ((v = cel_scope_find_item(sc, par->cp_tok.ct_literal)) == NULL)
+			v = cel_scope_find_item(par->cp_scope, par->cp_tok.ct_literal);
 
 		if (v == NULL) {
 		char	err[128];
@@ -352,20 +376,12 @@ int		 op, i = 0;
 				 par->cp_tok.ct_literal);
 			CONSUME();
 
-			FATAL_TOK(&err_tok, err);
+			ERROR_TOK(&err_tok, err);
+			return cel_make_any(cel_make_type(cel_type_void));
+		} else {
+			e = cel_make_variable(v->si_name, v->si_ob.si_expr->ce_type);
+			e->ce_mutable = v->si_ob.si_expr->ce_mutable;
 		}
-
-		if (v->si_type != cel_item_expr) {
-		char	err[128];
-			snprintf(err, sizeof(err), "not a variable type: \"%s\"",
-				 par->cp_tok.ct_literal);
-			CONSUME();
-
-			FATAL_TOK(&err_tok, err);
-		}
-
-		e = cel_make_variable(v->si_name, v->si_ob.si_expr->ce_type);
-		e->ce_mutable = v->si_ob.si_expr->ce_mutable;
 	} else if (EXPECT(CEL_T_LIT_INT8))
 		e = cel_make_int8(strtol(par->cp_tok.ct_literal, NULL, 0));
 	else if (EXPECT(CEL_T_LIT_UINT8))
@@ -436,7 +452,7 @@ cel_token_t	 err_tok;
 
 			if (!ACCEPT(CEL_T_RPAR)) {
 				cel_expr_free(e);
-				FATAL("expected ')'");
+				FATAL("expected ')' or argument list");
 			}
 
 			if (e->ce_type->ct_tag != cel_type_function)
@@ -647,10 +663,11 @@ int		 const_ = 0;
 			e = cel_make_vardecl(names[i].name, type, NULL);
 		}
 		e->ce_mutable = !const_;
-		cel_scope_add_expr(sc, names[i].name, e);
+		cel_scope_add_vardecl(sc, names[i].name, e);
 		return e;
 
 		if (extern_) {
+#if 0
 			/* hmm */
 			if ((e->ce_op.ce_uint8 = dlsym(RTLD_SELF, extern_)) == NULL) {
 			char	err[128];
@@ -658,9 +675,10 @@ int		 const_ = 0;
 					 extern_);
 				ERROR(err);
 			}
+#endif
 		}
 
-		cel_scope_add_expr(sc, names[i].name, e);
+		cel_scope_add_vardecl(sc, names[i].name, e);
 	}
 
 	free_varvec(names, nnames);
@@ -702,8 +720,10 @@ int		 op;
 	else if (ACCEPT(CEL_T_UINT32))	type = cel_make_type(cel_type_uint32);
 	else if (ACCEPT(CEL_T_INT64))	type = cel_make_type(cel_type_int64);
 	else if (ACCEPT(CEL_T_UINT64))	type = cel_make_type(cel_type_uint64);
-	else if (ACCEPT(CEL_T_STRING))	type = cel_make_type(cel_type_string);
 	else if (ACCEPT(CEL_T_BOOL))	type = cel_make_type(cel_type_bool);
+	else if (ACCEPT(CEL_T_CHAR))	type = cel_make_type(cel_type_schar);
+	else if (ACCEPT(CEL_T_UCHAR))	type = cel_make_type(cel_type_schar);
+	else if (ACCEPT(CEL_T_SCHAR))	type = cel_make_type(cel_type_uchar);
 	else if (ACCEPT(CEL_T_VOID))	type = cel_make_type(cel_type_void);
 	else
 		return NULL;
@@ -794,8 +814,8 @@ char		*extern_ = NULL;
 		FATAL("expected ')'");
 	}
 
-	func->cf_argscope = cel_scope_new(sc_);
-	func->cf_scope = cel_scope_new(func->cf_argscope);
+	func->cf_argscope = cel_scope_new();
+	func->cf_scope = cel_scope_new();
 
 /* Argument list */
 	if (ACCEPT(CEL_T_LPAR)) {
@@ -824,9 +844,10 @@ char		*extern_ = NULL;
 
 			CEL_TAILQ_INSERT_TAIL(func->cf_type->ct_type.ct_function.ct_args,
 					      a, ct_entry);
-			if (nm)
-				cel_scope_add_expr(func->cf_argscope, nm, cel_make_any(a));
-			free(nm);
+			if (nm) {
+				cel_scope_add_vardecl(func->cf_argscope, nm, cel_make_any(a));
+				free(nm);
+			}
 			func->cf_nargs++;
 
 		/* ')' or ',' */
@@ -854,7 +875,7 @@ char		*extern_ = NULL;
 
 		ef = cel_make_function(func);
 		if (func->cf_name)
-			cel_scope_add_expr(sc_, func->cf_name, ef);
+			cel_scope_add_function(sc_, func->cf_name, ef);
 	} else
 		auto_type = 1;
 
@@ -874,14 +895,9 @@ char		*extern_ = NULL;
 		func->cf_type->ct_type.ct_function.ct_return_type = e->ce_type;
 		ef = cel_make_function(func);
 
-		if (e->ce_tag != cel_exp_return) {
-			f = cel_make_return(e);
-			cel_expr_free(e);
-			e = f;
-		} else {
-			cel_function_free(func);
-			ERROR("single-statement functions should not use 'return'");
-		}
+		f = cel_make_return(e);
+		cel_expr_free(e);
+		e = f;
 
 		CEL_TAILQ_INSERT_TAIL(&func->cf_body, e, ce_entry);
 	} else {
@@ -906,7 +922,6 @@ char		*extern_ = NULL;
 
 
 			if (!ACCEPT(CEL_T_END)) {
-				cel_function_free(func);
 				return NULL;
 			}
 		} else if (extern_) {
@@ -918,17 +933,19 @@ char		*extern_ = NULL;
 		ffi_type	**argtypes;
 		int		 i;
 		cel_type_t	*ty;
+		char		 err[128], t[64];
 
 			func->cf_extern = 1;
 			if ((func->cf_ptr = dlsym(RTLD_SELF, extern_)) == NULL) {
-			char	err[128];
 				snprintf(err, sizeof(err), "undefined external function \"%s\"",
 					 extern_);
 				ERROR(err);
 			}
 
 			switch (func->cf_return_type->ct_tag) {
+			case cel_type_schar:
 			case cel_type_int8:	rtype = &ffi_type_sint8; break;
+			case cel_type_uchar:
 			case cel_type_uint8:	rtype = &ffi_type_uint8; break;
 			case cel_type_int16:	rtype = &ffi_type_sint16; break;
 			case cel_type_uint16:	rtype = &ffi_type_uint16; break;
@@ -936,10 +953,11 @@ char		*extern_ = NULL;
 			case cel_type_uint32:	rtype = &ffi_type_uint32; break;
 			case cel_type_int64:	rtype = &ffi_type_sint64; break;
 			case cel_type_uint64:	rtype = &ffi_type_uint64; break;
-			case cel_type_string:	rtype = &ffi_type_pointer; break;
 			case cel_type_ptr:	rtype = &ffi_type_pointer; break;
 			default:
-				ERROR("unsupported FFI return type");
+				cel_name_type(func->cf_return_type, t, sizeof(t));
+				snprintf(err, sizeof(err), "unsupported FFI return type \"%s\"", t);
+				ERROR(err);
 				return ef;
 			}
 
@@ -947,7 +965,9 @@ char		*extern_ = NULL;
 			i = 0;
 			CEL_TAILQ_FOREACH(ty, func->cf_type->ct_type.ct_function.ct_args, ct_entry) {
 				switch (ty->ct_tag) {
+				case cel_type_schar:
 				case cel_type_int8:	argtypes[i] = &ffi_type_sint8; break;
+				case cel_type_uchar:
 				case cel_type_uint8:	argtypes[i] = &ffi_type_uint8; break;
 				case cel_type_int16:	argtypes[i] = &ffi_type_sint16; break;
 				case cel_type_uint16:	argtypes[i] = &ffi_type_uint16; break;
@@ -955,9 +975,11 @@ char		*extern_ = NULL;
 				case cel_type_uint32:	argtypes[i] = &ffi_type_uint32; break;
 				case cel_type_int64:	argtypes[i] = &ffi_type_sint64; break;
 				case cel_type_uint64:	argtypes[i] = &ffi_type_uint64; break;
-				case cel_type_string:	argtypes[i] = &ffi_type_pointer; break;
+				case cel_type_ptr:	argtypes[i] = &ffi_type_pointer; break;
 				default:
-					ERROR("unsupported FFI return type");
+					cel_name_type(func->cf_return_type, t, sizeof(t));
+					snprintf(err, sizeof(err), "unsupported FFI argument type \"%s\"", t);
+					ERROR(err);
 					return ef;
 				}
 				i++;
@@ -970,7 +992,7 @@ char		*extern_ = NULL;
 	}
 
 	if (auto_type && func->cf_name)
-		cel_scope_add_expr(sc_, func->cf_name, ef);
+		cel_scope_add_function(sc_, func->cf_name, ef);
 
 	if (!extern_)
 		func->cf_bytecode = cel_vm_func_compile(sc_, &func->cf_body);

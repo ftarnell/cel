@@ -29,7 +29,6 @@ typedef enum cel_expr_tag {
 	cel_exp_while,
 	cel_exp_cast,
 	cel_exp_call,
-	cel_exp_return,
 	cel_exp_variable
 } cel_expr_tag_t;
 
@@ -84,24 +83,24 @@ typedef struct cel_expr {
 	int		 ce_mutable;
 	int		 ce_const;	/* true if known at compile time */
 	struct cel_type	*ce_type;
-	uint8_t		 ce_storage[sizeof(uint64_t)];
 
 	union {
-		int8_t			*ce_int8;
-		uint8_t			*ce_uint8;
-		int16_t			*ce_int16;
-		uint16_t		*ce_uint16;
-		int32_t			*ce_int32;
-		uint32_t		*ce_uint32;
-		int64_t			*ce_int64;
-		uint64_t		*ce_uint64;
+		int8_t			 ce_int8;
+		uint8_t			 ce_uint8;
+		int16_t			 ce_int16;
+		uint16_t		 ce_uint16;
+		int32_t			 ce_int32;
+		uint32_t		 ce_uint32;
+		int64_t			 ce_int64;
+		uint64_t		 ce_uint64;
 		float			 ce_sfloat;
 		double			 ce_dfloat;
-		struct cel_expr		*ce_ptr;
+		long double		 ce_qfloat;
+		int			 ce_bool;
+		void			*ce_ptr;
 
-		int	 *ce_bool;
-		char	 *ce_string;
-		char	 *ce_variable;
+		char			*ce_string;
+		char			*ce_variable;
 
 		struct {
 			cel_bi_oper_t	 oper;

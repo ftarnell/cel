@@ -16,6 +16,8 @@
 
 typedef enum cel_type_tag {
 	cel_type_bool,
+	cel_type_schar,
+	cel_type_uchar,
 	cel_type_int8,
 	cel_type_uint8,
 	cel_type_int16,
@@ -28,7 +30,6 @@ typedef enum cel_type_tag {
 	cel_type_sfloat,
 	cel_type_dfloat,
 	cel_type_void,
-	cel_type_string,
 	cel_type_array,
 	cel_type_ptr,
 	cel_type_function,
@@ -37,20 +38,23 @@ typedef enum cel_type_tag {
 
 #define	cel_type_rank(tag)						\
 	(((tag) == cel_type_bool)			       ? 0 :	\
-	 ((tag) == cel_type_int8  || (tag) == cel_type_uint8)  ? 1 :	\
-	 ((tag) == cel_type_int16 || (tag) == cel_type_uint16) ? 2 :	\
-	 ((tag) == cel_type_int32 || (tag) == cel_type_uint32) ? 3 :	\
-	 ((tag) == cel_type_int64 || (tag) == cel_type_uint64) ? 4 :	\
+	 ((tag) == cel_type_schar || (tag) == cel_type_uchar)  ? 1 :	\
+	 ((tag) == cel_type_int8  || (tag) == cel_type_uint8)  ? 2 :	\
+	 ((tag) == cel_type_int16 || (tag) == cel_type_uint16) ? 3 :	\
+	 ((tag) == cel_type_int32 || (tag) == cel_type_uint32) ? 4 :	\
+	 ((tag) == cel_type_int64 || (tag) == cel_type_uint64) ? 5 :	\
 	 -1)
 
 #define	cel_type_is_signed(tag)						\
-	((tag) == cel_type_int8  || (tag) == cel_type_int16 ||		\
-	 (tag) == cel_type_int32 || (tag) == cel_type_int64)
+	((tag) == cel_type_int8  || (tag) == cel_type_int16  ||		\
+	 (tag) == cel_type_int32 || (tag) == cel_type_int64  ||		\
+	 (tag) == cel_type_schar)
 
 #define	cel_type_is_unsigned(tag) (!cel_type_is_signed(tag))
 
 #define	cel_type_is_integer(tag)					\
-	((tag) == cel_type_int8   || (tag) == cel_type_int16   ||	\
+	((tag) == cel_type_schar  || (tag) == cel_type_uchar   ||	\
+	 (tag) == cel_type_int8   || (tag) == cel_type_int16   ||	\
 	 (tag) == cel_type_uint8  || (tag) == cel_type_uint16  ||	\
 	 (tag) == cel_type_int32  || (tag) == cel_type_int64   ||	\
 	 (tag) == cel_type_uint32 || (tag) == cel_type_uint64)
