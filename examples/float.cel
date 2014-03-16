@@ -1,0 +1,6 @@
+func main : ((int, ^^char) -> int)
+begin
+	var f, g : dfloat;
+	f := 3.14159;
+	g := f * 2;
+end

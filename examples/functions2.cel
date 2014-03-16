@@ -1,0 +1,9 @@
+func add : ((a : int, b : int) -> int)
+begin
+	return a + b;
+end;
+
+func main : ((int, ^^char) -> int)
+begin
+	return add(7, 42);
+end;

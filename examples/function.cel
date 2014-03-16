@@ -1,0 +1,12 @@
+func (extern "puts") puts : ((^char) -> int);
+
+func io$puts : ((s : ^char) -> void)
+begin
+	puts(s)
+end;
+
+func main : ((int, ^^char) -> int)
+begin
+	io$puts("hello, world");
+	return 0;
+end;
