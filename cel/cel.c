@@ -95,22 +95,12 @@ cel_vm_any_t	 ret;
 	if (cel_parse(par) != 0)
 		return 1;
 
-#if 0
-	CEL_TAILQ_FOREACH(fu, &scope->sc_items, si_entry) {
-	cel_function_t	*fn;
-		fn = fu->si_ob.si_expr->ce_op.ce_function;
-		if (fn->cf_extern)
-			continue;
-		if ((fn->cf_bytecode = cel_vm_func_compile(scope, &fn->cf_body)) == NULL)
-			return 1;
-	}
-#endif
-
 	if ((fu = cel_scope_find_item(scope, "main")) == NULL) {
 		fprintf(stderr, "%s: main() undefined\n", argv[1]);
 		return 1;
 	}
 
-	cel_vm_func_execute(scope, fu->si_ob.si_expr->ce_op.ce_function->cf_bytecode, &ret);
+	cel_vm_func_execute(scope, fu->si_ob.si_expr->ce_op.ce_function->cf_bytecode,
+			    &ret, NULL);
 	return ret.i32;
 }

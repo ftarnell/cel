@@ -52,7 +52,60 @@ static uint32_t	cel_vm_expr_to_u32(cel_expr_t *e);
 static uint64_t cel_vm_expr_to_u64(cel_expr_t *e);
 
 cel_vm_func_t *
-cel_vm_func_compile(s, el)
+cel_vm_func_compile(s, f)
+	cel_scope_t	*s;
+	cel_function_t	*f;
+{
+cel_expr_t		*e;
+cel_vm_func_t		*ret;
+cel_scope_item_t	*si;
+int			 i = 0;
+
+	if ((ret = calloc(1, sizeof(*ret))) == NULL)
+		return NULL;
+
+/* Emit a variable for each function argument */
+	CEL_TAILQ_FOREACH(si, &f->cf_scope->sc_items, si_entry) {
+	int	type;
+		if (i++ == f->cf_nargs)
+			break;
+		ret->vf_vars = realloc(ret->vf_vars, sizeof(char const *) * (ret->vf_nvars + 1));
+		ret->vf_vars[ret->vf_nvars] = si->si_name;
+printf("added %s\n", si->si_name);
+	/* Move arguments from the stack to local storage */
+		switch (si->si_ob.si_expr->ce_type->ct_tag) {
+		case cel_type_int8:	type = CEL_VA_INT8; break;
+		case cel_type_uint8:	type = CEL_VA_UINT8; break;
+		case cel_type_int16:	type = CEL_VA_INT16; break;
+		case cel_type_uint16:	type = CEL_VA_UINT16; break;
+		case cel_type_bool:
+		case cel_type_int32:	type = CEL_VA_INT32; break;
+		case cel_type_uint32:	type = CEL_VA_UINT32; break;
+		case cel_type_int64:	type = CEL_VA_INT64; break;
+		case cel_type_uint64:	type = CEL_VA_UINT64; break;
+		case cel_type_sfloat:	type = CEL_VA_SFLOAT; break;
+		case cel_type_dfloat:	type = CEL_VA_DFLOAT; break;
+		case cel_type_qfloat:	type = CEL_VA_QFLOAT; break;
+		case cel_type_ptr:	type = CEL_VA_PTR; break;
+		}
+		cel_vm_emit_instr(ret, CEL_I_STOV);
+		cel_vm_emit_immed16(ret, ret->vf_nvars);
+		cel_vm_emit_immed8(ret, type);
+		ret->vf_nvars++;
+	}
+
+/* No; add a new var ref */
+
+	CEL_TAILQ_FOREACH(e, &f->cf_body, ce_entry)
+		if (cel_vm_emit_expr(s, ret, e) == -1)
+			return NULL;
+
+	cel_vm_emit_ret(ret, CEL_VA_VOID);
+	return ret;
+}
+
+cel_vm_func_t *
+cel_vm_func_compile_stmts(s, el)
 	cel_scope_t	*s;
 	cel_expr_list_t	*el;
 {

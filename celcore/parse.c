@@ -830,7 +830,6 @@ char		*extern_ = NULL;
 		FATAL("expected ')'");
 	}
 
-	func->cf_argscope = cel_scope_new();
 	func->cf_scope = cel_scope_new();
 
 /* Argument list */
@@ -861,7 +860,7 @@ char		*extern_ = NULL;
 			CEL_TAILQ_INSERT_TAIL(func->cf_type->ct_type.ct_function.ct_args,
 					      a, ct_entry);
 			if (nm) {
-				cel_scope_add_vardecl(func->cf_argscope, nm, cel_make_any(a));
+				cel_scope_add_vardecl(func->cf_scope, nm, cel_make_any(a));
 				free(nm);
 			}
 			func->cf_nargs++;
@@ -1018,7 +1017,7 @@ char		*extern_ = NULL;
 		cel_scope_add_function(sc_, func->cf_name, ef);
 
 	if (!extern_)
-		func->cf_bytecode = cel_vm_func_compile(sc_, &func->cf_body);
+		func->cf_bytecode = cel_vm_func_compile(sc_, func);
 
 	return ef;
 }

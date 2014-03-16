@@ -95,12 +95,12 @@ cel_type_t	*rtype = NULL;
 	CEL_TAILQ_INIT(&program);
 	CEL_TAILQ_INSERT_TAIL(&program, e, ce_entry);
 
-	if ((func = cel_vm_func_compile(scope, &program)) == NULL) {
+	if ((func = cel_vm_func_compile_stmts(scope, &program)) == NULL) {
 		fprintf(stderr, "(compile error)\n");
 		return 1;
 	}
 
-	if (cel_vm_func_execute(scope, func, &ret) == -1) {
+	if (cel_vm_func_execute(scope, func, &ret, NULL) == -1) {
 		fprintf(stderr, "(execution error)\n");
 		return 1;
 	}

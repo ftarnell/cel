@@ -43,8 +43,9 @@ typedef struct cel_vm_func {
 	size_t		      vf_nfuncs;
 } cel_vm_func_t;
 
-cel_vm_func_t	*cel_vm_func_compile(cel_scope_t *, cel_expr_list_t *);
-int		 cel_vm_func_execute(cel_scope_t *, cel_vm_func_t *, cel_vm_any_t *ret);
+cel_vm_func_t	*cel_vm_func_compile_stmts(cel_scope_t *, cel_expr_list_t *);
+cel_vm_func_t	*cel_vm_func_compile(cel_scope_t *, struct cel_function *);
+int		 cel_vm_func_execute(cel_scope_t *, cel_vm_func_t *, cel_vm_any_t *ret, void *stack);
 void		 cel_vm_func_free(cel_scope_t *, cel_expr_t *);
 
 #endif	/* CEL_VM_H */

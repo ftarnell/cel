@@ -35,7 +35,7 @@
 
 #include	"build.h"
 
-#define	STACKSZ 16
+#define	STACKSZ 128
 
 #define	GET_UINT16(p)	((uint16_t) (p)[0] <<  8 |	\
 			 (uint16_t) (p)[1])
@@ -98,17 +98,21 @@
 #define	GET_IQF(v)	do { (v) = GET_QFLOAT(ip); ip += sizeof(long double); } while (0)
 
 int
-cel_vm_func_execute(s, f, ret)
+cel_vm_func_execute(s, f, ret, stk)
 	cel_scope_t	*s;
 	cel_vm_func_t	*f;
 	cel_vm_any_t	*ret;
+	void		*stk;
 {
-cel_vm_any_t	 stack[STACKSZ];
+cel_vm_any_t	*stack;
 cel_vm_any_t	*vars;
 int		 sp;
 uint8_t	const	*ip, *oip;
 cel_function_t	*func;
 
+	if (!stk)
+		stk = calloc(STACKSZ, sizeof(cel_vm_any_t));
+	stack = stk;
 	vars = calloc(f->vf_nvars, sizeof(cel_vm_any_t));
 
 	ip = f->vf_bytecode;
@@ -377,7 +381,11 @@ cel_function_t	*func;
 			GET_SP(a.ptr);
 			func = (cel_function_t *) a.ptr;
 
-			if (func->cf_extern) {
+			if (!func->cf_extern) {
+			cel_vm_any_t	ret;
+				cel_vm_func_execute(s, func->cf_bytecode,
+						    &ret, &stack[sp]);
+			} else {
 			void		**args;
 			cel_vm_any_t	*aargs;
 			cel_type_t	*ty;
@@ -427,7 +435,6 @@ cel_function_t	*func;
 
 				free(args);
 				free(aargs);
-			} else {
 			}
 			break;
 
