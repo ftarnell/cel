@@ -71,7 +71,7 @@ int			 i = 0;
 			break;
 		ret->vf_vars = realloc(ret->vf_vars, sizeof(char const *) * (ret->vf_nvars + 1));
 		ret->vf_vars[ret->vf_nvars] = si->si_name;
-printf("added %s\n", si->si_name);
+
 	/* Move arguments from the stack to local storage */
 		switch (si->si_ob.si_expr->ce_type->ct_tag) {
 		case cel_type_int8:	type = CEL_VA_INT8; break;
