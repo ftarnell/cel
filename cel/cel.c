@@ -100,7 +100,6 @@ cel_vm_any_t	 ret;
 		return 1;
 	}
 
-	cel_vm_func_execute(scope, fu->si_ob.si_expr->ce_op.ce_function->cf_bytecode,
-			    &ret, NULL);
+	cel_vm_func_execute(scope, fu->si_ob.si_expr->ce_op.ce_function->cf_bytecode, &ret);
 	return ret.i32;
 }

@@ -99,30 +99,33 @@
 
 typedef struct vm_regs {
 	uint8_t		*ip;
+	uint8_t		**ipstk;
 	cel_vm_any_t	*sp;
 } vm_regs_t;
 
 static int cel_vm_bytecode_exec(vm_regs_t  *regs);
 
 int
-cel_vm_func_execute(s, f, ret, stk)
+cel_vm_func_execute(s, f, ret)
 	cel_scope_t	*s;
 	cel_vm_func_t	*f;
 	cel_vm_any_t	*ret;
-	void		*stk;
 {
 vm_regs_t	regs;
 
-	if (!stk)
-		stk = calloc(STACKSZ, sizeof(*regs.sp));
-	regs.sp = stk;
+	regs.sp = calloc(STACKSZ, sizeof(*regs.sp));
 	regs.ip = f->vf_bytecode;
+	regs.ipstk = calloc(STACKSZ, sizeof(uint8_t *));
+
+	*(regs.ipstk++) = 0;
 	if (cel_vm_bytecode_exec(&regs) == -1)
 		return -1;
+
 	if (ret) {
 		--regs.sp;
 		ret->u64 = regs.sp->u64;
 	}
+
 	return 0;
 }
 
@@ -156,7 +159,11 @@ cel_function_t	*func;
 			break;
 
 		case CEL_I_RET:
-			return 0;
+			regs->ip = *(--regs->ipstk);
+			if  (regs->ip == 0)
+				return 0;
+
+			break;
 
 		case CEL_I_LOADI:
 			switch (*regs->ip++) {
@@ -386,10 +393,8 @@ cel_function_t	*func;
 
 		case CEL_I_CALL:
 			GET_SP(a.ptr);
-			oip = regs->ip;
+			*(regs->ipstk++) = regs->ip;
 			regs->ip = (uint8_t *) a.ptr;
-			cel_vm_bytecode_exec(regs);
-			regs->ip = oip;
 			break;
 
 		case CEL_I_CALLE: {

@@ -100,7 +100,7 @@ cel_type_t	*rtype = NULL;
 		return 1;
 	}
 
-	if (cel_vm_func_execute(scope, func, &ret, NULL) == -1) {
+	if (cel_vm_func_execute(scope, func, &ret) == -1) {
 		fprintf(stderr, "(execution error)\n");
 		return 1;
 	}
