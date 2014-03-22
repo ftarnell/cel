@@ -27,7 +27,7 @@ typedef union cel_vm_any_t {
 	float		sflt;
 	double		dflt;
 	long double	qflt;
-	uintptr_t	ptr;
+	uint8_t		*ptr;
 } cel_vm_any_t;
 
 struct cel_function;
