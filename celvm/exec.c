@@ -97,9 +97,15 @@
 #define	GET_IDF(v)	do { (v) = GET_DFLOAT(regs->ip); regs->ip += sizeof(double); } while (0)
 #define	GET_IQF(v)	do { (v) = GET_QFLOAT(regs->ip); regs->ip += sizeof(long double); } while (0)
 
+typedef struct ipstk {
+	uint8_t		*ip;
+	cel_vm_any_t	*sp;
+	cel_vm_any_t	*vars;
+} vm_ipstk_t;
+
 typedef struct vm_regs {
 	uint8_t		*ip;
-	uint8_t		**ipstk;
+	vm_ipstk_t	*ipstk;
 	cel_vm_any_t	*sp;
 } vm_regs_t;
 
@@ -115,9 +121,10 @@ vm_regs_t	regs;
 
 	regs.sp = calloc(STACKSZ, sizeof(*regs.sp));
 	regs.ip = f->vf_bytecode;
-	regs.ipstk = calloc(STACKSZ, sizeof(uint8_t *));
+	regs.ipstk = calloc(STACKSZ, sizeof(vm_ipstk_t));
 
-	*(regs.ipstk++) = 0;
+	regs.ipstk[0].ip = 0;
+	regs.ipstk++;
 	if (cel_vm_bytecode_exec(&regs) == -1)
 		return -1;
 
@@ -134,7 +141,7 @@ cel_vm_bytecode_exec(regs)
 	vm_regs_t	*regs;
 {
 vm_regs_t	 save;
-cel_vm_any_t	*vars;
+cel_vm_any_t	*vars = NULL;
 uint8_t		*oip;
 cel_function_t	*func;
 
@@ -154,11 +161,17 @@ cel_function_t	*func;
 		switch (inst) {
 		case CEL_I_ALLV:
 			GET_IU8(a.u8);
+#if 0
+			vars = regs->sp;
+			regs->sp += a.u8;
+#endif
 			vars = calloc(a.u8, sizeof(cel_vm_any_t));
 			break;
 
 		case CEL_I_RET:
-			regs->ip = *(--regs->ipstk);
+			--regs->ipstk;
+			regs->ip = regs->ipstk->ip;
+			vars = regs->ipstk->vars;
 			if  (regs->ip == 0)
 				return 0;
 
@@ -392,7 +405,9 @@ cel_function_t	*func;
 
 		case CEL_I_CALL:
 			GET_SP(a.ptr);
-			*(regs->ipstk++) = regs->ip;
+			regs->ipstk->ip = regs->ip;
+			regs->ipstk->vars = vars;
+			regs->ipstk++;
 			regs->ip = (uint8_t *) a.ptr;
 			break;
 

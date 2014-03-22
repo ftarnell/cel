@@ -75,9 +75,6 @@ int32_t			 patch_nvars;
 		return ret;
 	}
 
-/* Save the return address */
-	sz += cel_vm_emit_instr(ret, CEL_I_STOLR);
-
 /* Allocate variable storage */
 	sz += cel_vm_emit_instr(ret, CEL_I_ALLV);
 	patch_nvars = sz;
