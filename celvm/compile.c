@@ -28,6 +28,7 @@ static int32_t	cel_vm_emit_binary(cel_scope_t *, cel_vm_func_t *, cel_expr_t *);
 static int32_t	cel_vm_emit_unary(cel_scope_t *, cel_vm_func_t *, cel_expr_t *);
 static int32_t	cel_vm_emit_literal(cel_scope_t *, cel_vm_func_t *, cel_expr_t *);
 static int32_t	cel_vm_emit_variable(cel_scope_t *, cel_vm_func_t *, cel_expr_t *);
+static int32_t	cel_vm_emit_vaddr(cel_scope_t *, cel_vm_func_t *, cel_expr_t *);
 static int32_t	cel_vm_emit_vardecl(cel_scope_t *, cel_vm_func_t *, cel_expr_t *);
 static int32_t	cel_vm_emit_assign(cel_scope_t *, cel_vm_func_t *, cel_expr_t *);
 static int32_t	cel_vm_emit_call(cel_scope_t *, cel_vm_func_t *, cel_expr_t *);
@@ -176,6 +177,9 @@ cel_vm_emit_unary(s, f, e)
 int	type;
 int32_t	sz;
 
+	if (e->ce_op.ce_unary.oper == cel_op_addr)
+		return cel_vm_emit_vaddr(s, f, e->ce_op.ce_unary.operand);
+
 	sz = cel_vm_emit_expr(s, f, e->ce_op.ce_unary.operand, 1);
 
 	switch (e->ce_op.ce_unary.operand->ce_type->ct_tag) {
@@ -205,6 +209,10 @@ int32_t	sz;
 
 	case cel_op_return:
 		sz += cel_vm_emit_instr(f, CEL_I_RET);
+		break;
+
+	case cel_op_deref:
+		sz += cel_vm_emit_instr_immed8(f, CEL_I_LOADM, type);
 		break;
 
 	default:
@@ -748,6 +756,40 @@ int32_t		 sz = 0;
 		sz += cel_vm_emit_immed16(f, varn);
 		sz += cel_vm_emit_immed8(f, type);
 	}
+	return sz;
+}
+
+static int32_t
+cel_vm_emit_vaddr(s, f, e)
+	cel_scope_t	*s;
+	cel_vm_func_t	*f;
+	cel_expr_t	*e;
+{
+ssize_t		 i;
+int16_t		 varn = -1;
+int32_t		 sz = 0;
+int		 type;
+
+/* Is this variable already in the var table? */
+	for (i = 0; i < f->vf_nvars; i++) {
+		if (strcmp(e->ce_op.ce_variable, f->vf_vars[i]) == 0) {
+			varn = i;
+			break;
+		}
+	}
+
+	if (varn == -1) {
+	/* Global variable */
+	cel_scope_item_t	*i;
+	cel_function_t		*fu;
+		i = cel_scope_find_item(s, e->ce_op.ce_variable);
+		fu = i->si_ob.si_expr->ce_op.ce_function;
+		sz += cel_vm_emit_loadip(f, fu->cf_bytecode->vf_bytecode);
+		return sz;
+	}
+
+	sz += cel_vm_emit_instr(f, CEL_I_VADDR);
+	sz += cel_vm_emit_immed16(f, i);
 	return sz;
 }
 

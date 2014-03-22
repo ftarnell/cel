@@ -1,0 +1,11 @@
+func get_i : ((p : ^int) -> int)
+begin
+	return p^ + 1;
+end;
+
+func main : ((int, ^^char) -> int)
+begin
+	var i : int;
+	i := 10;
+	return get_i(i@);
+end;

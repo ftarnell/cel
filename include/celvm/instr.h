@@ -133,4 +133,26 @@ typedef	uint8_t	cel_vm_instr_t;
  *	Arguments:	immediate 1-byte variable count
  */
 #define	CEL_I_ALLV	30
+
+/*
+ * 	Store to memory
+ * 	Arguments:	immediate 1-byte type
+ * 			stack pointer to memory location
+ * 			stack variable-size value
+ */
+#define	CEL_I_STOM	31	/* store to memory			*/
+
+/*
+ * 	Load from memory
+ * 	Arguments:	immediate 1-byte type
+ * 			stack pointer to memory location
+ */
+#define	CEL_I_LOADM	32	/* load from memory			*/
+
+/*
+ *	Take address of local variable
+ *	Arguments:	immediate two-byte variable index
+ */
+#define	CEL_I_VADDR	33
+
 #endif	/* !CEL_VM_INSTR_H */

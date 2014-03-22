@@ -406,6 +406,51 @@ cel_function_t	*func;
 			regs->regs[R_IP].ptr++;
 			break;
 
+		case CEL_I_STOM:
+			GET_SP(a.ptr);
+			switch (*regs->regs[R_IP].ptr) {
+			case CEL_VA_INT8:
+			case CEL_VA_UINT8:	GET_SU8(*((uint8_t *) a.ptr)); break;
+			case CEL_VA_INT16:	
+			case CEL_VA_UINT16:	GET_SU16(*((uint16_t *) a.ptr)); break;
+			case CEL_VA_INT32:	
+			case CEL_VA_UINT32:	GET_SU32(*((uint32_t *) a.ptr)); break;
+			case CEL_VA_INT64:	
+			case CEL_VA_UINT64:	GET_SU64(*((uint64_t *) a.ptr)); break;
+			case CEL_VA_PTR:	GET_SP(*((void **) a.ptr)); break;
+			case CEL_VA_SFLOAT:	GET_SSF(*((float *) a.ptr)); break;
+			case CEL_VA_DFLOAT:	GET_SDF(*((double *) a.ptr)); break;
+			case CEL_VA_QFLOAT:	GET_SQF(*((long double *) a.ptr)); break;
+			}
+
+			regs->regs[R_IP].ptr++;
+			break;
+
+		case CEL_I_LOADM:
+			GET_SP(a.ptr);
+			switch (*regs->regs[R_IP].ptr) {
+			case CEL_VA_INT8:
+			case CEL_VA_UINT8:	PUT_SU8(*((uint8_t *) a.ptr)); break;
+			case CEL_VA_INT16:	
+			case CEL_VA_UINT16:	PUT_SU16(*((uint16_t *) a.ptr)); break;
+			case CEL_VA_INT32:	
+			case CEL_VA_UINT32:	PUT_SU32(*((uint32_t *) a.ptr)); break;
+			case CEL_VA_INT64:	
+			case CEL_VA_UINT64:	PUT_SU64(*((uint64_t *) a.ptr)); break;
+			case CEL_VA_PTR:	PUT_SP(*((void **) a.ptr)); break;
+			case CEL_VA_SFLOAT:	PUT_SSF(*((float *) a.ptr)); break;
+			case CEL_VA_DFLOAT:	PUT_SDF(*((double *) a.ptr)); break;
+			case CEL_VA_QFLOAT:	PUT_SQF(*((long double *) a.ptr)); break;
+			}
+
+			regs->regs[R_IP].ptr++;
+			break;
+
+		case CEL_I_VADDR:
+			GET_II16(a.u16);
+			PUT_SP((uint8_t *) &(((cel_vm_any_t *) regs->regs[R_VP].ptr)[a.i16]));
+			break;
+
 		case CEL_I_STOLR:
 			break;
 

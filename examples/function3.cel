@@ -1,0 +1,9 @@
+func sub : ((a : int, b : int) -> int)
+begin
+	return a - b;
+end;
+
+func main : ((int, ^^char) -> int)
+begin
+	return sub(43, 3);
+end;
