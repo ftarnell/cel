@@ -857,8 +857,8 @@ int32_t		 sz = 0;
 	fu = e->ce_op.ce_call.func->ce_op.ce_function;
 
 /* Emit the arguments */
-	for (i = 0; i < e->ce_op.ce_call.args->ca_nargs; i++)
-		sz += cel_vm_emit_expr(s, f, e->ce_op.ce_call.args->ca_args[i]);
+	for (i = e->ce_op.ce_call.args->ca_nargs; i > 0; i--)
+		sz += cel_vm_emit_expr(s, f, e->ce_op.ce_call.args->ca_args[i - 1]);
 
 /* Emit the function address */
 	sz += cel_vm_emit_expr(s, f, e->ce_op.ce_call.func);
