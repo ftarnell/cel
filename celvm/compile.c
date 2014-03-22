@@ -862,6 +862,7 @@ int32_t		 sz = 0;
 
 /* Emit the function address */
 	sz += cel_vm_emit_expr(s, f, e->ce_op.ce_call.func);
+/* Call it */
 	sz += cel_vm_emit_instr(f, CEL_I_CALL);
 	return sz;
 }

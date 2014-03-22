@@ -81,7 +81,7 @@ cel_type_t	*rtype = NULL;
 	par->cp_error = icel_error;
 	par->cp_warn = icel_warn;
 
-	if ((e = cel_parse_one(par)) == NULL) {
+	if ((e = cel_parse_one(par)) == NULL || par->cp_nerrs) {
 		fprintf(stderr, "(parse error)\n");
 		return 1;
 	}
