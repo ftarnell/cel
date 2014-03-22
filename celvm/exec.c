@@ -151,7 +151,6 @@ cel_function_t	*func;
 
 		oip = regs->ip;
 		inst = *regs->ip++;
-
 		switch (inst) {
 		case CEL_I_ALLV:
 			GET_IU8(a.u8);

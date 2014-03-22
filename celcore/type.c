@@ -357,6 +357,18 @@ cel_derive_binary_type(op, a, b)
 		}
 		break;
 
+	/* Assignment always returns the type being assigned to */
+	case cel_op_assign:
+		return a;
+
+	case cel_op_lt:
+	case cel_op_le:
+	case cel_op_eq:
+	case cel_op_neq:
+	case cel_op_gt:
+	case cel_op_ge:
+		return cel_make_type(cel_type_bool);
+
 	default:
 		return NULL;
 	}

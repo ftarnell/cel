@@ -81,6 +81,7 @@ typedef struct cel_expr {
 	cel_expr_tag_t	 ce_tag;
 	int		 ce_mutable;
 	int		 ce_const;	/* true if known at compile time */
+	int		 ce_used;	/* true if result used */
 	struct cel_type	*ce_type;
 
 	union {
