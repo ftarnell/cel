@@ -124,6 +124,7 @@ vm_regs_t	regs;
 	regs.ipstk = calloc(STACKSZ, sizeof(vm_ipstk_t));
 
 	regs.ipstk[0].ip = 0;
+	regs.ipstk[0].vars = 0;
 	regs.ipstk++;
 	if (cel_vm_bytecode_exec(&regs) == -1)
 		return -1;
@@ -169,6 +170,7 @@ cel_function_t	*func;
 			break;
 
 		case CEL_I_RET:
+			free(vars);
 			--regs->ipstk;
 			regs->ip = regs->ipstk->ip;
 			vars = regs->ipstk->vars;
@@ -407,6 +409,7 @@ cel_function_t	*func;
 			GET_SP(a.ptr);
 			regs->ipstk->ip = regs->ip;
 			regs->ipstk->vars = vars;
+			vars = NULL;
 			regs->ipstk++;
 			regs->ip = (uint8_t *) a.ptr;
 			break;
