@@ -267,6 +267,7 @@ cel_derive_binary_type(op, a, b)
 	case cel_type_sfloat:
 	case cel_type_dfloat:
 	case cel_type_qfloat:
+	case cel_type_ptr:
 		return a;
 	}
 
