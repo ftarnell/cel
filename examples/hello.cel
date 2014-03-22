@@ -1,7 +1,8 @@
 func (extern "puts") puts : ((^char) -> int);
 
-func main : ((int, ^^char) -> int)
+func main : ((argc : int, argv : ^^char) -> int)
 begin
+	var s : ^char;
 	puts("hello, world");
 	return 0;
 end;

@@ -27,13 +27,11 @@ static int32_t	cel_vm_emit_while(cel_scope_t *, cel_vm_func_t *, cel_expr_t *);
 static int32_t	cel_vm_emit_binary(cel_scope_t *, cel_vm_func_t *, cel_expr_t *);
 static int32_t	cel_vm_emit_unary(cel_scope_t *, cel_vm_func_t *, cel_expr_t *);
 static int32_t	cel_vm_emit_literal(cel_scope_t *, cel_vm_func_t *, cel_expr_t *);
-static int32_t	cel_vm_emit_return(cel_scope_t *, cel_vm_func_t *, cel_expr_t *);
 static int32_t	cel_vm_emit_variable(cel_scope_t *, cel_vm_func_t *, cel_expr_t *);
 static int32_t	cel_vm_emit_vardecl(cel_scope_t *, cel_vm_func_t *, cel_expr_t *);
 static int32_t	cel_vm_emit_assign(cel_scope_t *, cel_vm_func_t *, cel_expr_t *);
 static int32_t	cel_vm_emit_call(cel_scope_t *, cel_vm_func_t *, cel_expr_t *);
 static int32_t	cel_vm_emit_incr(cel_scope_t *, cel_vm_func_t *, cel_expr_t *);
-static int32_t	cel_vm_emit_ret(cel_vm_func_t *, int type);
 static int32_t	cel_vm_emit_immed8(cel_vm_func_t *, uint32_t);
 static int32_t	cel_vm_emit_immed16(cel_vm_func_t *, uint32_t);
 static int32_t	cel_vm_emit_immed32(cel_vm_func_t *, uint32_t);
@@ -60,9 +58,30 @@ cel_expr_t		*e;
 cel_vm_func_t		*ret;
 cel_scope_item_t	*si;
 int			 i = 0;
+int32_t			 sz = 0;
+int32_t			 patch_nvars;
 
 	if ((ret = calloc(1, sizeof(*ret))) == NULL)
 		return NULL;
+
+	if (f->cf_extern) {
+		/*
+		 * Our arguments are already on the stack, so we just
+		 * need to emit a CALLE with the correct address.
+		 */
+		sz += cel_vm_emit_loadip(ret, f);
+		sz += cel_vm_emit_instr(ret, CEL_I_CALLE);
+		sz += cel_vm_emit_instr(ret, CEL_I_RET);
+		return ret;
+	}
+
+/* Save the return address */
+	sz += cel_vm_emit_instr(ret, CEL_I_STOLR);
+
+/* Allocate variable storage */
+	sz += cel_vm_emit_instr(ret, CEL_I_ALLV);
+	patch_nvars = sz;
+	sz += cel_vm_emit_immed8(ret, 0);
 
 /* Emit a variable for each function argument */
 	CEL_TAILQ_FOREACH(si, &f->cf_scope->sc_items, si_entry) {
@@ -88,19 +107,17 @@ int			 i = 0;
 		case cel_type_qfloat:	type = CEL_VA_QFLOAT; break;
 		case cel_type_ptr:	type = CEL_VA_PTR; break;
 		}
-		cel_vm_emit_instr(ret, CEL_I_STOV);
-		cel_vm_emit_immed16(ret, ret->vf_nvars);
-		cel_vm_emit_immed8(ret, type);
+		sz += cel_vm_emit_instr(ret, CEL_I_STOV);
+		sz += cel_vm_emit_immed16(ret, ret->vf_nvars);
+		sz += cel_vm_emit_immed8(ret, type);
 		ret->vf_nvars++;
 	}
 
-/* No; add a new var ref */
-
 	CEL_TAILQ_FOREACH(e, &f->cf_body, ce_entry)
-		if (cel_vm_emit_expr(s, ret, e) == -1)
-			return NULL;
+		sz += cel_vm_emit_expr(s, ret, e);
 
-	cel_vm_emit_ret(ret, CEL_VA_VOID);
+	sz += cel_vm_emit_instr(ret, CEL_I_RET);
+	ret->vf_bytecode[patch_nvars] = ret->vf_nvars;
 	return ret;
 }
 
@@ -119,18 +136,7 @@ cel_vm_func_t	*ret;
 		if (cel_vm_emit_expr(s, ret, e) == -1)
 			return NULL;
 
-	cel_vm_emit_ret(ret, CEL_VA_VOID);
 	return ret;
-}
-
-static int32_t
-cel_vm_emit_ret(f, t)
-	cel_vm_func_t	*f;
-{
-int32_t	sz = 0;
-	sz += cel_vm_emit_instr(f, CEL_I_RET);
-	sz += cel_vm_emit_immed8(f, t);
-	return sz;
 }
 
 static int32_t
@@ -191,7 +197,7 @@ int32_t	sz;
 		break;
 
 	case cel_op_return:
-		sz += cel_vm_emit_return(s, f, e);
+		sz += cel_vm_emit_instr(f, CEL_I_RET);
 		break;
 
 	default:
@@ -692,64 +698,6 @@ cel_vm_emit_literal(s, f, e)
 }
 
 static int32_t
-cel_vm_emit_return(s, f, e)
-	cel_scope_t	*s;
-	cel_vm_func_t	*f;
-	cel_expr_t	*e;
-{
-int32_t	sz = 0;
-	
-	switch (e->ce_op.ce_unary.operand->ce_type->ct_tag) {
-	case cel_type_int8:
-	case cel_type_uint8:
-		sz += cel_vm_emit_ret(f, CEL_VA_UINT8);
-		break;
-
-	case cel_type_int16:
-	case cel_type_uint16:
-		sz += cel_vm_emit_ret(f, CEL_VA_UINT16);
-		break;
-
-	case cel_type_bool:
-	case cel_type_int32:
-	case cel_type_uint32:
-		sz += cel_vm_emit_ret(f, CEL_VA_UINT32);
-		break;
-
-	case cel_type_int64:
-	case cel_type_uint64:
-		sz += cel_vm_emit_ret(f, CEL_VA_UINT64);
-		break;
-
-	case cel_type_sfloat:
-		sz += cel_vm_emit_ret(f, CEL_VA_SFLOAT);
-		break;
-
-	case cel_type_dfloat:
-		sz += cel_vm_emit_ret(f, CEL_VA_DFLOAT);
-		break;
-
-	case cel_type_qfloat:
-		sz += cel_vm_emit_ret(f, CEL_VA_QFLOAT);
-		break;
-
-	case cel_type_ptr:
-		sz += cel_vm_emit_ret(f, CEL_VA_PTR);
-		break;
-
-	case cel_type_void:
-		sz += cel_vm_emit_ret(f, CEL_VA_VOID);
-		break;
-
-	default:
-		printf("can't emit return for tag %d\n", e->ce_op.ce_unary.operand->ce_type->ct_tag);
-		return -1;
-	}
-
-	return sz;
-}
-
-static int32_t
 cel_vm_emit_vardecl(s, f, e)
 	cel_scope_t	*s;
 	cel_vm_func_t	*f;
@@ -818,8 +766,10 @@ int		 type;
 	if (varn == -1) {
 	/* Global variable */
 	cel_scope_item_t	*i;
+	cel_function_t		*fu;
 		i = cel_scope_find_item(s, e->ce_op.ce_variable);
-		sz += cel_vm_emit_loadip(f, i->si_ob.si_expr->ce_op.ce_function);
+		fu = i->si_ob.si_expr->ce_op.ce_function;
+		sz += cel_vm_emit_loadip(f, fu->cf_bytecode->vf_bytecode);
 		return sz;
 	}
 
@@ -900,30 +850,17 @@ cel_vm_emit_call(s, f, e)
 	cel_vm_func_t	*f;
 	cel_expr_t	*e;
 {
-size_t		 i, fun;
+size_t		 i;
 cel_function_t	*fu;
 int32_t		 sz = 0;
 
 	fu = e->ce_op.ce_call.func->ce_op.ce_function;
 
-/* Is this function already in the func table? */
-	for (fun = 0; fun < f->vf_nfuncs; fun++)
-		if (fu == f->vf_funcs[fun])
-			break;
-
-	if (fun == f->vf_nfuncs) {
-	/* No; add it */
-		fun = f->vf_nvars;
-		f->vf_funcs = realloc(f->vf_funcs, sizeof(cel_function_t *) * (f->vf_nfuncs + 1));
-		f->vf_funcs[fun] = fu;
-		f->vf_nfuncs++;
-	}
-
-	/* Emit the arguments */
+/* Emit the arguments */
 	for (i = 0; i < e->ce_op.ce_call.args->ca_nargs; i++)
 		sz += cel_vm_emit_expr(s, f, e->ce_op.ce_call.args->ca_args[i]);
 
-	/* Emit the function address */
+/* Emit the function address */
 	sz += cel_vm_emit_expr(s, f, e->ce_op.ce_call.func);
 	sz += cel_vm_emit_instr(f, CEL_I_CALL);
 	return sz;

@@ -121,6 +121,7 @@ typedef struct cel_expr {
 
 		struct cel_function	*ce_function;
 		struct {
+			int		  num;
 			char const	*name;
 			struct cel_expr	*init;
 		} ce_vardecl;

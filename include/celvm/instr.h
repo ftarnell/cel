@@ -120,5 +120,17 @@ typedef	uint8_t	cel_vm_instr_t;
  * 	Arguments:	immediate two-byte function index
  */
 #define	CEL_I_CALL	27
+#define	CEL_I_CALLE	28	/* call external			*/
 
+/*
+ *	Store to LR
+ *	Arguments:	none
+ */
+#define	CEL_I_STOLR	29
+
+/*
+ *	Allocate variable storage
+ *	Arguments:	immediate 1-byte variable count
+ */
+#define	CEL_I_ALLV	30
 #endif	/* !CEL_VM_INSTR_H */

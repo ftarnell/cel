@@ -101,6 +101,7 @@ cel_parse(par)
 cel_expr_list_t	*list;
 cel_expr_t	*e;
 cel_token_t	 start_tok;
+int		 i;
 
 	list = calloc(1, sizeof(*list));
 	CEL_TAILQ_INIT(list);
@@ -111,17 +112,11 @@ cel_token_t	 start_tok;
 		start_tok = par->cp_tok;
 
 		if (EXPECT(CEL_T_FUNC)) {
-			if ((e = cel_parse_func(par, par->cp_scope)) != NULL) {
-				cel_scope_add_function(par->cp_scope,
-						       e->ce_op.ce_function->cf_name,
-						       e);
-			}
+			if ((e = cel_parse_func(par, par->cp_scope)) != NULL)
+				;
 		} else if (EXPECT(CEL_T_VAR)) {
-			if ((e = cel_parse_var(par, par->cp_scope)) != NULL) {
-				cel_scope_add_vardecl(par->cp_scope,
-						       e->ce_op.ce_vardecl.name,
-						       e);
-			}
+			if ((e = cel_parse_var(par, par->cp_scope)) != NULL)
+				;
 		} else {
 			if (par->cp_error)
 				par->cp_error(par, &start_tok, "expected function or variable definition");
@@ -690,8 +685,6 @@ int		 const_ = 0;
 			}
 #endif
 		}
-
-		cel_scope_add_vardecl(sc, names[i].name, e);
 	}
 
 	free_varvec(names, nnames);
@@ -1016,8 +1009,7 @@ char		*extern_ = NULL;
 	if (auto_type && func->cf_name)
 		cel_scope_add_function(sc_, func->cf_name, ef);
 
-	if (!extern_)
-		func->cf_bytecode = cel_vm_func_compile(sc_, func);
+	func->cf_bytecode = cel_vm_func_compile(sc_, func);
 
 	return ef;
 }
