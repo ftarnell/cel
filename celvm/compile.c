@@ -23,6 +23,7 @@ static int32_t	cel_vm_add_bytecode(cel_vm_func_t *, uint8_t *, size_t);
 static int32_t	cel_vm_emit_expr(cel_scope_t *, cel_vm_func_t *, cel_expr_t *, int);
 static int32_t	cel_vm_emit_instr(cel_vm_func_t *, int);
 static int32_t	cel_vm_emit_instr_immed8(cel_vm_func_t *, int, int);
+static int32_t	cel_vm_emit_instr_immed16(cel_vm_func_t *, int, int);
 static int32_t	cel_vm_emit_while(cel_scope_t *, cel_vm_func_t *, cel_expr_t *);
 static int32_t	cel_vm_emit_binary(cel_scope_t *, cel_vm_func_t *, cel_expr_t *);
 static int32_t	cel_vm_emit_unary(cel_scope_t *, cel_vm_func_t *, cel_expr_t *);
@@ -105,8 +106,9 @@ int32_t			 patch_nvars;
 		case cel_type_qfloat:	type = CEL_VA_QFLOAT; break;
 		case cel_type_ptr:	type = CEL_VA_PTR; break;
 		}
-		sz += cel_vm_emit_instr(ret, CEL_I_STOV);
+		sz += cel_vm_emit_instr(ret, CEL_I_VADDR);
 		sz += cel_vm_emit_immed16(ret, ret->vf_nvars);
+		sz += cel_vm_emit_instr(ret, CEL_I_STOM);
 		sz += cel_vm_emit_immed8(ret, type);
 		ret->vf_nvars++;
 	}
@@ -498,6 +500,16 @@ uint8_t	bc[] = { i };
 }
 
 static int32_t
+cel_vm_emit_instr_immed16(f, i, v)
+	cel_vm_func_t	*f;
+{
+int32_t	sz = 0;
+	sz += cel_vm_emit_instr(f, i);
+	sz += cel_vm_emit_immed16(f, v);
+	return sz;
+}
+
+static int32_t
 cel_vm_emit_instr_immed8(f, i, v)
 	cel_vm_func_t	*f;
 {
@@ -752,9 +764,8 @@ int32_t		 sz = 0;
 		case cel_type_ptr:	type = CEL_VA_PTR; break;
 		}
 		sz += cel_vm_emit_expr(s, f, e->ce_op.ce_vardecl.init, 1);
-		sz += cel_vm_emit_instr(f, CEL_I_STOV);
-		sz += cel_vm_emit_immed16(f, varn);
-		sz += cel_vm_emit_immed8(f, type);
+		sz += cel_vm_emit_instr_immed16(f, CEL_I_VADDR, varn);
+		sz += cel_vm_emit_instr_immed8(f, CEL_I_STOM, type);
 	}
 	return sz;
 }
@@ -768,7 +779,6 @@ cel_vm_emit_vaddr(s, f, e)
 ssize_t		 i;
 int16_t		 varn = -1;
 int32_t		 sz = 0;
-int		 type;
 
 /* Is this variable already in the var table? */
 	for (i = 0; i < f->vf_nvars; i++) {
@@ -838,9 +848,8 @@ int		 type;
 	case cel_type_qfloat:	type = CEL_VA_QFLOAT; break;
 	}
 
-	sz += cel_vm_emit_instr(f, CEL_I_LOADV);
-	sz += cel_vm_emit_immed16(f, i);
-	sz += cel_vm_emit_immed8(f, type);
+	sz += cel_vm_emit_instr_immed16(f, CEL_I_VADDR, i);
+	sz += cel_vm_emit_instr_immed8(f, CEL_I_LOADM, type);
 	return sz;
 }
 
@@ -860,28 +869,6 @@ cel_expr_t	*lhs = e->ce_op.ce_binary.left,
 /* Emit the rhs */
 	sz += cel_vm_emit_expr(s, f, rhs, 1);
 
-	if (lhs->ce_tag == cel_exp_variable) {
-	/* Assigning to a variable - emit its address */
-		for (i = 0; i < f->vf_nvars; i++) {
-			if (strcmp(lhs->ce_op.ce_variable, f->vf_vars[i]) == 0) {
-				varn = i;
-				break;
-			}
-		}
-
-		if (varn == -1)
-			return -1;
-
-		sz += cel_vm_emit_instr(f, CEL_I_VADDR);
-		sz += cel_vm_emit_immed16(f, varn);
-	} else if (lhs->ce_tag == cel_exp_unary && lhs->ce_op.ce_unary.oper == cel_op_deref) {
-	/* Assigning to a dereferenced address - emit the addr */
-		sz += cel_vm_emit_expr(s, f, lhs->ce_op.ce_unary.operand, 1);
-	} else {
-		printf("can't assign to %d\n", e->ce_tag);
-		return -1;
-	}
-
 	switch (lhs->ce_type->ct_tag) {
 	case cel_type_int8:	type = CEL_VA_INT8; break;
 	case cel_type_uint8:	type = CEL_VA_UINT8; break;
@@ -898,11 +885,33 @@ cel_expr_t	*lhs = e->ce_op.ce_binary.left,
 	case cel_type_qfloat:	type = CEL_VA_QFLOAT; break;
 	}
 
-	sz += cel_vm_emit_instr(f, CEL_I_STOM);
-	sz += cel_vm_emit_immed8(f, type);
-	sz += cel_vm_emit_instr(f, CEL_I_LOADV);
-	sz += cel_vm_emit_immed16(f, varn);
-	sz += cel_vm_emit_immed8(f, type);
+	if (lhs->ce_tag == cel_exp_variable) {
+	/* Assigning to a variable - emit its address */
+		for (i = 0; i < f->vf_nvars; i++) {
+			if (strcmp(lhs->ce_op.ce_variable, f->vf_vars[i]) == 0) {
+				varn = i;
+				break;
+			}
+		}
+
+		if (varn == -1)
+			return -1;
+
+		sz += cel_vm_emit_instr_immed16(f, CEL_I_VADDR, varn);
+		sz += cel_vm_emit_instr_immed8(f, CEL_I_STOM, type);
+		sz += cel_vm_emit_instr_immed16(f, CEL_I_VADDR, varn);
+		sz += cel_vm_emit_instr_immed8(f, CEL_I_LOADM, type);
+	} else if (lhs->ce_tag == cel_exp_unary && lhs->ce_op.ce_unary.oper == cel_op_deref) {
+	/* Assigning to a dereferenced address - emit the addr */
+		sz += cel_vm_emit_expr(s, f, lhs->ce_op.ce_unary.operand, 1);
+		sz += cel_vm_emit_instr_immed8(f, CEL_I_STOM, type);
+		sz += cel_vm_emit_expr(s, f, lhs->ce_op.ce_unary.operand, 1);
+		sz += cel_vm_emit_instr_immed8(f, CEL_I_LOADM, type);
+	} else {
+		printf("can't assign to %d\n", e->ce_tag);
+		return -1;
+	}
+
 	return sz;
 }
 

@@ -50,20 +50,6 @@ typedef	uint8_t	cel_vm_instr_t;
 #define	CEL_I_LOADI	3
 
 /*
- *	Load variable
- *	Arguments:	immediate 1-byte type id
- *			immediate 2-byte variable index
- */
-#define	CEL_I_LOADV	4
-
-/*
- *	Store variable
- *	Arguments:	immediate 1-byte type id
- *			immediate 2-byte variable index
- */
-#define	CEL_I_STOV	5
-
-/*
  * 	Pop stack and discard
  * 	Arguments: none
  */

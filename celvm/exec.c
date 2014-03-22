@@ -368,46 +368,6 @@ cel_function_t	*func;
 		INC(CEL_I_MULV, *=)
 		INC(CEL_I_DIVV, /=)
 
-		case CEL_I_LOADV:
-			GET_II16(b.i16);
-			switch (*regs->regs[R_IP].ptr) {
-			case CEL_VA_INT8:	PUT_SI8(((cel_vm_any_t *) regs->regs[R_VP].ptr)[b.i16].i8); break;
-			case CEL_VA_UINT8:	PUT_SU8(((cel_vm_any_t *) regs->regs[R_VP].ptr)[b.i16].u8); break;
-			case CEL_VA_INT16:	PUT_SI16(((cel_vm_any_t *) regs->regs[R_VP].ptr)[b.i16].i16); break;
-			case CEL_VA_UINT16:	PUT_SU16(((cel_vm_any_t *) regs->regs[R_VP].ptr)[b.i16].u16); break;
-			case CEL_VA_INT32:	PUT_SI32(((cel_vm_any_t *) regs->regs[R_VP].ptr)[b.i16].i32); break;
-			case CEL_VA_UINT32:	PUT_SU32(((cel_vm_any_t *) regs->regs[R_VP].ptr)[b.i16].u32); break;
-			case CEL_VA_INT64:	PUT_SI64(((cel_vm_any_t *) regs->regs[R_VP].ptr)[b.i16].i64); break;
-			case CEL_VA_UINT64:	PUT_SU64(((cel_vm_any_t *) regs->regs[R_VP].ptr)[b.i16].u64); break;
-			case CEL_VA_PTR:	PUT_SP(((cel_vm_any_t *) regs->regs[R_VP].ptr)[b.i16].ptr); break;
-			case CEL_VA_SFLOAT:	PUT_SSF(((cel_vm_any_t *) regs->regs[R_VP].ptr)[b.i16].sflt); break;
-			case CEL_VA_DFLOAT:	PUT_SDF(((cel_vm_any_t *) regs->regs[R_VP].ptr)[b.i16].dflt); break;
-			case CEL_VA_QFLOAT:	PUT_SQF(((cel_vm_any_t *) regs->regs[R_VP].ptr)[b.i16].qflt); break;
-			}
-			regs->regs[R_IP].ptr++;
-			break;
-
-		case CEL_I_STOV:
-			GET_II16(b.i16);
-			switch (*regs->regs[R_IP].ptr) {
-			case CEL_VA_INT8:	GET_SI8(a.i8); break;
-			case CEL_VA_UINT8:	GET_SU8(a.u8); break;
-			case CEL_VA_INT16:	GET_SI16(a.i16); break;
-			case CEL_VA_UINT16:	GET_SU16(a.u16); break;
-			case CEL_VA_INT32:	GET_SI32(a.i32); break;
-			case CEL_VA_UINT32:	GET_SU32(a.u32); break;
-			case CEL_VA_INT64:	GET_SI64(a.i64); break;
-			case CEL_VA_UINT64:	GET_SU64(a.u64); break;
-			case CEL_VA_PTR:	GET_SP(a.ptr); break;
-			case CEL_VA_SFLOAT:	GET_SSF(a.sflt); break;
-			case CEL_VA_DFLOAT:	GET_SDF(a.dflt); break;
-			case CEL_VA_QFLOAT:	GET_SQF(a.qflt); break;
-			}
-
-			((cel_vm_any_t *) regs->regs[R_VP].ptr)[b.i16].u64 = a.u64;
-			regs->regs[R_IP].ptr++;
-			break;
-
 		case CEL_I_STOM:
 			GET_SP(a.ptr);
 			switch (*regs->regs[R_IP].ptr) {
