@@ -171,57 +171,21 @@ cel_function_t	*func;
 		inst = *regs->regs[R_IP].ptr++;
 
 		switch (inst) {
-		case CEL_I_ALLV:
-			GET_IU8(a.u8);
-#if 0
-			vars = regs->sp;
-			regs->sp += a.u8;
-#endif
-			regs->regs[R_VP].ptr = calloc(a.u8, sizeof(cel_vm_any_t));
-			break;
-
 		case CEL_I_CALL:
 			GET_SP(a.ptr);
-#if 0
-			/* Save IP and VP */
+
+			/* Push return address */
 			PUT_SU64(regs->regs[R_IP].u64);
-			PUT_SU64(regs->regs[R_VP].u64);
-#else
-			memcpy(regs->ipstk->regs, regs->regs, sizeof(regs->regs));
-#if 0
-			regs->ipstk->regs[R_VP].ptr = regs->regs[R_VP].ptr;
-			regs->ipstk->regs[R_IP].ptr = regs->regs[R_IP].ptr;
-			regs->ipstk->regs[R_SP].ptr = regs->regs[R_SP].ptr;
-#endif
-			regs->ipstk++;
-			regs->regs[R_VP].ptr = 0;
-#endif
-			regs->regs[R_IP].ptr = (uint8_t *) a.ptr;
+			regs->regs[R_IP].ptr = a.ptr;
 			break;
 
 		case CEL_I_RET:
-#if 1
-			/* XXX - restore R3 for return value */
-			a.u64 = regs->regs[R_R3].u64;
-			--regs->ipstk;
-			memcpy(regs->regs, regs->ipstk->regs, sizeof(regs->regs));
-#if 0
-			regs->regs[R_R3].u64 = regs->ipstk->regs[R_R3].u64;
-			regs->regs[R_IP].ptr = regs->ipstk->regs[R_IP].ptr;
-			regs->regs[R_VP].ptr = regs->ipstk->regs[R_VP].ptr;
-			regs->regs[R_SP].ptr = regs->ipstk->regs[R_SP].ptr;
-#endif
-			regs->regs[R_R3].u64 = a.u64;
+			regs->regs[R_SP].u64 = regs->regs[6].u64;
+			/* Retrieve return address from %r5 */
+			regs->regs[R_IP].u64 = regs->regs[5].u64;
 
-			if  (regs->regs[R_IP].ptr == 0)
+			if (regs->regs[R_IP].ptr == 0)
 				return 0;
-#else
-			/* Restore IP and VP */
-			GET_SU64(regs->regs[R_VP].u64);
-			GET_SU64(regs->regs[R_IP].u64);
-			/* inc IP */
-			regs->regs[R_IP].u64++;
-#endif
 
 			break;
 

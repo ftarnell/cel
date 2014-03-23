@@ -77,10 +77,15 @@ int32_t			 patch_nvars, space;
 		return ret;
 	}
 
+/* Save return address in %r5 */
+	sz += cel_vm_emit_instr_immed8(ret, CEL_I_STOR, 5);
+
+/* Save %sp in %r6 */
+	sz += cel_vm_emit_instr(ret, CEL_I_MOVR);
+	sz += cel_vm_emit_immed8(ret, 6);
+	sz += cel_vm_emit_immed8(ret, 1);
+
 /* Allocate variable storage on the stack */
-#if 0
-	sz += cel_vm_emit_instr(ret, CEL_I_ALLV);
-#endif
 
 /* mov %r4, %sp */
 	sz += cel_vm_emit_instr(ret, CEL_I_MOVR);
@@ -894,11 +899,16 @@ int32_t		 sz = 0;
 
 	fu = e->ce_op.ce_call.func->ce_op.ce_function;
 
-/* Emit the arguments */
-	for (i = e->ce_op.ce_call.args->ca_nargs; i > 0; i--)
-		sz += cel_vm_emit_expr(s, f, e->ce_op.ce_call.args->ca_args[i - 1], 1);
+/* Save %r4, %r5, %r6 */
+	sz += cel_vm_emit_instr_immed8(f, CEL_I_LOADR, 4);
+	sz += cel_vm_emit_instr_immed8(f, CEL_I_LOADR, 5);
+	sz += cel_vm_emit_instr_immed8(f, CEL_I_LOADR, 6);
 
-/* Emit the function address */
+/* Push the arguments */
+	for (i = 0; i < e->ce_op.ce_call.args->ca_nargs; i++)
+		sz += cel_vm_emit_expr(s, f, e->ce_op.ce_call.args->ca_args[i], 1);
+
+/* Push the function address */
 	sz += cel_vm_emit_expr(s, f, e->ce_op.ce_call.func, 1);
 
 /* Call it */
@@ -908,6 +918,11 @@ int32_t		 sz = 0;
 	sz += cel_vm_emit_instr(f, CEL_I_DECR);
 	sz += cel_vm_emit_immed8(f, 1);
 	sz += cel_vm_emit_immed32(f, 8 * (e->ce_op.ce_call.args->ca_nargs));
+
+/* Restore %r4, %r5, %r6 */
+	sz += cel_vm_emit_instr_immed8(f, CEL_I_STOR, 6);
+	sz += cel_vm_emit_instr_immed8(f, CEL_I_STOR, 5);
+	sz += cel_vm_emit_instr_immed8(f, CEL_I_STOR, 4);
 
 /* If it returns a value, push it */
 	if (e->ce_type->ct_tag != cel_type_void)
@@ -939,7 +954,7 @@ int		 inst;
 	if (varn == -1)
 		return -1;
 
-	switch (e->ce_op.ce_unary.oper) {
+	switch (e->ce_op.ce_binary.oper) {
 	case cel_op_incr:	inst = CEL_I_INCV; break;
 	case cel_op_decr:	inst = CEL_I_DECV; break;
 	case cel_op_multn:	inst = CEL_I_MULV; break;
