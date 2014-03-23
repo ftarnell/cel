@@ -59,7 +59,6 @@ cel_vm_func_compile(s, f)
 {
 cel_expr_t		*e;
 cel_vm_func_t		*ret;
-cel_scope_item_t	*si;
 int			 i = 0;
 int32_t			 sz = 0;
 int32_t			 patch_nvars;
@@ -181,10 +180,20 @@ cel_vm_emit_unary(s, f, e)
 	cel_expr_t	*e;
 {
 int	type;
-int32_t	sz;
+int32_t	sz = 0;
 
 	if (e->ce_op.ce_unary.oper == cel_op_addr)
 		return cel_vm_emit_vaddr(s, f, e->ce_op.ce_unary.operand);
+	else if (e->ce_op.ce_unary.oper == cel_op_return) {
+
+		if (e->ce_op.ce_unary.operand->ce_type->ct_tag != cel_type_void) {
+			sz += cel_vm_emit_expr(s, f, e->ce_op.ce_unary.operand, 1);
+			sz += cel_vm_emit_instr_immed8(f, CEL_I_STOR, 3);
+		}
+
+		sz += cel_vm_emit_instr(f, CEL_I_RET);
+		return sz;
+	}
 
 	sz = cel_vm_emit_expr(s, f, e->ce_op.ce_unary.operand, 1);
 
@@ -197,10 +206,6 @@ int32_t	sz;
 
 	case cel_op_negate:
 		sz += cel_vm_emit_instr_immed8(f, CEL_I_NOT, type);
-		break;
-
-	case cel_op_return:
-		sz += cel_vm_emit_instr(f, CEL_I_RET);
 		break;
 
 	case cel_op_deref:
@@ -579,7 +584,7 @@ int32_t	sz = 0;
 }
 
 static int32_t
-cel_vm_emit_loadsd(f, v)
+cel_vm_emit_loaddf(f, v)
 	cel_vm_func_t	*f;
 	double		 v;
 {
@@ -591,7 +596,7 @@ int32_t	sz = 0;
 }
 
 static int32_t
-cel_vm_emit_loadsq(f, v)
+cel_vm_emit_loadqf(f, v)
 	cel_vm_func_t	*f;
 	long double	 v;
 {
@@ -692,8 +697,8 @@ cel_vm_emit_literal(s, f, e)
 	case cel_type_bool:	return cel_vm_emit_loadi32(f, e->ce_op.ce_bool);
 	case cel_type_ptr:	return cel_vm_emit_loadip(f, e->ce_op.ce_ptr);
 	case cel_type_sfloat:	return cel_vm_emit_loadsf(f, e->ce_op.ce_sfloat);
-	case cel_type_dfloat:	return cel_vm_emit_loadsd(f, e->ce_op.ce_dfloat);
-	case cel_type_qfloat:	return cel_vm_emit_loadsq(f, e->ce_op.ce_qfloat);
+	case cel_type_dfloat:	return cel_vm_emit_loaddf(f, e->ce_op.ce_dfloat);
+	case cel_type_qfloat:	return cel_vm_emit_loadqf(f, e->ce_op.ce_qfloat);
 	default:
 		printf("can't emit literal for type %d\n", e->ce_type->ct_tag);
 		return -1;
@@ -862,8 +867,14 @@ int32_t		 sz = 0;
 
 /* Emit the function address */
 	sz += cel_vm_emit_expr(s, f, e->ce_op.ce_call.func, 1);
+
 /* Call it */
 	sz += cel_vm_emit_instr(f, CEL_I_CALL);
+
+/* If it returns a value, push it */
+	if (e->ce_type->ct_tag != cel_type_void)
+		sz += cel_vm_emit_instr_immed8(f, CEL_I_LOADR, 3);
+
 	return sz;
 }
 
@@ -876,7 +887,7 @@ cel_vm_emit_incr(s, f, e)
 ssize_t		 i;
 int16_t		 varn = -1;
 int32_t		 sz = 0;
-int		 inst, type;
+int		 inst;
 
 /* Is this variable already in the var table? */
 	for (i = 0; i < f->vf_nvars; i++) {

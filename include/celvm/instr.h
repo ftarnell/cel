@@ -50,6 +50,18 @@ typedef	uint8_t	cel_vm_instr_t;
 #define	CEL_I_LOADI	3
 
 /*
+ *	Store to register
+ *	Arguments:	immediate 1-byte register number
+ */
+#define	CEL_I_STOR	4
+
+/*
+ *	Load from register
+ *	Arguments:	immediate 1-byte register number
+ */
+#define	CEL_I_LOADR	5
+
+/*
  * 	Pop stack and discard
  * 	Arguments: none
  */

@@ -26,6 +26,7 @@ typedef enum cel_expr_tag {
 	cel_exp_vardecl,
 	cel_exp_if,
 	cel_exp_while,
+	cel_exp_for,
 	cel_exp_cast,
 	cel_exp_call,
 	cel_exp_variable

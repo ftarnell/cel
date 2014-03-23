@@ -38,10 +38,15 @@
 
 #define	STACKSZ 128
 
-#define	NREGS	3
-#define	R_IP	0
-#define	R_SP	1
-#define	R_VP	2
+#define	R_R0	0
+#define	R_R1	1
+#define	R_R2	2
+#define	R_R3	3
+#define	NREGS	4
+
+#define	R_IP	R_R0
+#define	R_SP	R_R1
+#define	R_VP	R_R2
 
 #define	GET_UINT16(p)	((uint16_t) (p)[0] <<  8 |	\
 			 (uint16_t) (p)[1])
@@ -132,10 +137,8 @@ vm_regs_t	regs;
 	if (cel_vm_bytecode_exec(&regs) == -1)
 		return -1;
 
-	if (ret) {
-		regs.regs[R_SP].ptr -= sizeof(cel_vm_any_t);
-		ret->u64 = ((cel_vm_any_t *) regs.regs[R_SP].ptr)->u64;
-	}
+	if (ret)
+		ret->u64 = regs.regs[R_R3].u64;
 
 	return 0;
 }
@@ -144,7 +147,6 @@ int
 cel_vm_bytecode_exec(regs)
 	vm_regs_t	*regs;
 {
-vm_regs_t	 save;
 uint8_t		*oip;
 cel_function_t	*func;
 
@@ -174,10 +176,14 @@ cel_function_t	*func;
 			break;
 
 		case CEL_I_RET:
+			/* XXX - restore R3 for return value */
+			a.u64 = regs->regs[R_R3].u32;
 			free(regs->regs[R_VP].ptr);
 			--regs->ipstk;
+			regs->regs[R_R3].u64 = regs->ipstk->regs[R_R3].u64;
 			regs->regs[R_IP].ptr = regs->ipstk->regs[R_IP].ptr;
 			regs->regs[R_VP].ptr = regs->ipstk->regs[R_VP].ptr;
+			regs->regs[R_R3].u64 = a.u64;
 			if  (regs->regs[R_VP].ptr == 0)
 				return 0;
 
@@ -478,6 +484,16 @@ cel_function_t	*func;
 				free(args);
 				free(aargs);
 			}
+			break;
+
+		case CEL_I_STOR:
+			GET_IU8(a.u8);
+			GET_SU64(regs->regs[a.u8].u64);
+			break;
+
+		case CEL_I_LOADR:
+			GET_IU8(a.u8);
+			PUT_SU64(regs->regs[a.u8].u64);
 			break;
 
 		case CEL_I_POPD:
