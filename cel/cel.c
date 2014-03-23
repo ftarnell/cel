@@ -55,7 +55,7 @@ cel_lexer_t	lex;
 cel_parser_t	*par;
 cel_scope_t	*scope;
 cel_scope_item_t *fu;
-cel_vm_any_t	 ret;
+cel_vm_reg_t	 ret;
 
 	if (!argv[1]) {
 		fprintf(stderr, "usage: %s <file>\n", argv[0]);
@@ -101,5 +101,5 @@ cel_vm_any_t	 ret;
 	}
 
 	cel_vm_func_execute(scope, fu->si_ob.si_expr->ce_op.ce_function->cf_bytecode, &ret);
-	return ret.i32;
+	return ret;
 }

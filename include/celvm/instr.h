@@ -104,14 +104,14 @@ typedef	uint8_t	cel_vm_instr_t;
 #define	CEL_I_BR	22	/* unconditional branch			*/
 
 /*
- *	Inc / dec
- *	Arguments:	immediate 1-byte type
- *			immediate 2-byte variable index
+ *	Inc / dec memory location
+ *	Arguments:	stack pointer to memory location
+ *			stack 64-bit value
  */
-#define	CEL_I_INCV	23
-#define	CEL_I_DECV	24
-#define	CEL_I_MULV	25
-#define	CEL_I_DIVV	26
+#define	CEL_I_INCM	23
+#define	CEL_I_DECM	24
+#define	CEL_I_MULM	25
+#define	CEL_I_DIVM	26
 
 /*
  * 	Call function

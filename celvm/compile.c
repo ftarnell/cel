@@ -67,6 +67,9 @@ int32_t			 patch_nvars, space;
 		return NULL;
 
 	if (f->cf_extern) {
+		/* stor %r5 */
+		sz += cel_vm_emit_instr_immed8(ret, CEL_I_STOR, 5);
+
 		/*
 		 * Our arguments are already on the stack, so we just
 		 * need to emit a CALLE with the correct address.
@@ -955,15 +958,22 @@ int		 inst;
 		return -1;
 
 	switch (e->ce_op.ce_binary.oper) {
-	case cel_op_incr:	inst = CEL_I_INCV; break;
-	case cel_op_decr:	inst = CEL_I_DECV; break;
-	case cel_op_multn:	inst = CEL_I_MULV; break;
-	case cel_op_divn:	inst = CEL_I_DIVV; break;
+	case cel_op_incr:	inst = CEL_I_INCM; break;
+	case cel_op_decr:	inst = CEL_I_DECM; break;
+	case cel_op_multn:	inst = CEL_I_MULM; break;
+	case cel_op_divn:	inst = CEL_I_DIVM; break;
 	}
 
 	sz += cel_vm_emit_expr(s, f, e->ce_op.ce_binary.right, 1);
+
+/* push %r4 */
+	sz += cel_vm_emit_instr_immed8(f, CEL_I_LOADR, 4);
+/* push 8 * varn */
+	sz += cel_vm_emit_loadi32(f, 8 * varn);
+/* add */
+	sz += cel_vm_emit_instr(f, CEL_I_ADD);
+/* incrm */
 	sz += cel_vm_emit_instr(f, inst);
-	sz += cel_vm_emit_immed16(f, varn);
-	sz += cel_vm_emit_immed8(f, va_from_type(e->ce_op.ce_unary.operand->ce_type->ct_tag));
+
 	return sz;
 }

@@ -64,7 +64,7 @@ cel_lexer_t	 lex;
 cel_parser_t	*par;
 cel_expr_list_t	 program;
 cel_vm_func_t	*func;
-cel_vm_any_t	 ret;
+cel_vm_reg_t	 ret;
 cel_expr_t	*result, *e;
 cel_type_t	*rtype = NULL;
 
@@ -106,7 +106,7 @@ cel_type_t	*rtype = NULL;
 	}
 
 	result = cel_make_any(rtype);
-	result->ce_op.ce_uint64 = ret.u64;
+	result->ce_op.ce_uint64 = ret;
 	cel_name_type(result->ce_type, type, sizeof(type));
 	cel_expr_print(result, value, sizeof(value));
 	printf("<%s> %s\n", type, value);

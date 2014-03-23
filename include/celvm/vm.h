@@ -15,6 +15,8 @@
 
 #include	"celcore/scope.h"
 
+typedef uint64_t cel_vm_reg_t;
+
 typedef union cel_vm_any_t {
 	int8_t		i8;
 	uint8_t		u8;
@@ -45,7 +47,7 @@ typedef struct cel_vm_func {
 
 cel_vm_func_t	*cel_vm_func_compile_stmts(cel_scope_t *, cel_expr_list_t *);
 cel_vm_func_t	*cel_vm_func_compile(cel_scope_t *, struct cel_function *);
-int		 cel_vm_func_execute(cel_scope_t *, cel_vm_func_t *, cel_vm_any_t *ret);
+int		 cel_vm_func_execute(cel_scope_t *, cel_vm_func_t *, cel_vm_reg_t *ret);
 void		 cel_vm_func_free(cel_scope_t *, cel_expr_t *);
 
 #endif	/* CEL_VM_H */
