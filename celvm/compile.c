@@ -50,6 +50,7 @@ static int32_t	cel_vm_emit_loadqf(cel_vm_func_t *, long double);
 static int32_t	cel_vm_emit_loadip(cel_vm_func_t *, void *);
 static uint32_t	cel_vm_expr_to_u32(cel_expr_t *e);
 static uint64_t cel_vm_expr_to_u64(cel_expr_t *e);
+static uint8_t	va_from_type(int);
 
 cel_vm_func_t *
 cel_vm_func_compile(s, f)
@@ -84,30 +85,12 @@ int32_t			 patch_nvars;
 
 /* Emit a variable for each function argument */
 	for (i = 0; i < f->cf_nargs; i++) {
-	int	type;
-
 		ret->vf_vars = realloc(ret->vf_vars, sizeof(char const *) * (ret->vf_nvars + 1));
 		ret->vf_vars[ret->vf_nvars] = f->cf_argnames[i];
 
 	/* Move arguments from the stack to local storage */
-		switch (f->cf_args[i]->ct_tag) {
-		case cel_type_int8:	type = CEL_VA_INT8; break;
-		case cel_type_uint8:	type = CEL_VA_UINT8; break;
-		case cel_type_int16:	type = CEL_VA_INT16; break;
-		case cel_type_uint16:	type = CEL_VA_UINT16; break;
-		case cel_type_bool:
-		case cel_type_int32:	type = CEL_VA_INT32; break;
-		case cel_type_uint32:	type = CEL_VA_UINT32; break;
-		case cel_type_int64:	type = CEL_VA_INT64; break;
-		case cel_type_uint64:	type = CEL_VA_UINT64; break;
-		case cel_type_sfloat:	type = CEL_VA_SFLOAT; break;
-		case cel_type_dfloat:	type = CEL_VA_DFLOAT; break;
-		case cel_type_qfloat:	type = CEL_VA_QFLOAT; break;
-		case cel_type_ptr:	type = CEL_VA_PTR; break;
-		}
-
 		sz += cel_vm_emit_instr_immed16(ret, CEL_I_VADDR, ret->vf_nvars);
-		sz += cel_vm_emit_instr_immed8(ret, CEL_I_STOM, type);
+		sz += cel_vm_emit_instr_immed8(ret, CEL_I_STOM, va_from_type(f->cf_args[i]->ct_tag));
 		ret->vf_nvars++;
 	}
 
@@ -117,6 +100,29 @@ int32_t			 patch_nvars;
 	sz += cel_vm_emit_instr(ret, CEL_I_RET);
 	ret->vf_bytecode[patch_nvars] = ret->vf_nvars;
 	return ret;
+}
+
+static uint8_t
+va_from_type(t)
+{
+	switch (t) {
+	case cel_type_int8:	return CEL_VA_INT8;
+	case cel_type_uint8:	return CEL_VA_UINT8;
+	case cel_type_int16:	return CEL_VA_INT16;
+	case cel_type_uint16:	return CEL_VA_UINT16;
+	case cel_type_bool:
+	case cel_type_int32:	return CEL_VA_INT32;
+	case cel_type_uint32:	return CEL_VA_UINT32;
+	case cel_type_int64:	return CEL_VA_INT64;
+	case cel_type_uint64:	return CEL_VA_UINT64;
+	case cel_type_sfloat:	return CEL_VA_SFLOAT;
+	case cel_type_dfloat:	return CEL_VA_DFLOAT;
+	case cel_type_qfloat:	return CEL_VA_QFLOAT;
+	case cel_type_ptr:	return CEL_VA_PTR;
+	default:
+		printf("can't get va for type %d\n", t);
+		return -1;
+	}
 }
 
 cel_vm_func_t *
@@ -182,21 +188,7 @@ int32_t	sz;
 
 	sz = cel_vm_emit_expr(s, f, e->ce_op.ce_unary.operand, 1);
 
-	switch (e->ce_op.ce_unary.operand->ce_type->ct_tag) {
-	case cel_type_int8:	type = CEL_VA_INT8; break;
-	case cel_type_uint8:	type = CEL_VA_UINT8; break;
-	case cel_type_int16:	type = CEL_VA_INT16; break;
-	case cel_type_uint16:	type = CEL_VA_UINT16; break;
-	case cel_type_bool:
-	case cel_type_int32:	type = CEL_VA_INT32; break;
-	case cel_type_uint32:	type = CEL_VA_UINT32; break;
-	case cel_type_int64:	type = CEL_VA_INT64; break;
-	case cel_type_uint64:	type = CEL_VA_UINT64; break;
-	case cel_type_sfloat:	type = CEL_VA_SFLOAT; break;
-	case cel_type_dfloat:	type = CEL_VA_DFLOAT; break;
-	case cel_type_qfloat:	type = CEL_VA_QFLOAT; break;
-	case cel_type_ptr:	type = CEL_VA_PTR; break;
-	}
+	type = va_from_type(e->ce_op.ce_unary.operand->ce_type->ct_tag);
 
 	switch (e->ce_op.ce_unary.oper) {
 	case cel_op_uni_minus:
@@ -430,21 +422,7 @@ int32_t	sz = 0;
 	sz += cel_vm_emit_expr(s, f, e->ce_op.ce_binary.left, 1);
 	sz += cel_vm_emit_expr(s, f, e->ce_op.ce_binary.right, 1);
 
-	switch (e->ce_op.ce_binary.left->ce_type->ct_tag) {
-	case cel_type_int8:	type = CEL_VA_INT8; break;
-	case cel_type_uint8:	type = CEL_VA_UINT8; break;
-	case cel_type_int16:	type = CEL_VA_INT16; break;
-	case cel_type_uint16:	type = CEL_VA_UINT16; break;
-	case cel_type_bool:
-	case cel_type_int32:	type = CEL_VA_INT32; break;
-	case cel_type_uint32:	type = CEL_VA_UINT32; break;
-	case cel_type_int64:	type = CEL_VA_INT64; break;
-	case cel_type_uint64:	type = CEL_VA_UINT64; break;
-	case cel_type_sfloat:	type = CEL_VA_SFLOAT; break;
-	case cel_type_dfloat:	type = CEL_VA_DFLOAT; break;
-	case cel_type_qfloat:	type = CEL_VA_QFLOAT; break;
-	case cel_type_ptr:	type = CEL_VA_PTR; break;
-	}
+	type = va_from_type(e->ce_op.ce_binary.left->ce_type->ct_tag);
 
 	switch (e->ce_op.ce_binary.oper) {
 	case cel_op_plus:	op = CEL_I_ADD; break;
@@ -745,26 +723,9 @@ int32_t		 sz = 0;
 
 /* If it has an initialiser, emit the init code */
 	if (e->ce_op.ce_vardecl.init) {
-	int	type;
-
-		switch (e->ce_op.ce_vardecl.init->ce_type->ct_tag) {
-		case cel_type_int8:	type = CEL_VA_INT8; break;
-		case cel_type_uint8:	type = CEL_VA_UINT8; break;
-		case cel_type_int16:	type = CEL_VA_INT16; break;
-		case cel_type_uint16:	type = CEL_VA_UINT16; break;
-		case cel_type_bool:
-		case cel_type_int32:	type = CEL_VA_INT32; break;
-		case cel_type_uint32:	type = CEL_VA_UINT32; break;
-		case cel_type_int64:	type = CEL_VA_INT64; break;
-		case cel_type_uint64:	type = CEL_VA_UINT64; break;
-		case cel_type_sfloat:	type = CEL_VA_SFLOAT; break;
-		case cel_type_dfloat:	type = CEL_VA_DFLOAT; break;
-		case cel_type_qfloat:	type = CEL_VA_QFLOAT; break;
-		case cel_type_ptr:	type = CEL_VA_PTR; break;
-		}
 		sz += cel_vm_emit_expr(s, f, e->ce_op.ce_vardecl.init, 1);
 		sz += cel_vm_emit_instr_immed16(f, CEL_I_VADDR, varn);
-		sz += cel_vm_emit_instr_immed8(f, CEL_I_STOM, type);
+		sz += cel_vm_emit_instr_immed8(f, CEL_I_STOM, va_from_type(e->ce_op.ce_vardecl.init->ce_type->ct_tag));
 	}
 	return sz;
 }
@@ -811,7 +772,6 @@ cel_vm_emit_variable(s, f, e)
 ssize_t		 i;
 int16_t		 varn = -1;
 int32_t		 sz = 0;
-int		 type;
 
 /* Is this variable already in the var table? */
 	for (i = 0; i < f->vf_nvars; i++) {
@@ -831,24 +791,8 @@ int		 type;
 		return sz;
 	}
 
-	switch (e->ce_type->ct_tag) {
-	case cel_type_int8:	type = CEL_VA_INT8; break;
-	case cel_type_uint8:	type = CEL_VA_UINT8; break;
-	case cel_type_int16:	type = CEL_VA_INT16; break;
-	case cel_type_uint16:	type = CEL_VA_UINT16; break;
-	case cel_type_bool:
-	case cel_type_int32:	type = CEL_VA_INT32; break;
-	case cel_type_uint32:	type = CEL_VA_UINT32; break;
-	case cel_type_int64:	type = CEL_VA_INT64; break;
-	case cel_type_uint64:	type = CEL_VA_UINT64; break;
-	case cel_type_ptr:	type = CEL_VA_PTR; break;
-	case cel_type_sfloat:	type = CEL_VA_SFLOAT; break;
-	case cel_type_dfloat:	type = CEL_VA_DFLOAT; break;
-	case cel_type_qfloat:	type = CEL_VA_QFLOAT; break;
-	}
-
 	sz += cel_vm_emit_instr_immed16(f, CEL_I_VADDR, i);
-	sz += cel_vm_emit_instr_immed8(f, CEL_I_LOADM, type);
+	sz += cel_vm_emit_instr_immed8(f, CEL_I_LOADM, va_from_type(e->ce_type->ct_tag));
 	return sz;
 }
 
@@ -868,21 +812,7 @@ cel_expr_t	*lhs = e->ce_op.ce_binary.left,
 /* Emit the rhs */
 	sz += cel_vm_emit_expr(s, f, rhs, 1);
 
-	switch (lhs->ce_type->ct_tag) {
-	case cel_type_int8:	type = CEL_VA_INT8; break;
-	case cel_type_uint8:	type = CEL_VA_UINT8; break;
-	case cel_type_int16:	type = CEL_VA_INT16; break;
-	case cel_type_uint16:	type = CEL_VA_UINT16; break;
-	case cel_type_bool:
-	case cel_type_int32:	type = CEL_VA_INT32; break;
-	case cel_type_uint32:	type = CEL_VA_UINT32; break;
-	case cel_type_int64:	type = CEL_VA_INT64; break;
-	case cel_type_uint64:	type = CEL_VA_UINT64; break;
-	case cel_type_ptr:	type = CEL_VA_PTR; break;
-	case cel_type_sfloat:	type = CEL_VA_SFLOAT; break;
-	case cel_type_dfloat:	type = CEL_VA_DFLOAT; break;
-	case cel_type_qfloat:	type = CEL_VA_QFLOAT; break;
-	}
+	type = va_from_type(lhs->ce_type->ct_tag);
 
 	if (lhs->ce_tag == cel_exp_variable) {
 	/* Assigning to a variable - emit its address */
@@ -967,25 +897,9 @@ int		 inst, type;
 	case cel_op_divn:	inst = CEL_I_DIVV; break;
 	}
 
-	switch (e->ce_op.ce_unary.operand->ce_type->ct_tag) {
-	case cel_type_int8:	type = CEL_VA_INT8; break;
-	case cel_type_uint8:	type = CEL_VA_UINT8; break;
-	case cel_type_int16:	type = CEL_VA_INT16; break;
-	case cel_type_uint16:	type = CEL_VA_UINT16; break;
-	case cel_type_bool:
-	case cel_type_int32:	type = CEL_VA_INT32; break;
-	case cel_type_uint32:	type = CEL_VA_UINT32; break;
-	case cel_type_int64:	type = CEL_VA_INT64; break;
-	case cel_type_uint64:	type = CEL_VA_UINT64; break;
-	case cel_type_sfloat:	type = CEL_VA_SFLOAT; break;
-	case cel_type_dfloat:	type = CEL_VA_DFLOAT; break;
-	case cel_type_qfloat:	type = CEL_VA_QFLOAT; break;
-	case cel_type_ptr:	type = CEL_VA_PTR; break;
-	}
-
 	sz += cel_vm_emit_expr(s, f, e->ce_op.ce_binary.right, 1);
 	sz += cel_vm_emit_instr(f, inst);
 	sz += cel_vm_emit_immed16(f, varn);
-	sz += cel_vm_emit_immed8(f, type);
+	sz += cel_vm_emit_immed8(f, va_from_type(e->ce_op.ce_unary.operand->ce_type->ct_tag));
 	return sz;
 }
