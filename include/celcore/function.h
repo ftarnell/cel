@@ -23,6 +23,7 @@ typedef struct cel_function {
 	char			 *cf_name;
 	struct cel_type		 *cf_type;
 	struct cel_type		**cf_args;
+	char			**cf_argnames;
 	int			  cf_nargs;
 	cel_type_t		 *cf_return_type;
 	int			  cf_extern;

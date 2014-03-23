@@ -852,6 +852,11 @@ char		*extern_ = NULL;
 
 			CEL_TAILQ_INSERT_TAIL(func->cf_type->ct_type.ct_function.ct_args,
 					      a, ct_entry);
+			func->cf_argnames = realloc(func->cf_argnames, sizeof(char *) * (func->cf_nargs + 1));
+			func->cf_argnames[func->cf_nargs] = nm ? strdup(nm) : NULL;
+			func->cf_args = realloc(func->cf_args, sizeof(cel_type_t *) * (func->cf_nargs + 1));
+			func->cf_args[func->cf_nargs] = a;
+
 			if (nm) {
 				cel_scope_add_vardecl(func->cf_scope, nm, cel_make_any(a));
 				free(nm);

@@ -83,15 +83,14 @@ int32_t			 patch_nvars;
 	sz += cel_vm_emit_immed8(ret, 0);
 
 /* Emit a variable for each function argument */
-	CEL_TAILQ_FOREACH(si, &f->cf_scope->sc_items, si_entry) {
+	for (i = 0; i < f->cf_nargs; i++) {
 	int	type;
-		if (i++ == f->cf_nargs)
-			break;
+
 		ret->vf_vars = realloc(ret->vf_vars, sizeof(char const *) * (ret->vf_nvars + 1));
-		ret->vf_vars[ret->vf_nvars] = si->si_name;
+		ret->vf_vars[ret->vf_nvars] = f->cf_argnames[i];
 
 	/* Move arguments from the stack to local storage */
-		switch (si->si_ob.si_expr->ce_type->ct_tag) {
+		switch (f->cf_args[i]->ct_tag) {
 		case cel_type_int8:	type = CEL_VA_INT8; break;
 		case cel_type_uint8:	type = CEL_VA_UINT8; break;
 		case cel_type_int16:	type = CEL_VA_INT16; break;
@@ -106,10 +105,9 @@ int32_t			 patch_nvars;
 		case cel_type_qfloat:	type = CEL_VA_QFLOAT; break;
 		case cel_type_ptr:	type = CEL_VA_PTR; break;
 		}
-		sz += cel_vm_emit_instr(ret, CEL_I_VADDR);
-		sz += cel_vm_emit_immed16(ret, ret->vf_nvars);
-		sz += cel_vm_emit_instr(ret, CEL_I_STOM);
-		sz += cel_vm_emit_immed8(ret, type);
+
+		sz += cel_vm_emit_instr_immed16(ret, CEL_I_VADDR, ret->vf_nvars);
+		sz += cel_vm_emit_instr_immed8(ret, CEL_I_STOM, type);
 		ret->vf_nvars++;
 	}
 
@@ -736,7 +734,7 @@ int32_t		 sz = 0;
 
 /* Is this variable already in the var table? */
 	for (i = 0; i < f->vf_nvars; i++)
-		if (strcmp(e->ce_op.ce_vardecl.name, f->vf_vars[i]) == 0)
+		if (f->vf_vars[i] && strcmp(e->ce_op.ce_vardecl.name, f->vf_vars[i]) == 0)
 			return -1;
 
 /* No; add a new var ref */
@@ -748,7 +746,8 @@ int32_t		 sz = 0;
 /* If it has an initialiser, emit the init code */
 	if (e->ce_op.ce_vardecl.init) {
 	int	type;
-		switch (e->ce_op.ce_unary.operand->ce_type->ct_tag) {
+
+		switch (e->ce_op.ce_vardecl.init->ce_type->ct_tag) {
 		case cel_type_int8:	type = CEL_VA_INT8; break;
 		case cel_type_uint8:	type = CEL_VA_UINT8; break;
 		case cel_type_int16:	type = CEL_VA_INT16; break;
@@ -782,7 +781,7 @@ int32_t		 sz = 0;
 
 /* Is this variable already in the var table? */
 	for (i = 0; i < f->vf_nvars; i++) {
-		if (strcmp(e->ce_op.ce_variable, f->vf_vars[i]) == 0) {
+		if (f->vf_vars[i] && strcmp(e->ce_op.ce_variable, f->vf_vars[i]) == 0) {
 			varn = i;
 			break;
 		}
@@ -816,7 +815,7 @@ int		 type;
 
 /* Is this variable already in the var table? */
 	for (i = 0; i < f->vf_nvars; i++) {
-		if (strcmp(e->ce_op.ce_variable, f->vf_vars[i]) == 0) {
+		if (f->vf_vars[i] && strcmp(e->ce_op.ce_variable, f->vf_vars[i]) == 0) {
 			varn = i;
 			break;
 		}
@@ -888,7 +887,7 @@ cel_expr_t	*lhs = e->ce_op.ce_binary.left,
 	if (lhs->ce_tag == cel_exp_variable) {
 	/* Assigning to a variable - emit its address */
 		for (i = 0; i < f->vf_nvars; i++) {
-			if (strcmp(lhs->ce_op.ce_variable, f->vf_vars[i]) == 0) {
+			if (f->vf_vars[i] && strcmp(lhs->ce_op.ce_variable, f->vf_vars[i]) == 0) {
 				varn = i;
 				break;
 			}
@@ -951,8 +950,8 @@ int		 inst, type;
 
 /* Is this variable already in the var table? */
 	for (i = 0; i < f->vf_nvars; i++) {
-		if (strcmp(e->ce_op.ce_binary.left->ce_op.ce_variable,
-			   f->vf_vars[i]) == 0) {
+		if (f->vf_vars[i] && strcmp(e->ce_op.ce_binary.left->ce_op.ce_variable,
+					    f->vf_vars[i]) == 0) {
 			varn = i;
 			break;
 		}
