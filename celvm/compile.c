@@ -907,8 +907,6 @@ int32_t		 sz = 0;
 /* Pop its arguments */
 	for (i = e->ce_op.ce_call.args->ca_nargs; i > 0; i--)
 		sz += cel_vm_emit_instr(f, CEL_I_POPD);
-/* And its address */
-	sz += cel_vm_emit_instr(f, CEL_I_POPD);
 
 /* If it returns a value, push it */
 	if (e->ce_type->ct_tag != cel_type_void)
