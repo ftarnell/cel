@@ -905,8 +905,9 @@ int32_t		 sz = 0;
 	sz += cel_vm_emit_instr(f, CEL_I_CALL);
 
 /* Pop its arguments */
-	for (i = e->ce_op.ce_call.args->ca_nargs; i > 0; i--)
-		sz += cel_vm_emit_instr(f, CEL_I_POPD);
+	sz += cel_vm_emit_instr(f, CEL_I_DECR);
+	sz += cel_vm_emit_immed8(f, 1);
+	sz += cel_vm_emit_immed32(f, 8 * (e->ce_op.ce_call.args->ca_nargs));
 
 /* If it returns a value, push it */
 	if (e->ce_type->ct_tag != cel_type_void)
