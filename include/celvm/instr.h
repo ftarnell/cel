@@ -153,4 +153,39 @@ typedef	uint8_t	cel_vm_instr_t;
  */
 #define	CEL_I_VADDR	33
 
+/*
+ *	Move register to register
+ *	Arguments:	immediate 1-byte dest register number
+ *			immediate 1-byte src register number
+ */
+#define	CEL_I_MOVR	34
+
+/*
+ *	Load from memory address by register with offset
+ *	Arguments:	immediate 1-byte register number
+ *			immediate 4-byte offset
+ */
+#define	CEL_I_LOADMR	35
+
+/*
+ *	Store to memory address by register with offset
+ *	Arguments:	immediate 1-byte register number
+ *			immediate 4-byte offset
+ */
+#define	CEL_I_STOMR	36
+
+/*
+ *	Increment register by immediate
+ *	Arguments:	immediate 1-byte register number
+ *			immediate 4-byte value
+ */
+#define	CEL_I_INCR	37
+
+/*
+ *	Decrement register by immediate
+ *	Arguments:	immediate 1-byte register number
+ *			immediate 4-byte value
+ */
+#define	CEL_I_DECR	38
+
 #endif	/* !CEL_VM_INSTR_H */

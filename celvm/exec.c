@@ -38,11 +38,12 @@
 
 #define	STACKSZ 128
 
-#define	R_R0	0
-#define	R_R1	1
-#define	R_R2	2
-#define	R_R3	3
-#define	NREGS	4
+#define	R_R0	0	/* IP */
+#define	R_R1	1	/* SP */
+#define	R_R2	2	/* VP */
+#define	R_R3	3	/* return value */
+#define	R_R4	4	/* var base */
+#define	NREGS	64
 
 #define	R_IP	R_R0
 #define	R_SP	R_R1
@@ -92,7 +93,7 @@
 #define	PUT_SU8(v)	do { (((cel_vm_any_t *)regs->regs[R_SP].ptr)->u8 = (v)); regs->regs[R_SP].ptr += sizeof(cel_vm_any_t); } while (0)
 #define	PUT_SU16(v)	do { (((cel_vm_any_t *)regs->regs[R_SP].ptr)->u16 = (v)); regs->regs[R_SP].ptr += sizeof(cel_vm_any_t); } while (0)
 #define	PUT_SU32(v)	do { (((cel_vm_any_t *)regs->regs[R_SP].ptr)->u32 = (v)); regs->regs[R_SP].ptr += sizeof(cel_vm_any_t); } while (0)
-#define PUT_SU64(v)	do { PUT_SU32((v) >> 32); PUT_SU32((v) & 0xFFFFFFFF); } while (0)
+#define	PUT_SU64(v)	do { (((cel_vm_any_t *)regs->regs[R_SP].ptr)->u64 = (v)); regs->regs[R_SP].ptr += sizeof(cel_vm_any_t); } while (0)
 #define	PUT_SP(v)	do { (((cel_vm_any_t *)regs->regs[R_SP].ptr)->ptr = (v)); regs->regs[R_SP].ptr += sizeof(cel_vm_any_t); } while (0)
 #define	PUT_SI8(v)	PUT_SU8(v)
 #define	PUT_SI16(v)	PUT_SU16(v)
@@ -128,6 +129,9 @@ cel_vm_func_execute(s, f, ret)
 vm_regs_t	regs;
 
 	regs.regs[R_SP].ptr = calloc(STACKSZ, sizeof(cel_vm_any_t));
+	/* XXX - fudge two words up the stack for main()'s arguments */
+	regs.regs[R_SP].ptr += 16;
+
 	regs.regs[R_IP].ptr = f->vf_bytecode;
 	regs.ipstk = calloc(STACKSZ, sizeof(vm_ipstk_t));
 
@@ -165,6 +169,7 @@ cel_function_t	*func;
 
 		oip = regs->regs[R_IP].ptr;
 		inst = *regs->regs[R_IP].ptr++;
+
 		switch (inst) {
 		case CEL_I_ALLV:
 			GET_IU8(a.u8);
@@ -175,17 +180,48 @@ cel_function_t	*func;
 			regs->regs[R_VP].ptr = calloc(a.u8, sizeof(cel_vm_any_t));
 			break;
 
+		case CEL_I_CALL:
+			GET_SP(a.ptr);
+#if 0
+			/* Save IP and VP */
+			PUT_SU64(regs->regs[R_IP].u64);
+			PUT_SU64(regs->regs[R_VP].u64);
+#else
+			memcpy(regs->ipstk->regs, regs->regs, sizeof(regs->regs));
+#if 0
+			regs->ipstk->regs[R_VP].ptr = regs->regs[R_VP].ptr;
+			regs->ipstk->regs[R_IP].ptr = regs->regs[R_IP].ptr;
+			regs->ipstk->regs[R_SP].ptr = regs->regs[R_SP].ptr;
+#endif
+			regs->ipstk++;
+			regs->regs[R_VP].ptr = 0;
+#endif
+			regs->regs[R_IP].ptr = (uint8_t *) a.ptr;
+			break;
+
 		case CEL_I_RET:
+#if 1
 			/* XXX - restore R3 for return value */
-			a.u64 = regs->regs[R_R3].u32;
-			free(regs->regs[R_VP].ptr);
+			a.u64 = regs->regs[R_R3].u64;
 			--regs->ipstk;
+			memcpy(regs->regs, regs->ipstk->regs, sizeof(regs->regs));
+#if 0
 			regs->regs[R_R3].u64 = regs->ipstk->regs[R_R3].u64;
 			regs->regs[R_IP].ptr = regs->ipstk->regs[R_IP].ptr;
 			regs->regs[R_VP].ptr = regs->ipstk->regs[R_VP].ptr;
+			regs->regs[R_SP].ptr = regs->ipstk->regs[R_SP].ptr;
+#endif
 			regs->regs[R_R3].u64 = a.u64;
-			if  (regs->regs[R_VP].ptr == 0)
+
+			if  (regs->regs[R_IP].ptr == 0)
 				return 0;
+#else
+			/* Restore IP and VP */
+			GET_SU64(regs->regs[R_VP].u64);
+			GET_SU64(regs->regs[R_IP].u64);
+			/* inc IP */
+			regs->regs[R_IP].u64++;
+#endif
 
 			break;
 
@@ -422,15 +458,6 @@ cel_function_t	*func;
 		case CEL_I_STOLR:
 			break;
 
-		case CEL_I_CALL:
-			GET_SP(a.ptr);
-			regs->ipstk->regs[R_VP].ptr = regs->regs[R_VP].ptr;
-			regs->ipstk->regs[R_IP].ptr = regs->regs[R_IP].ptr;
-			regs->ipstk++;
-			regs->regs[R_VP].ptr = 0;
-			regs->regs[R_IP].ptr = (uint8_t *) a.ptr;
-			break;
-
 		case CEL_I_CALLE: {
 			void		**args;
 			cel_vm_any_t	*aargs;
@@ -496,8 +523,38 @@ cel_function_t	*func;
 			PUT_SU64(regs->regs[a.u8].u64);
 			break;
 
+		case CEL_I_MOVR:
+			GET_IU8(a.u8);
+			GET_IU8(b.u8);
+			regs->regs[a.u8].u64 = regs->regs[b.u8].u64;
+			break;
+
 		case CEL_I_POPD:
 			regs->regs[R_SP].ptr -= sizeof(cel_vm_any_t);
+			break;
+
+		case CEL_I_LOADMR:
+			GET_IU8(a.u8);
+			GET_IU32(b.u32);
+			PUT_SU64(* (uint64_t *) (regs->regs[a.u8].u64 + b.u32));
+			break;
+
+		case CEL_I_STOMR:
+			GET_IU8(a.u8);
+			GET_IU32(b.u32);
+			GET_SU64(* (uint64_t *) (regs->regs[a.u8].u64 + b.u32));
+			break;
+
+		case CEL_I_INCR:
+			GET_IU8(a.u8);
+			GET_IU32(b.u32);
+			regs->regs[a.u8].u64 += b.u32;
+			break;
+
+		case CEL_I_DECR:
+			GET_IU8(a.u8);
+			GET_IU32(b.u32);
+			regs->regs[a.u8].u64 -= b.u32;
 			break;
 
 		default:
