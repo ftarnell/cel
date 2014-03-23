@@ -109,13 +109,8 @@
 #define	GET_IDF(v)	do { (v) = GET_DFLOAT(regs->regs[R_IP].ptr); regs->regs[R_IP].ptr += sizeof(double); } while (0)
 #define	GET_IQF(v)	do { (v) = GET_QFLOAT(regs->regs[R_IP].ptr); regs->regs[R_IP].ptr += sizeof(long double); } while (0)
 
-typedef struct ipstk {
-	cel_vm_any_t	 regs[NREGS];
-} vm_ipstk_t;
-
 typedef struct vm_regs {
 	cel_vm_any_t	 regs[NREGS];
-	vm_ipstk_t	*ipstk;
 } vm_regs_t;
 
 static int cel_vm_bytecode_exec(vm_regs_t  *regs);
@@ -133,11 +128,7 @@ vm_regs_t	regs;
 	regs.regs[R_SP].ptr += 16;
 
 	regs.regs[R_IP].ptr = f->vf_bytecode;
-	regs.ipstk = calloc(STACKSZ, sizeof(vm_ipstk_t));
 
-	regs.ipstk[0].regs[R_IP].ptr = 0;
-	regs.ipstk[0].regs[R_VP].ptr = 0;
-	regs.ipstk++;
 	if (cel_vm_bytecode_exec(&regs) == -1)
 		return -1;
 
