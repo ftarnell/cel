@@ -124,8 +124,8 @@ vm_regs_t	regs;
 	regs[R_SP].ptr = calloc(STACKSZ, sizeof(cel_vm_any_t));
 	/* XXX - fudge two words up the stack for main()'s arguments */
 	regs[R_SP].ptr += 16;
-
 	regs[R_IP].ptr = f->vf_bytecode;
+	regs[5].u64 = 0;
 
 	if (cel_vm_bytecode_exec(regs) == -1)
 		return -1;
