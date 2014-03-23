@@ -40,14 +40,13 @@
 
 #define	R_R0	0	/* IP */
 #define	R_R1	1	/* SP */
-#define	R_R2	2	/* VP */
+#define	R_R2	2
 #define	R_R3	3	/* return value */
 #define	R_R4	4	/* var base */
 #define	NREGS	64
 
 #define	R_IP	R_R0
 #define	R_SP	R_R1
-#define	R_VP	R_R2
 
 #define	GET_UINT16(p)	((uint16_t) (p)[0] <<  8 |	\
 			 (uint16_t) (p)[1])
@@ -150,8 +149,6 @@ cel_vm_bytecode_exec(regs)
 {
 cel_vm_reg_t	 oip;
 cel_function_t	*func;
-
-	regs[R_VP] = 0;
 
 	for (;;) {
 	uint8_t		inst;
